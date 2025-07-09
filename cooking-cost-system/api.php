@@ -4,6 +4,7 @@ require_once 'config.php';
 require_once 'Database.php';
 require_once 'Response.php';
 require_once 'Validator.php';
+require_once 'utils.php';
 require_once 'models/Ingredient.php';
 require_once 'models/Dish.php';
 require_once 'models/CompletedFood.php';
