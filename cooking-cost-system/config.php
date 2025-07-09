@@ -14,10 +14,14 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // CORS設定（必要に応じて）
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+// APIリクエスト時のみヘッダー設定
+if (strpos($_SERVER['REQUEST_URI'], 'api.php') !== false || 
+    strpos($_SERVER['REQUEST_URI'], 'reports_api.php') !== false) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+}
 
 // OPTIONSリクエスト対応
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
