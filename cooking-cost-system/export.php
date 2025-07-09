@@ -2,7 +2,7 @@
 // export.php - データエクスポート機能
 require_once 'config.php';
 require_once 'Database.php';
-require_once 'utils.php';
+require_once 'Response.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
     try {
@@ -61,8 +61,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export'])) {
         }
         
     } catch (Exception $e) {
-        Utils::log('ERROR', 'Export failed: ' . $e->getMessage());
-        Utils::jsonResponse(['success' => false, 'message' => 'エクスポートに失敗しました'], 500);
+        // CSVエクスポート用のヘルパー関数を追加
+        function exportAsCSV($data, $filename) {
+            header('Content-Type: text/csv; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo "\xEF\xBB\xBF"; // BOM
+    
+            $output = fopen('php://output', 'w');
+            if (!empty($data)) {
+                fputcsv($output, array_keys($data[0]));
+                foreach ($data as $row) {
+                    fputcsv($output, $row);
+                }
+            }
+            fclose($output);
+        }
+
+        // 使用例
+        if ($format === 'csv') {
+            exportAsCSV($data, 'ingredients_' . date('Y-m-d') . '.csv');
+        } else {
+            Response::success($data);
+        }
     }
 }
 ?>
