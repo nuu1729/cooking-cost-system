@@ -441,9 +441,8 @@ SOFTWARE.
 
 ### 連絡先
 
-- **開発者**: [開発者名]
-- **Email**: [メールアドレス]
-- **GitHub**: [GitHubリポジトリURL]
+- **開発者**: nuu1729
+- **Email**: haya.take23@icloud.com
 
 ---
 
