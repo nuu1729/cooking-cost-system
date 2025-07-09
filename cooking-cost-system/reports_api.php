@@ -3,6 +3,7 @@
 require_once 'config.php';
 require_once 'Database.php';
 require_once 'Response.php';
+require_once 'utils.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
