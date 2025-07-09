@@ -1,485 +1,415 @@
-# cooking-cost-system
-For all restraunt owner
-# 🍽️ 料理原価計算システム（PHP版）v5.0
+# 🍽️ 料理原価計算システム v5.0
 
-元のHTML/JavaScriptシステムを完全にPHP/MySQL版に変換した、本格的なWebアプリケーションです。
+> **食材管理から完成品まで、包括的な原価計算を実現するWebアプリケーション**
 
-[![PHP Version](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
-[![MySQL Version](https://img.shields.io/badge/MySQL-5.7+-orange.svg)](https://mysql.com)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PHP Version](https://img.shields.io/badge/PHP-7.4%2B-blue)](https://php.net)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-orange)](https://mysql.com)
+[![License](https://img.shields.io/badge/License-MIT-green)](#license)
+[![Status](https://img.shields.io/badge/Status-Active%20Development-yellow)](#)
 
-## 📋 目次
+## 📋 **概要**
 
-- [機能一覧](#機能一覧)
-- [システム要件](#システム要件)
-- [ファイル構成](#ファイル構成)
-- [インストール手順](#インストール手順)
-- [API仕様](#api仕様)
-- [使用方法](#使用方法)
-- [管理者機能](#管理者機能)
-- [カスタマイズ](#カスタマイズ)
-- [トラブルシューティング](#トラブルシューティング)
-- [貢献方法](#貢献方法)
-- [ライセンス](#ライセンス)
+料理原価計算システムは、飲食業界や家庭での料理原価管理を効率化するWebアプリケーションです。食材の購入から最終的な完成品まで、段階的な原価計算と利益率分析を提供します。
 
-## 🎯 機能一覧
+### 🎯 **主な特徴**
 
-### 基本機能
-- ✅ **食材管理**: 登録・編集・削除・検索・価格比較
-- ✅ **料理作成**: ドラッグ&ドロップでレシピ作成
-- ✅ **完成品登録**: 盛り付け・原価計算・利益計算
-- ✅ **ジャンル別管理**: 肉・野菜・調味料・ソース・冷凍・ドリンク
-- ✅ **価格検索**: 最安値検索・店舗比較
-- ✅ **データ管理**: エクスポート・インポート・バックアップ
+- **📊 3段階の原価管理**: 食材 → 料理 → 完成品
+- **🎨 直感的なUI**: ドラッグ&ドロップによる操作
+- **📈 分析機能**: 統計、トレンド、利益率分析
+- **💾 データ管理**: エクスポート/インポート、バックアップ
+- **🔍 価格検索**: 食材価格の比較と最適化
+- **📱 レスポンシブ**: PC・タブレット・スマートフォン対応
 
-### 高度機能
-- 🎨 **モダンUI**: レスポンシブデザイン・アニメーション
-- 📊 **統計・分析**: ダッシュボード・レポート・グラフ
-- 🔧 **管理者パネル**: システム監視・メンテナンス
-- 📱 **モバイル対応**: タッチ操作・レスポンシブレイアウト
-- 🔒 **セキュリティ**: SQLインジェクション対策・入力検証
-- ⚡ **パフォーマンス**: インデックス最適化・キャッシュ機能
+## 🚀 **主な機能**
 
-## 🛠️ システム要件
+### 1. 食材管理
+- 食材の登録・編集・削除
+- 購入場所・価格・数量管理
+- ジャンル別分類（肉・野菜・調味料・ソース・冷凍・ドリンク）
+- 単価自動計算
+- 価格検索・比較
 
-### 必須要件
-- **PHP**: 7.4以上（8.0推奨）
-- **MySQL**: 5.7以上 または MariaDB 10.2以上
-- **Webサーバー**: Apache 2.4+ または Nginx 1.16+
-- **拡張機能**: PDO, PDO_MySQL, JSON, mbstring
+### 2. 料理作成
+- 食材をドラッグ&ドロップで料理作成
+- 使用量と原価の自動計算
+- 料理の保存・管理
+- レシピ情報の記録
 
-### 推奨要件
-- **メモリ**: 256MB以上
-- **ディスク容量**: 100MB以上
-- **PHP拡張**: OPcache, GD, Zip
+### 3. 完成品管理
+- 料理を組み合わせて完成品作成
+- 販売価格設定
+- 利益率自動計算
+- 原価分析
 
-### 対応ブラウザ
-- Chrome 70+
-- Firefox 65+
-- Safari 12+
-- Edge 79+
+### 4. 分析・レポート
+- 統計ダッシュボード
+- ジャンル別分布チャート
+- コスト効率分析
+- 人気料理ランキング
+- 月次サマリー
 
-## 📁 ファイル構成
+### 5. 管理機能
+- データバックアップ・復元
+- システム監視
+- エラーログ管理
+- 設定管理
 
-```
-cooking-cost-system/
-├── 📄 index.php                     # メインページ
-├── 📄 admin.php                     # 管理者パネル
-├── 📄 api.php                       # APIエンドポイント
-├── 📄 install.php                   # インストールウィザード
-├── 📄 config.php                    # 設定ファイル
-├── 📄 Database.php                  # データベース接続
-├── 📄 utils.php                     # ユーティリティ関数
-├── 📄 setup.sql                     # データベースセットアップ
-├── 📄 .htaccess                     # Apache設定
-├── 📄 README.md                     # このファイル
-├── 📁 models/                       # モデルクラス
-│   ├── 📄 Ingredient.php           # 食材モデル
-│   ├── 📄 Dish.php                 # 料理モデル
-│   ├── 📄 CompletedFood.php        # 完成品モデル
-│   └── 📄 Memo.php                 # メモモデル
-├── 📁 assets/                       # 静的ファイル
-│   ├── 📁 css/
-│   ├── 📁 js/
-│   └── 📁 images/
-├── 📁 logs/                         # ログファイル
-├── 📁 backups/                      # バックアップファイル
-└── 📁 uploads/                      # アップロードファイル
-```
+## 🛠️ **技術スタック**
 
-## 🚀 インストール手順
+### バックエンド
+- **PHP 7.4+**: サーバーサイドロジック
+- **MySQL 8.0+**: データベース
+- **Apache**: Webサーバー
 
-### 方法1: 自動インストール（推奨）
+### フロントエンド
+- **HTML5/CSS3**: ユーザーインターフェース
+- **JavaScript (ES6+)**: インタラクティブ機能
+- **RESTful API**: バックエンド通信
 
-1. **ファイルの配置**
+### 開発環境
+- **XAMPP**: ローカル開発環境
+- **Docker**: コンテナ化（オプション）
+- **phpMyAdmin**: データベース管理
+
+## 📦 **インストール**
+
+### 🔧 **方法1: XAMPP使用（推奨）**
+
+#### 前提条件
+- [XAMPP](https://www.apachefriends.org/) がインストール済み
+- PHP 7.4以上
+- MySQL/MariaDB
+
+#### インストール手順
+
+1. **プロジェクトのダウンロード**
    ```bash
-   # Webサーバーのドキュメントルートに配置
-   cd /var/www/html/
    git clone https://github.com/your-repo/cooking-cost-system.git
-   cd cooking-cost-system/
+   cd cooking-cost-system
    ```
 
-2. **権限設定**
-   ```bash
-   chmod 755 -R .
-   chmod 644 *.php
-   chmod 600 config.php
-   chown -R www-data:www-data .
+2. **XAMPP htdocsに配置**
+   ```
+   C:\xampp\htdocs\cooking-cost-system\
    ```
 
-3. **インストールウィザード実行**
+3. **XAMPP起動**
+   - XAMPP Control Panel を開く
+   - Apache「Start」をクリック
+   - MySQL「Start」をクリック
+
+4. **データベースセットアップ**
+   
+   **オプションA: phpMyAdmin使用（推奨）**
    ```
-   ブラウザで http://localhost/cooking-cost-system/install.php にアクセス
+   1. http://localhost/phpmyadmin にアクセス
+   2. 「新規作成」をクリック
+   3. データベース名: cooking_cost_system
+   4. 照合順序: utf8mb4_unicode_ci
+   5. 「作成」をクリック
+   6. 「インポート」タブでsetup.sqlをアップロード
    ```
 
-4. **セットアップ完了**
-   - システム要件チェック
-   - データベース設定
-   - 初期データ投入
-   - 設定ファイル生成
-
-### 方法2: 手動インストール
-
-1. **データベース作成**
+   **オプションB: コマンドライン**
    ```sql
+   mysql -u root -p
    CREATE DATABASE cooking_cost_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   CREATE USER 'cooking_user'@'localhost' IDENTIFIED BY 'your_password';
-   GRANT ALL PRIVILEGES ON cooking_cost_system.* TO 'cooking_user'@'localhost';
-   FLUSH PRIVILEGES;
+   USE cooking_cost_system;
+   SOURCE /path/to/setup.sql;
    ```
 
-2. **テーブル作成**
-   ```bash
-   mysql -u cooking_user -p cooking_cost_system < setup.sql
-   ```
-
-3. **設定ファイル編集**
+5. **設定ファイル確認**
    ```php
    // config.php
    define('DB_HOST', 'localhost');
    define('DB_NAME', 'cooking_cost_system');
-   define('DB_USER', 'cooking_user');
-   define('DB_PASS', 'your_password');
+   define('DB_USER', 'root');
+   define('DB_PASS', ''); // XAMPPの場合は空
    ```
 
-## 📡 API仕様
+6. **動作確認**
+   ```
+   http://localhost/cooking-cost-system/
+   ```
 
-### 基本URL
+### 🐳 **方法2: Docker使用**
+
+#### 前提条件
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) がインストール済み
+
+#### インストール手順
+
+1. **プロジェクトのダウンロード**
+   ```bash
+   git clone https://github.com/your-repo/cooking-cost-system.git
+   cd cooking-cost-system
+   ```
+
+2. **Docker起動**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **アクセス**
+   ```
+   アプリケーション: http://localhost
+   phpMyAdmin: http://localhost:8080
+   管理画面: http://localhost/admin.php
+   ```
+
+4. **停止**
+   ```bash
+   docker-compose down
+   ```
+
+## 📁 **プロジェクト構成**
+
 ```
-/api.php/{endpoint}
+cooking-cost-system/
+├── 📄 index.php              # メイン画面
+├── 📄 admin.php              # 管理者パネル
+├── 📄 api.php                # RESTful API
+├── 📄 reports_api.php        # レポート API
+├── 📄 config.php             # データベース設定
+├── 📄 Database.php           # データベース接続クラス
+├── 📄 Response.php           # APIレスポンスクラス
+├── 📄 Validator.php          # バリデーションクラス
+├── 📄 utils.php              # ユーティリティ関数
+├── 📄 setup.sql              # データベースセットアップ
+├── 📄 install.php            # インストールウィザード
+├── 📄 maintenance.php        # メンテナンスモード
+├── 📄 export.php             # データエクスポート
+├── 📄 app.js                 # フロントエンドJS
+├── 📄 .htaccess              # Apache設定
+├── 📄 docker-compose.yml     # Docker設定
+├── 📄 Dockerfile             # Dockerイメージ
+├── 📂 models/                # データモデル
+│   ├── 📄 Ingredient.php     # 食材モデル
+│   ├── 📄 Dish.php           # 料理モデル
+│   ├── 📄 CompletedFood.php  # 完成品モデル
+│   └── 📄 Memo.php           # メモモデル
+├── 📂 logs/                  # ログファイル
+└── 📂 docker/                # Docker設定ファイル
 ```
 
-### 認証
-現在は認証不要（将来的にAPIキー認証を実装予定）
+## 🎮 **使用方法**
+
+### 基本的なワークフロー
+
+#### 1. 食材登録
+```
+1. 「食材管理」セクションで「+」ボタンをクリック
+2. 食材情報を入力（名前、購入場所、数量、単価等）
+3. ジャンルを選択
+4. 「追加」ボタンで保存
+```
+
+#### 2. 料理作成
+```
+1. 登録した食材を「DISH」エリアにドラッグ&ドロップ
+2. 使用量を入力
+3. 料理名を入力
+4. 「料理を作成」ボタンで保存
+```
+
+#### 3. 完成品作成
+```
+1. 作成した料理を「FOOD」エリアにドラッグ&ドロップ
+2. 使用量と販売価格を設定
+3. 完成品名を入力
+4. 「完成品を登録」ボタンで保存
+```
+
+#### 4. 分析確認
+```
+1. 管理画面（admin.php）にアクセス
+2. 統計情報、チャート、レポートを確認
+3. 利益率や効率性を分析
+```
+
+### 🔑 **主要なURL**
+
+- **メイン画面**: `http://localhost/cooking-cost-system/`
+- **管理画面**: `http://localhost/cooking-cost-system/admin.php`
+- **phpMyAdmin**: `http://localhost/phpmyadmin`（XAMPP）
+- **API**: `http://localhost/cooking-cost-system/api.php`
+
+## 🔧 **トラブルシューティング**
+
+### よくある問題と解決策
+
+#### 1. 白い画面が表示される
+```php
+// debug-index.php を作成してアクセス
+<?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+echo "PHPテスト成功!";
+?>
+```
+
+#### 2. データベース接続エラー
+```
+- XAMPPでMySQLが起動しているか確認
+- config.phpの認証情報を確認
+- データベースが作成されているか確認
+```
+
+#### 3. localhost接続拒否
+```
+- XAMPP Control PanelでApacheが起動しているか確認
+- ポート80が他のアプリケーションで使用されていないか確認
+- ファイアウォール設定を確認
+```
+
+#### 4. ファイルが見つからない
+```
+- 必要なファイルがすべて配置されているか確認
+- models/フォルダとその中のファイルを確認
+- .htaccessファイルの配置を確認
+```
+
+### 🩺 **デバッグツール**
+
+システムには以下のデバッグツールが含まれています：
+
+- **debug-index.php**: システム状態の確認
+- **db-check.php**: データベース接続テスト
+- **エラーログ**: `logs/app.log`でエラー確認
+
+## 📊 **API仕様**
+
+### 基本形式
+```
+BASE URL: http://localhost/cooking-cost-system/api.php
+Content-Type: application/json
+```
 
 ### エンドポイント一覧
 
 #### 食材管理
 ```
-GET    /api.php/ingredients              # 食材一覧取得
-GET    /api.php/ingredients/{id}         # 特定食材取得
-POST   /api.php/ingredients              # 食材追加
-PUT    /api.php/ingredients/{id}         # 食材更新
-DELETE /api.php/ingredients/{id}         # 食材削除
+GET    /api.php/ingredients          # 食材一覧取得
+POST   /api.php/ingredients          # 食材追加
+PUT    /api.php/ingredients/{id}     # 食材更新
+DELETE /api.php/ingredients/{id}     # 食材削除
 ```
 
 #### 料理管理
 ```
-GET    /api.php/dishes                   # 料理一覧取得
-GET    /api.php/dishes/{id}              # 特定料理取得
-POST   /api.php/dishes                   # 料理作成
-PUT    /api.php/dishes/{id}              # 料理更新
-DELETE /api.php/dishes/{id}              # 料理削除
+GET    /api.php/dishes               # 料理一覧取得
+POST   /api.php/dishes               # 料理作成
+PUT    /api.php/dishes/{id}          # 料理更新
+DELETE /api.php/dishes/{id}          # 料理削除
 ```
 
 #### 完成品管理
 ```
-GET    /api.php/foods                    # 完成品一覧取得
-GET    /api.php/foods/{id}               # 特定完成品取得
-POST   /api.php/foods                    # 完成品登録
-PUT    /api.php/foods/{id}               # 完成品更新
-DELETE /api.php/foods/{id}               # 完成品削除
+GET    /api.php/foods                # 完成品一覧取得
+POST   /api.php/foods                # 完成品作成
+PUT    /api.php/foods/{id}           # 完成品更新
+DELETE /api.php/foods/{id}           # 完成品削除
 ```
 
-#### その他
+#### レポート
 ```
-GET    /api.php/memo                     # メモ取得
-POST   /api.php/memo                     # メモ保存
-GET    /api.php/price-search             # 価格検索
-GET    /api.php/data                     # 全データエクスポート
-POST   /api.php/data                     # 全データインポート
+GET    /reports_api.php?type=summary           # 概要統計
+GET    /reports_api.php?type=cost_analysis     # コスト分析
+GET    /reports_api.php?type=efficiency        # 効率分析
 ```
 
-### レスポンス形式
+## 🔐 **セキュリティ**
 
-#### 成功時
-```json
-{
-  "success": true,
-  "message": "Success",
-  "data": { ... }
-}
-```
+### 実装済みセキュリティ機能
 
-#### エラー時
-```json
-{
-  "success": false,
-  "message": "Error message",
-  "details": "Detailed error information"
-}
-```
+- **SQLインジェクション対策**: プリペアドステートメント使用
+- **XSS対策**: 出力時のエスケープ処理
+- **CSRF対策**: トークンベース認証
+- **ファイルアクセス制限**: .htaccessによる保護
+- **入力値検証**: Validatorクラスによる厳密なチェック
 
-## 💡 使用方法
+### セキュリティ推奨事項
 
-### 基本的な使い方
+1. **本番環境では**:
+   - `error_reporting(E_ALL)`を無効にする
+   - `display_errors`を無効にする
+   - 強力なデータベースパスワードを設定
+   - HTTPS通信を使用
 
-1. **食材の登録**
-   - 「➕ 追加」ボタンをクリック
-   - 食材情報を入力（名前、店舗、数量、価格等）
-   - ジャンルを選択して「追加」
-
-2. **料理の作成**
-   - 食材パネルから食材をドラッグ
-   - 料理作成エリアにドロップ
-   - 使用量を入力
-   - 料理名を入力して「料理を作成」
-
-3. **完成品の登録**
-   - 料理パネルから料理をドラッグ
-   - FOODエリアにドロップ
-   - 使用量・説明を入力
-   - 完成品名と販売価格を入力して「完成品として登録」
-
-### 高度な使い方
-
-#### 価格検索
-```
-🔍 価格検索 → 食材名・店舗でフィルタ → 最安値確認
-```
-
-#### データ管理
-```
-💾 保存 → JSONファイルでエクスポート
-📁 読み込み → JSONファイルをインポート
-```
-
-#### 管理者機能
-```
-admin.php → ダッシュボード・統計・システム管理
-```
-
-## 👑 管理者機能
-
-### ダッシュボード
-- 📊 リアルタイム統計
-- 📈 ジャンル別グラフ
-- 📋 活動ログ
-- 💻 システム情報
-
-### 機能一覧
-- **統計分析**: 食材数・料理数・原価分析
-- **システム監視**: CPU・メモリ・ディスク使用量
-- **データ管理**: バックアップ・復元・最適化
-- **メンテナンス**: キャッシュクリア・ログ管理
-
-### アクセス方法
-```
-http://your-domain.com/admin.php
-```
-
-## 🎨 カスタマイズ
-
-### テーマカスタマイズ
-
-#### CSS変数でカラー変更
-```css
-:root {
-  --primary-color: #667eea;
-  --secondary-color: #764ba2;
-  --success-color: #4caf50;
-  --warning-color: #ff9800;
-  --error-color: #f44336;
-}
-```
-
-#### ダークモード対応
-```css
-@media (prefers-color-scheme: dark) {
-  /* ダークモード用スタイル */
-}
-```
-
-### 機能拡張
-
-#### 新しいジャンル追加
-```php
-// genreInfo に追加
-const genreInfo = {
-    // 既存ジャンル...
-    'custom': { name: 'カスタム', icon: '🔧', color: '#9c27b0' }
-};
-```
-
-#### カスタムAPI追加
-```php
-// api.php に新しいエンドポイント追加
-case 'custom-endpoint':
-    handleCustomAPI($request_method, $id, $input, $query_params, $database);
-    break;
-```
-
-### 多言語対応
-
-#### 言語ファイル作成
-```javascript
-const translations = {
-    'ja': { /* 日本語 */ },
-    'en': { /* English */ },
-    'zh': { /* 中文 */ }
-};
-```
-
-## 🔧 トラブルシューティング
-
-### よくある問題
-
-#### 1. データベース接続エラー
-```
-症状: "データベース接続エラー"
-原因: config.php の設定が間違っている
-解決: DB_HOST, DB_USER, DB_PASS を確認
-```
-
-#### 2. APIエラー500
-```
-症状: Internal Server Error
-原因: PHPエラー、ファイル権限
-解決: error.log を確認、chmod 755 実行
-```
-
-#### 3. 画面が表示されない
-```
-症状: 白い画面
-原因: JavaScript エラー、CSS読み込み失敗
-解決: ブラウザの開発者ツールでエラー確認
-```
-
-#### 4. ドラッグ&ドロップが動作しない
-```
-症状: 食材をドラッグできない
-原因: ブラウザ互換性、JavaScript無効
-解決: モダンブラウザ使用、JavaScript有効化
-```
-
-### ログ確認方法
-
-#### PHPエラーログ
-```bash
-tail -f /var/log/php_errors.log
-```
-
-#### アプリケーションログ
-```bash
-tail -f logs/app.log
-```
-
-#### データベースログ
-```bash
-tail -f /var/log/mysql/error.log
-```
-
-### パフォーマンス最適化
-
-#### MySQL最適化
-```sql
--- インデックス確認
-SHOW INDEX FROM ingredients;
-
--- スロークエリ確認
-SHOW PROCESSLIST;
-
--- テーブル最適化
-OPTIMIZE TABLE ingredients, dishes, completed_foods;
-```
-
-#### PHP最適化
-```php
-// OPcache 設定
-opcache.enable=1
-opcache.memory_consumption=128
-opcache.max_accelerated_files=4000
-```
-
-## 🤝 貢献方法
-
-### 開発に参加する
-
-1. **リポジトリをフォーク**
+2. **ファイル権限**:
    ```bash
-   git clone https://github.com/your-username/cooking-cost-system.git
+   chmod 755 ディレクトリ
+   chmod 644 PHPファイル
+   chmod 600 config.php
    ```
 
-2. **開発ブランチを作成**
-   ```bash
-   git checkout -b feature/new-feature
+## 🧪 **テスト**
+
+### 動作確認テスト
+
+1. **基本機能**:
+   ```
+   □ 食材の追加・編集・削除
+   □ 料理の作成・表示・削除
+   □ 完成品の作成・表示・削除
+   □ 原価の自動計算
    ```
 
-3. **変更をコミット**
-   ```bash
-   git commit -am 'Add new feature'
+2. **UI機能**:
+   ```
+   □ ドラッグ&ドロップ操作
+   □ リアルタイム計算
+   □ レスポンシブデザイン
+   □ モーダル表示
    ```
 
-4. **プルリクエスト作成**
-   ```bash
-   git push origin feature/new-feature
+3. **データ管理**:
+   ```
+   □ データエクスポート/インポート
+   □ バックアップ・復元
+   □ 検索・フィルタリング
+   □ 統計・分析表示
    ```
 
-### 報告・要望
+## 🤝 **貢献**
 
-- 🐛 **バグ報告**: [Issues](https://github.com/your-repo/issues) でバグを報告
-- 💡 **機能要望**: [Discussions](https://github.com/your-repo/discussions) で機能を提案
-- 📖 **ドキュメント**: README.md の改善提案
+### 開発に参加するには
 
-### コーディング規約
+1. **フォーク**: このリポジトリをフォーク
+2. **ブランチ作成**: `git checkout -b feature/amazing-feature`
+3. **変更をコミット**: `git commit -m 'Add amazing feature'`
+4. **プッシュ**: `git push origin feature/amazing-feature`
+5. **プルリクエスト作成**: GitHub上でプルリクエストを作成
 
-#### PHP
-```php
-// PSR-4 準拠
-class ClassName {
-    public function methodName($parameter) {
-        return $result;
-    }
-}
-```
+### 開発ガイドライン
 
-#### JavaScript
-```javascript
-// ES6+ 使用
-const functionName = (parameter) => {
-    return result;
-};
-```
+- **コーディング規約**: PSR-12に準拠
+- **コメント**: 日本語で記述
+- **テスト**: 新機能には適切なテストを追加
+- **ドキュメント**: README更新が必要な場合は含める
 
-#### SQL
-```sql
--- 大文字でキーワード、小文字でテーブル名
-SELECT column_name 
-FROM table_name 
-WHERE condition = 'value';
-```
+## 📝 **更新履歴**
 
-## 📋 TODO / 今後の予定
+### v5.0 (Current)
+- 🆕 完全なUI/UX刷新
+- 🆕 ドラッグ&ドロップ機能
+- 🆕 Docker対応
+- 🆕 レポート・分析機能強化
+- 🆕 レスポンシブデザイン
+- 🔧 セキュリティ強化
+- 🔧 パフォーマンス改善
 
-### v5.1 予定機能
-- [ ] ユーザー認証システム
-- [ ] 多店舗対応
-- [ ] 在庫管理機能
-- [ ] レシピ写真アップロード
-- [ ] PDF レポート出力
+### v4.0
+- 基本的な原価計算機能
+- MySQL対応
+- 基本的なWeb UI
 
-### v5.2 予定機能
-- [ ] モバイルアプリ（PWA）
-- [ ] リアルタイム同期
-- [ ] AI による価格予測
-- [ ] 栄養成分計算
-- [ ] 多言語対応（英語・中国語）
+## 📜 **ライセンス**
 
-### v6.0 予定機能
-- [ ] マイクロサービス化
-- [ ] GraphQL API
-- [ ] React/Vue.js フロントエンド
-- [ ] Docker 対応
-- [ ] Kubernetes 対応
-
-## 📄 ライセンス
-
-このプロジェクトは [MIT License](LICENSE) の下で公開されています。
-
-```
 MIT License
 
-Copyright (c) 2024 料理原価計算システム開発チーム
+```
+Copyright (c) 2024 料理原価計算システム
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -500,24 +430,39 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## 🙏 謝辞
+## 📞 **サポート**
 
-このプロジェクトの開発にあたり、以下の方々に感謝いたします：
+### 問題が発生した場合
 
-- **オープンソースコミュニティ**: PHP、MySQL、Apache の開発者の皆様
-- **デザインインスピレーション**: モダンWebデザインの先駆者の皆様
-- **テスター**: ベータ版をテストしていただいた皆様
-- **貢献者**: プルリクエストやIssue報告をしていただいた皆様
+1. **FAQ確認**: よくある問題をREADMEで確認
+2. **デバッグツール使用**: debug-index.phpで状態確認
+3. **ログ確認**: logs/app.logでエラーログ確認
+4. **Issue作成**: GitHubで問題を報告
 
-## 📞 サポート・連絡先
+### 連絡先
 
-- **公式サイト**: https://cooking-cost-system.example.com
-- **ドキュメント**: https://docs.cooking-cost-system.example.com
-- **サポート**: support@cooking-cost-system.example.com
-- **GitHub**: https://github.com/your-repo/cooking-cost-system
+- **開発者**: [開発者名]
+- **Email**: [メールアドレス]
+- **GitHub**: [GitHubリポジトリURL]
 
 ---
 
-**🍽️ 料理原価計算システム v5.0** - より良い料理管理のために
+## 🙏 **謝辞**
 
-*Made with ❤️ by Development Team*
+このプロジェクトは以下の技術・ライブラリを使用しています：
+
+- **PHP**: サーバーサイド開発
+- **MySQL**: データベース管理
+- **Apache**: Webサーバー
+- **Bootstrap Icons**: アイコン
+- **Font Awesome**: UI要素
+
+---
+
+<div align="center">
+
+**🍽️ 料理原価計算システム v5.0**
+
+Made with ❤️ for the culinary community
+
+</div>
