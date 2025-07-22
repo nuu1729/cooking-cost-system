@@ -1,0 +1,169 @@
+version: '3.8'
+
+services:
+  # MySQL データベース
+  database:
+    image: mysql:8.0
+    container_name: cooking-cost-db-prod
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: cooking_cost_system
+      MYSQL_USER: cooking_user
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    volumes:
+      - db_data_prod:/var/lib/mysql
+      - ./setup.sql:/docker-entrypoint-initdb.d/setup.sql:ro
+      - ./mysql-conf:/etc/mysql/conf.d:ro
+    networks:
+      - cooking-network
+    secrets:
+      - mysql_root_password
+      - mysql_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "cooking_user", "-p$$(cat /run/secrets/mysql_password)"]
+      timeout: 20s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # バックエンド API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cooking-cost-backend-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: database
+      DB_USER: cooking_user
+      DB_PASSWORD_FILE: /run/secrets/mysql_password
+      DB_NAME: cooking_cost_system
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+    volumes:
+      - app_logs:/app/logs
+      - app_uploads:/app/uploads
+    networks:
+      - cooking-network
+    depends_on:
+      database:
+        condition: service_healthy
+    secrets:
+      - mysql_password
+      - jwt_secret
+    healthcheck:
+      test: ["CMD", "node", "health-check.js"]
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # フロントエンド
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cooking-cost-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+      - "443:8443"
+    networks:
+      - cooking-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Redis (将来用キャッシュ)
+  redis:
+    image: redis:7-alpine
+    container_name: cooking-cost-redis-prod
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass "$(cat /run/secrets/redis_password)"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cooking-network
+    secrets:
+      - redis_password
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # 監視 (将来用)
+  monitoring:
+    image: prom/node-exporter:latest
+    container_name: cooking-cost-monitoring
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - cooking-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+# シークレット管理
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  mysql_password:
+    file: ./secrets/mysql_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  redis_password:
+    file: ./secrets/redis_password.txt
+
+# ボリューム
+volumes:
+  db_data_prod:
+    driver: local
+  app_logs:
+    driver: local
+  app_uploads:
+    driver: local
+  redis_data:
+    driver: local
+
+# ネットワーク
+networks:
+  cooking-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
