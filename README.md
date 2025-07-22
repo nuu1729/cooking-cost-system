@@ -296,7 +296,7 @@ docker-compose exec frontend npm run test:coverage
 
 ## 📞 サポート
 
-- 📧 Email: support@cooking-cost-system.com
+- 📧 Email: haya.take23@icloud.com
 - 🐛 Issues: [GitHub Issues](https://github.com/your-repo/issues)
 - 📖 Documentation: [Wiki](https://github.com/your-repo/wiki)
 
