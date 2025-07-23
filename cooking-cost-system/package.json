@@ -1,0 +1,51 @@
+{
+  "name": "cooking-cost-system",
+  "version": "2.0.0",
+  "description": "🍽️ 料理原価計算システム v2.0 - モダンな料理原価管理アプリケーション",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "make dev",
+    "build": "./scripts/build.sh",
+    "test": "./scripts/test.sh",
+    "clean": "./scripts/cleanup.sh",
+    "setup": "./scripts/dev-setup.sh",
+    "deploy:staging": "./scripts/deploy.sh staging",
+    "deploy:production": "./scripts/deploy.sh production",
+    "backup": "./scripts/backup.sh",
+    "install:all": "npm install && npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:fix": "npm run lint:backend -- --fix && npm run lint:frontend -- --fix"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "cross-env": "^7.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/cooking-cost-system.git"
+  },
+  "keywords": [
+    "cooking",
+    "cost-calculation",
+    "restaurant",
+    "food-service",
+    "nodejs",
+    "react",
+    "typescript",
+    "docker"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT"
+}
