@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # データベース
+  database:
+    image: mysql:8.0
+    container_name: cooking_cost_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: cooking_cost_system
+      MYSQL_USER: cooking_user
+      MYSQL_PASSWORD: cooking_password
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - cooking_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Redis (キャッシュ・セッション用)
+  redis:
+    image: redis:7-alpine
+    container_name: cooking_cost_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cooking_network
+    command: redis-server --appendonly yes
+
+  # バックエンドAPI (開発環境)
+  backend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: cooking_cost_backend_dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_NAME: cooking_cost_system
+      DB_USER: cooking_user
+      DB_PASSWORD: cooking_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      LOG_LEVEL: debug
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - cooking_network
+    depends_on:
+      - database
+      - redis
+    command: npm run dev
+
+  # バックエンドAPI (本番環境)
+  backend-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cooking_cost_backend_prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: database
+      DB_PORT: 3306
+      DB_NAME: cooking_cost_system
+      DB_USER: cooking_user
+      DB_PASSWORD: cooking_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      LOG_LEVEL: info
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    networks:
+      - cooking_network
+    depends_on:
+      - database
+      - redis
+    profiles:
+      - production
+
+  # phpMyAdmin (データベース管理用)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: cooking_cost_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: database
+      PMA_PORT: 3306
+      PMA_USER: cooking_user
+      PMA_PASSWORD: cooking_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "8080:80"
+    networks:
+      - cooking_network
+    depends_on:
+      - database
+    profiles:
+      - tools
+
+networks:
+  cooking_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
