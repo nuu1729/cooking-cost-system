@@ -1,0 +1,135 @@
+# 🍽️ 料理原価計算システム v2.0 - Git除外設定
+
+# =================================
+# Node.js
+# =================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# =================================
+# Environment Files
+# =================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+
+# =================================
+# Build Outputs
+# =================================
+dist/
+build/
+backend/dist/
+frontend/build/
+backend/build/
+
+# =================================
+# Logs
+# =================================
+logs/
+*.log
+backend/logs/
+frontend/logs/
+
+# =================================
+# Database
+# =================================
+*.sqlite
+*.sqlite3
+*.db
+
+# =================================
+# Uploads & Temporary Files
+# =================================
+uploads/
+temp/
+tmp/
+backend/uploads/
+frontend/uploads/
+
+# =================================
+# Secrets & Keys
+# =================================
+secrets/
+*.pem
+*.key
+*.cert
+*.crt
+ssl/
+
+# =================================
+# Backups
+# =================================
+backups/
+*.sql
+*.sql.gz
+*.dump
+
+# =================================
+# IDE & Editor
+# =================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =================================
+# macOS
+# =================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# =================================
+# Windows
+# =================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =================================
+# Linux
+# =================================
+*~
+.nfs*
+
+# =================================
+# Testing
+# =================================
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+backend/coverage/
+frontend/coverage/
+
+# =================================
+# Package Managers
+# =================================
+.npm
+.yarn
+.pnpm-store/
+
+# =================================
+# Docker
+# =================================
+.docker/
+
+# =================================
+# Miscellaneous
+# =================================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
