@@ -1,355 +1,368 @@
+# ================================
 # 料理原価計算システム - Makefile
-# 開発・運用タスクの自動化
+# ================================
 
-.PHONY: help install build test lint clean dev prod backup restore logs
+.PHONY: help install build start dev test lint clean docker-build docker-run deploy
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
 
-# 変数定義
-PROJECT_NAME := cooking-cost-system
-BACKEND_DIR := backend
-DOCKER_COMPOSE_DEV := docker-compose -f docker-compose.yml -f docker-compose.dev.yml
-DOCKER_COMPOSE_PROD := docker-compose -f docker-compose.yml -f docker-compose.prod.yml
-DOCKER_COMPOSE_TEST := docker-compose -f docker-compose.yml -f docker-compose.test.yml
+# 環境変数
+NODE_ENV ?= development
+PORT ?= 3001
+DOCKER_IMAGE_NAME = cooking-cost-backend
+DOCKER_TAG ?= latest
+REGISTRY ?= ghcr.io/cooking-cost-system
 
-# カラー定義
-RED := \033[31m
-GREEN := \033[32m
-YELLOW := \033[33m
-BLUE := \033[34m
-MAGENTA := \033[35m
-CYAN := \033[36m
-WHITE := \033[37m
-RESET := \033[0m
-
-# ================================
-# ヘルプ
-# ================================
-help: ## このヘルプメッセージを表示
-	@echo "$(CYAN)料理原価計算システム - 開発コマンド$(RESET)"
-	@echo "$(CYAN)=====================================$(RESET)"
+# ヘルプ表示
+help: ## ヘルプを表示
+	@echo "料理原価計算システム - バックエンド"
+	@echo "=================================="
 	@echo ""
-	@echo "$(YELLOW)開発関連:$(RESET)"
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(install|dev|build|test|lint)"
+	@echo "利用可能なコマンド:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(YELLOW)運用関連:$(RESET)"
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(prod|backup|restore|logs)"
-	@echo ""
-	@echo "$(YELLOW)ユーティリティ:$(RESET)"
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST) | grep -E "(clean|check|init)"
 
 # ================================
-# セットアップ・インストール
+# 開発環境セットアップ
 # ================================
+
 install: ## 依存関係をインストール
-	@echo "$(BLUE)依存関係をインストール中...$(RESET)"
-	cd $(BACKEND_DIR) && npm ci
-	@echo "$(GREEN)✅ インストール完了$(RESET)"
+	@echo "📦 依存関係をインストール中..."
+	npm ci
+	@echo "✅ インストール完了"
 
 install-dev: ## 開発用依存関係をインストール
-	@echo "$(BLUE)開発用依存関係をインストール中...$(RESET)"
-	cd $(BACKEND_DIR) && npm install
-	@echo "$(GREEN)✅ 開発用インストール完了$(RESET)"
+	@echo "📦 開発用依存関係をインストール中..."
+	npm install
+	@echo "✅ 開発用インストール完了"
 
-init: ## プロジェクト初期化
-	@echo "$(BLUE)プロジェクトを初期化中...$(RESET)"
-	@make install
-	@make setup-env
-	@make setup-dirs
-	@echo "$(GREEN)✅ プロジェクト初期化完了$(RESET)"
-
-setup-env: ## 環境変数ファイルをセットアップ
-	@echo "$(BLUE)環境変数ファイルをセットアップ中...$(RESET)"
-	@if [ ! -f $(BACKEND_DIR)/.env ]; then \
-		cp $(BACKEND_DIR)/.env.example $(BACKEND_DIR)/.env; \
-		echo "$(YELLOW)⚠️  .env ファイルを作成しました。適切な値に設定してください。$(RESET)"; \
-	else \
-		echo "$(GREEN)✅ .env ファイルは既に存在します$(RESET)"; \
-	fi
-
-setup-dirs: ## 必要なディレクトリを作成
-	@echo "$(BLUE)ディレクトリを作成中...$(RESET)"
-	@mkdir -p $(BACKEND_DIR)/logs
-	@mkdir -p $(BACKEND_DIR)/uploads
-	@mkdir -p $(BACKEND_DIR)/backups
-	@mkdir -p $(BACKEND_DIR)/temp
-	@echo "$(GREEN)✅ ディレクトリ作成完了$(RESET)"
+setup: install ## 初期セットアップ
+	@echo "🔧 初期セットアップ中..."
+	cp .env.example .env
+	mkdir -p logs uploads
+	@echo "✅ セットアップ完了"
 
 # ================================
-# 開発環境
+# ビルド
 # ================================
-dev: ## 開発環境を起動
-	@echo "$(BLUE)開発環境を起動中...$(RESET)"
-	$(DOCKER_COMPOSE_DEV) up --build
 
-dev-daemon: ## 開発環境をバックグラウンドで起動
-	@echo "$(BLUE)開発環境をバックグラウンドで起動中...$(RESET)"
-	$(DOCKER_COMPOSE_DEV) up -d --build
-	@echo "$(GREEN)✅ 開発環境が起動しました$(RESET)"
-	@echo "$(CYAN)API: http://localhost:3001$(RESET)"
-	@echo "$(CYAN)phpMyAdmin: http://localhost:8080$(RESET)"
-	@echo "$(CYAN)Redis Commander: http://localhost:8081$(RESET)"
-	@echo "$(CYAN)MailHog: http://localhost:8025$(RESET)"
+build: ## TypeScriptをビルド
+	@echo "🔨 ビルド中..."
+	npm run build
+	@echo "✅ ビルド完了"
 
-dev-local: ## ローカルで開発サーバーを起動
-	@echo "$(BLUE)ローカル開発サーバーを起動中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run dev
+build-clean: clean build ## クリーンビルド
+	@echo "✅ クリーンビルド完了"
 
-dev-stop: ## 開発環境を停止
-	@echo "$(BLUE)開発環境を停止中...$(RESET)"
-	$(DOCKER_COMPOSE_DEV) down
-	@echo "$(GREEN)✅ 開発環境を停止しました$(RESET)"
-
-dev-restart: ## 開発環境を再起動
-	@make dev-stop
-	@make dev-daemon
+typecheck: ## 型チェック
+	@echo "🔍 型チェック中..."
+	npm run typecheck
+	@echo "✅ 型チェック完了"
 
 # ================================
-# ビルド・テスト
+# 実行
 # ================================
-build: ## アプリケーションをビルド
-	@echo "$(BLUE)アプリケーションをビルド中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run build
-	@echo "$(GREEN)✅ ビルド完了$(RESET)"
+
+start: build ## 本番モードで起動
+	@echo "🚀 本番モードで起動中..."
+	NODE_ENV=production npm start
+
+dev: ## 開発モードで起動
+	@echo "🚀 開発モードで起動中..."
+	npm run dev
+
+dev-debug: ## デバッグモードで起動
+	@echo "🐛 デバッグモードで起動中..."
+	NODE_ENV=development DEBUG=* npm run dev
+
+# ================================
+# テスト
+# ================================
 
 test: ## テストを実行
-	@echo "$(BLUE)テストを実行中...$(RESET)"
-	cd $(BACKEND_DIR) && npm test
-	@echo "$(GREEN)✅ テスト完了$(RESET)"
+	@echo "🧪 テスト実行中..."
+	npm test
 
 test-watch: ## テストを監視モードで実行
-	@echo "$(BLUE)テスト監視モードを開始中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run test:watch
+	@echo "👀 テスト監視モード..."
+	npm run test:watch
 
-test-coverage: ## カバレッジレポート付きでテスト実行
-	@echo "$(BLUE)カバレッジテストを実行中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run test:coverage
-	@echo "$(GREEN)✅ カバレッジテスト完了$(RESET)"
+test-coverage: ## カバレッジ付きでテスト実行
+	@echo "📊 カバレッジテスト実行中..."
+	npm run test:coverage
 
 test-integration: ## 統合テストを実行
-	@echo "$(BLUE)統合テストを実行中...$(RESET)"
-	$(DOCKER_COMPOSE_TEST) up --build --abort-on-container-exit
-	$(DOCKER_COMPOSE_TEST) down -v
-	@echo "$(GREEN)✅ 統合テスト完了$(RESET)"
+	@echo "🔗 統合テスト実行中..."
+	npm run test:integration
+
+test-e2e: ## E2Eテストを実行
+	@echo "🎯 E2Eテスト実行中..."
+	npm run test:e2e
 
 # ================================
 # コード品質
 # ================================
-lint: ## コードの静的解析を実行
-	@echo "$(BLUE)Lintを実行中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run lint
-	@echo "$(GREEN)✅ Lint完了$(RESET)"
 
-lint-fix: ## コードの自動修正を実行
-	@echo "$(BLUE)コードを自動修正中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run lint:fix
-	@echo "$(GREEN)✅ 自動修正完了$(RESET)"
+lint: ## リンターを実行
+	@echo "🔍 リンター実行中..."
+	npm run lint
 
-typecheck: ## TypeScriptの型チェック
-	@echo "$(BLUE)型チェックを実行中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run typecheck
-	@echo "$(GREEN)✅ 型チェック完了$(RESET)"
+lint-fix: ## リンターで修正可能な問題を自動修正
+	@echo "🔧 リンター自動修正中..."
+	npm run lint:fix
 
-check: ## 全ての品質チェックを実行
-	@echo "$(BLUE)全ての品質チェックを実行中...$(RESET)"
-	@make typecheck
-	@make lint
-	@make test
-	@echo "$(GREEN)✅ 全ての品質チェック完了$(RESET)"
+format: ## コードフォーマット
+	@echo "✨ コードフォーマット中..."
+	npx prettier --write "src/**/*.{ts,js,json}"
 
-# ================================
-# 本番環境
-# ================================
-prod: ## 本番環境を起動
-	@echo "$(BLUE)本番環境を起動中...$(RESET)"
-	$(DOCKER_COMPOSE_PROD) up --build
+audit: ## セキュリティ監査
+	@echo "🔒 セキュリティ監査中..."
+	npm audit --audit-level=moderate
 
-prod-daemon: ## 本番環境をバックグラウンドで起動
-	@echo "$(BLUE)本番環境をバックグラウンドで起動中...$(RESET)"
-	$(DOCKER_COMPOSE_PROD) up -d --build
-	@echo "$(GREEN)✅ 本番環境が起動しました$(RESET)"
-
-prod-stop: ## 本番環境を停止
-	@echo "$(BLUE)本番環境を停止中...$(RESET)"
-	$(DOCKER_COMPOSE_PROD) down
-	@echo "$(GREEN)✅ 本番環境を停止しました$(RESET)"
-
-prod-restart: ## 本番環境を再起動
-	@make prod-stop
-	@make prod-daemon
+audit-fix: ## セキュリティ問題の自動修正
+	@echo "🔧 セキュリティ問題修正中..."
+	npm audit fix
 
 # ================================
 # データベース
 # ================================
-db-migrate: ## データベースマイグレーションを実行
-	@echo "$(BLUE)データベースマイグレーションを実行中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run db:migrate
-	@echo "$(GREEN)✅ マイグレーション完了$(RESET)"
+
+db-create: ## データベースを作成
+	@echo "🗄️ データベース作成中..."
+	mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS cooking_cost_system;"
+	mysql -u root -p -e "CREATE USER IF NOT EXISTS 'cooking_user'@'localhost' IDENTIFIED BY 'cooking_password';"
+	mysql -u root -p -e "GRANT ALL PRIVILEGES ON cooking_cost_system.* TO 'cooking_user'@'localhost';"
+	mysql -u root -p -e "FLUSH PRIVILEGES;"
+
+db-migrate: ## データベースマイグレーション実行
+	@echo "🔄 マイグレーション実行中..."
+	mysql -u cooking_user -pcooking_password cooking_cost_system < database/init/01_create_tables.sql
 
 db-seed: ## サンプルデータを投入
-	@echo "$(BLUE)サンプルデータを投入中...$(RESET)"
-	docker exec -i cooking_cost_db_dev mysql -ucooking_user -pcooking_password cooking_cost_system < $(BACKEND_DIR)/database/init/02_sample_data.sql
-	@echo "$(GREEN)✅ サンプルデータ投入完了$(RESET)"
+	@echo "🌱 サンプルデータ投入中..."
+	mysql -u cooking_user -pcooking_password cooking_cost_system < database/init/02_sample_data.sql
 
 db-reset: ## データベースをリセット
-	@echo "$(BLUE)データベースをリセット中...$(RESET)"
-	docker exec -i cooking_cost_db_dev mysql -ucooking_user -pcooking_password cooking_cost_system < $(BACKEND_DIR)/database/init/01_create_tables.sql
-	@make db-seed
-	@echo "$(GREEN)✅ データベースリセット完了$(RESET)"
+	@echo "🔄 データベースリセット中..."
+	mysql -u root -p -e "DROP DATABASE IF EXISTS cooking_cost_system;"
+	$(MAKE) db-create db-migrate db-seed
 
 db-backup: ## データベースバックアップ
-	@echo "$(BLUE)データベースバックアップを実行中...$(RESET)"
-	$(BACKEND_DIR)/scripts/backup.sh
-	@echo "$(GREEN)✅ バックアップ完了$(RESET)"
+	@echo "💾 データベースバックアップ中..."
+	mkdir -p backups
+	mysqldump -u cooking_user -pcooking_password cooking_cost_system > backups/backup_$(shell date +%Y%m%d_%H%M%S).sql
+	@echo "✅ バックアップ完了: backups/backup_$(shell date +%Y%m%d_%H%M%S).sql"
 
 # ================================
-# バックアップ・リストア
+# Docker
 # ================================
-backup: ## 完全バックアップを実行
-	@echo "$(BLUE)完全バックアップを実行中...$(RESET)"
-	cd $(BACKEND_DIR) && ./scripts/backup.sh
-	@echo "$(GREEN)✅ バックアップ完了$(RESET)"
 
-restore: ## バックアップからリストア
-	@echo "$(BLUE)バックアップからリストア中...$(RESET)"
-	@echo "$(YELLOW)使用方法: make restore BACKUP_FILE=backup_file.sql.gz$(RESET)"
-	@if [ -z "$(BACKUP_FILE)" ]; then \
-		echo "$(RED)❌ BACKUP_FILEを指定してください$(RESET)"; \
-		exit 1; \
-	fi
-	cd $(BACKEND_DIR) && ./scripts/restore.sh $(BACKUP_FILE)
-	@echo "$(GREEN)✅ リストア完了$(RESET)"
+docker-build: ## Dockerイメージをビルド
+	@echo "🐳 Dockerイメージビルド中..."
+	docker build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
+	@echo "✅ Dockerイメージビルド完了"
 
-# ================================
-# ログ・監視
-# ================================
-logs: ## 全サービスのログを表示
-	$(DOCKER_COMPOSE_DEV) logs -f
+docker-build-dev: ## 開発用Dockerイメージをビルド
+	@echo "🐳 開発用Dockerイメージビルド中..."
+	docker build -f Dockerfile.dev -t $(DOCKER_IMAGE_NAME):dev .
 
-logs-api: ## APIサーバーのログを表示
-	$(DOCKER_COMPOSE_DEV) logs -f backend
+docker-run: ## Dockerコンテナを起動
+	@echo "🐳 Dockerコンテナ起動中..."
+	docker run -p $(PORT):$(PORT) --env-file .env $(DOCKER_IMAGE_NAME):$(DOCKER_TAG)
 
-logs-db: ## データベースのログを表示
-	$(DOCKER_COMPOSE_DEV) logs -f database
+docker-run-dev: ## 開発用Dockerコンテナを起動
+	@echo "🐳 開発用Dockerコンテナ起動中..."
+	docker run -it -p $(PORT):$(PORT) -v $(PWD):/app --env-file .env $(DOCKER_IMAGE_NAME):dev
 
-logs-nginx: ## Nginxのログを表示
-	$(DOCKER_COMPOSE_DEV) logs -f nginx-dev
+docker-compose-up: ## Docker Composeで起動
+	@echo "🐳 Docker Compose起動中..."
+	docker-compose up --build
 
-status: ## サービスの状態を確認
-	@echo "$(BLUE)サービスの状態を確認中...$(RESET)"
-	$(DOCKER_COMPOSE_DEV) ps
-	@echo ""
-	@echo "$(BLUE)ヘルスチェック:$(RESET)"
-	@curl -s http://localhost:3001/health | jq . || echo "$(RED)❌ APIサーバーに接続できません$(RESET)"
+docker-compose-dev: ## 開発用Docker Composeで起動
+	@echo "🐳 開発用Docker Compose起動中..."
+	docker-compose -f docker-compose.yml up backend-dev
 
-# ================================
-# メンテナンス
-# ================================
-maintenance: ## メンテナンス作業を実行
-	@echo "$(BLUE)メンテナンス作業を実行中...$(RESET)"
-	cd $(BACKEND_DIR) && ./scripts/maintenance.sh all
-	@echo "$(GREEN)✅ メンテナンス完了$(RESET)"
+docker-compose-down: ## Docker Composeを停止
+	@echo "🐳 Docker Compose停止中..."
+	docker-compose down
 
-optimize: ## データベース最適化
-	@echo "$(BLUE)データベースを最適化中...$(RESET)"
-	cd $(BACKEND_DIR) && ./scripts/maintenance.sh optimize
-	@echo "$(GREEN)✅ 最適化完了$(RESET)"
+docker-push: docker-build ## Dockerイメージをプッシュ
+	@echo "📤 Dockerイメージプッシュ中..."
+	docker tag $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) $(REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)
+	docker push $(REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_TAG)
 
 # ================================
 # クリーンアップ
 # ================================
-clean: ## 一時ファイルとキャッシュを削除
-	@echo "$(BLUE)クリーンアップ中...$(RESET)"
-	cd $(BACKEND_DIR) && rm -rf node_modules dist coverage temp logs/*.log
+
+clean: ## ビルド成果物を削除
+	@echo "🧹 クリーンアップ中..."
+	rm -rf dist/
+	rm -rf coverage/
+	rm -rf .nyc_output/
+	rm -rf node_modules/.cache/
+	@echo "✅ クリーンアップ完了"
+
+clean-all: clean ## 全ての生成ファイルを削除
+	@echo "🧹 完全クリーンアップ中..."
+	rm -rf node_modules/
+	rm -rf logs/
+	rm -rf uploads/
+	rm -rf backups/
+	@echo "✅ 完全クリーンアップ完了"
+
+clean-docker: ## Dockerリソースを削除
+	@echo "🐳 Dockerクリーンアップ中..."
 	docker system prune -f
-	@echo "$(GREEN)✅ クリーンアップ完了$(RESET)"
-
-clean-all: ## 全てのDockerリソースを削除
-	@echo "$(BLUE)全てのDockerリソースを削除中...$(RESET)"
-	$(DOCKER_COMPOSE_DEV) down -v --rmi all
-	$(DOCKER_COMPOSE_PROD) down -v --rmi all
-	docker system prune -af --volumes
-	@echo "$(GREEN)✅ 全てのリソースを削除しました$(RESET)"
+	docker volume prune -f
+	docker network prune -f
 
 # ================================
-# デプロイメント
+# 本番デプロイメント
 # ================================
+
 deploy-staging: ## ステージング環境にデプロイ
-	@echo "$(BLUE)ステージング環境にデプロイ中...$(RESET)"
-	@make check
-	@make build
-	@echo "$(GREEN)✅ ステージングデプロイ完了$(RESET)"
+	@echo "🚀 ステージング環境デプロイ中..."
+	kubectl apply -f deploy/kubernetes.yaml --namespace=cooking-cost-staging
+	kubectl rollout status deployment/cooking-cost-backend --namespace=cooking-cost-staging
 
-deploy-prod: ## 本番環境にデプロイ
-	@echo "$(BLUE)本番環境にデプロイ中...$(RESET)"
-	@echo "$(RED)⚠️  本番デプロイは慎重に行ってください$(RESET)"
-	@read -p "本当に本番環境にデプロイしますか? [y/N]: " confirm && [ "$$confirm" = "y" ]
-	@make check
-	@make backup
-	@make build
-	@echo "$(GREEN)✅ 本番デプロイ完了$(RESET)"
+deploy-production: ## 本番環境にデプロイ
+	@echo "🚀 本番環境デプロイ中..."
+	kubectl apply -f deploy/kubernetes.yaml --namespace=cooking-cost-production
+	kubectl rollout status deployment/cooking-cost-backend --namespace=cooking-cost-production
+
+rollback-staging: ## ステージング環境をロールバック
+	@echo "⏪ ステージング環境ロールバック中..."
+	kubectl rollout undo deployment/cooking-cost-backend --namespace=cooking-cost-staging
+
+rollback-production: ## 本番環境をロールバック
+	@echo "⏪ 本番環境ロールバック中..."
+	kubectl rollout undo deployment/cooking-cost-backend --namespace=cooking-cost-production
+
+# ================================
+# 監視・ログ
+# ================================
+
+logs: ## アプリケーションログを表示
+	@echo "📋 ログ表示中..."
+	tail -f logs/combined-*.log
+
+logs-error: ## エラーログを表示
+	@echo "🚨 エラーログ表示中..."
+	tail -f logs/error-*.log
+
+logs-docker: ## Dockerコンテナのログを表示
+	@echo "🐳 Dockerログ表示中..."
+	docker logs -f cooking_cost_backend_dev
+
+status: ## システムステータスを確認
+	@echo "📊 システムステータス:"
+	@echo "Node.js version: $(shell node --version)"
+	@echo "NPM version: $(shell npm --version)"
+	@echo "TypeScript version: $(shell npx tsc --version)"
+	@echo "Docker version: $(shell docker --version 2>/dev/null || echo 'Docker not installed')"
+	@echo "Kubectl version: $(shell kubectl version --client --short 2>/dev/null || echo 'kubectl not installed')"
+
+health-check: ## ヘルスチェック実行
+	@echo "🏥 ヘルスチェック実行中..."
+	curl -f http://localhost:$(PORT)/health || echo "サーバーが起動していません"
 
 # ================================
 # 開発ツール
 # ================================
-shell: ## コンテナにシェルでアクセス
-	docker exec -it cooking_cost_backend_dev sh
 
-db-shell: ## データベースにアクセス
-	docker exec -it cooking_cost_db_dev mysql -ucooking_user -pcooking_password cooking_cost_system
+update-deps: ## 依存関係を更新
+	@echo "📦 依存関係更新中..."
+	npm update
+	npm audit fix --force
 
-redis-cli: ## Redis CLIにアクセス
-	docker exec -it cooking_cost_redis_dev redis-cli
+check-deps: ## 依存関係の脆弱性をチェック
+	@echo "🔍 依存関係チェック中..."
+	npm audit
+	npx npm-check-updates
 
-generate-docs: ## API ドキュメントを生成
-	@echo "$(BLUE)API ドキュメントを生成中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run docs:generate
-	@echo "$(GREEN)✅ ドキュメント生成完了$(RESET)"
+generate-docs: ## APIドキュメントを生成
+	@echo "📚 APIドキュメント生成中..."
+	npx typedoc src/ --out docs/api/
+
+benchmark: ## パフォーマンステストを実行
+	@echo "⚡ パフォーマンステスト実行中..."
+	npx clinic doctor -- node dist/server.js &
+	sleep 5
+	curl -X GET http://localhost:$(PORT)/api/ingredients
+	pkill -f "node dist/server.js"
 
 # ================================
-# 監視・分析
+# 環境別コマンド
 # ================================
-performance: ## パフォーマンステストを実行
-	@echo "$(BLUE)パフォーマンステストを実行中...$(RESET)"
-	cd $(BACKEND_DIR)/tests/performance && k6 run performance-test.js
-	@echo "$(GREEN)✅ パフォーマンステスト完了$(RESET)"
 
-security-scan: ## セキュリティスキャンを実行
-	@echo "$(BLUE)セキュリティスキャンを実行中...$(RESET)"
-	cd $(BACKEND_DIR) && npm audit
-	@echo "$(GREEN)✅ セキュリティスキャン完了$(RESET)"
+dev-full: ## 完全な開発環境を起動（DB含む）
+	@echo "🚀 完全な開発環境起動中..."
+	$(MAKE) docker-compose-dev
 
-analyze: ## コード分析を実行
-	@echo "$(BLUE)コード分析を実行中...$(RESET)"
-	cd $(BACKEND_DIR) && npm run analyze
-	@echo "$(GREEN)✅ コード分析完了$(RESET)"
+production-build: ## 本番用ビルド
+	@echo "🏭 本番用ビルド中..."
+	NODE_ENV=production npm run build
+	npm prune --production
+
+staging-deploy: test lint docker-build deploy-staging ## ステージング環境への完全デプロイ
+	@echo "✅ ステージング環境デプロイ完了"
+
+production-deploy: test lint docker-build deploy-production ## 本番環境への完全デプロイ
+	@echo "✅ 本番環境デプロイ完了"
+
+# ================================
+# CI/CD関連
+# ================================
+
+ci-test: ## CI用テスト（軽量版）
+	@echo "🧪 CI用テスト実行中..."
+	npm run lint
+	npm run typecheck
+	npm run test -- --ci --coverage --watchAll=false
+
+ci-build: ## CI用ビルド
+	@echo "🔨 CI用ビルド中..."
+	NODE_ENV=production npm run build
+
+ci-security: ## CI用セキュリティチェック
+	@echo "🔒 CI用セキュリティチェック中..."
+	npm audit --audit-level=high
+	npx snyk test
 
 # ================================
 # ユーティリティ
 # ================================
-update-deps: ## 依存関係を更新
-	@echo "$(BLUE)依存関係を更新中...$(RESET)"
-	cd $(BACKEND_DIR) && npm update
-	@echo "$(GREEN)✅ 依存関係更新完了$(RESET)"
 
-check-outdated: ## 古くなった依存関係をチェック
-	@echo "$(BLUE)古くなった依存関係をチェック中...$(RESET)"
-	cd $(BACKEND_DIR) && npm outdated
+port-check: ## ポート使用状況をチェック
+	@echo "🔍 ポート$(PORT)の使用状況:"
+	@lsof -i :$(PORT) || echo "ポート$(PORT)は使用されていません"
+
+kill-port: ## 指定ポートのプロセスを終了
+	@echo "💀 ポート$(PORT)のプロセスを終了中..."
+	@lsof -ti:$(PORT) | xargs kill -9 || echo "ポート$(PORT)にプロセスが見つかりません"
+
+env-check: ## 環境変数をチェック
+	@echo "🔍 環境変数チェック:"
+	@echo "NODE_ENV: $(NODE_ENV)"
+	@echo "PORT: $(PORT)"
+	@echo "DB_HOST: $${DB_HOST:-未設定}"
+	@echo "DB_NAME: $${DB_NAME:-未設定}"
+
+backup-rotate: ## 古いバックアップを削除（30日以上）
+	@echo "🗑️ 古いバックアップ削除中..."
+	find backups/ -name "*.sql" -mtime +30 -delete 2>/dev/null || true
+
+# ================================
+# 特殊ターゲット
+# ================================
 
 version: ## バージョン情報を表示
-	@echo "$(CYAN)料理原価計算システム v2.0.0$(RESET)"
-	@echo "$(BLUE)Node.js:$(RESET) $(shell node --version)"
-	@echo "$(BLUE)npm:$(RESET) $(shell npm --version)"
-	@echo "$(BLUE)Docker:$(RESET) $(shell docker --version)"
-	@echo "$(BLUE)Docker Compose:$(RESET) $(shell docker-compose --version)"
+	@echo "料理原価計算システム v2.0.0"
+	@echo "Node.js: $(shell node --version)"
+	@echo "NPM: $(shell npm --version)"
 
-# ================================
-# ヘルパー関数
-# ================================
-.PHONY: _check-env
-_check-env:
-	@if [ ! -f $(BACKEND_DIR)/.env ]; then \
-		echo "$(RED)❌ .env ファイルが見つかりません。make setup-env を実行してください$(RESET)"; \
-		exit 1; \
-	fi
+quick-start: setup db-create db-migrate db-seed dev ## クイックスタート（初回用）
+	@echo "🎉 クイックスタート完了！"
+	@echo "ブラウザで http://localhost:$(PORT) にアクセスしてください"
