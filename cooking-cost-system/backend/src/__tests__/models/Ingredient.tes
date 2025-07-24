@@ -1,0 +1,336 @@
+import { Ingredient } from '../../models/Ingredient';
+import { getDatabase } from '../../database';
+import { createTestIngredient } from '../../../tests/utils/test-helpers';
+
+// データベースのモック
+jest.mock('../../database');
+
+describe('Ingredient Model', () => {
+    let mockDb: any;
+
+    beforeEach(() => {
+        mockDb = {
+            query: jest.fn(),
+            queryOne: jest.fn(),
+            transaction: jest.fn(),
+        };
+        (getDatabase as jest.Mock).mockReturnValue(mockDb);
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    describe('Constructor', () => {
+        test('should create ingredient with valid data', () => {
+            const data = createTestIngredient();
+            const ingredient = new Ingredient(data);
+
+            expect(ingredient.name).toBe(data.name);
+            expect(ingredient.store).toBe(data.store);
+            expect(ingredient.quantity).toBe(data.quantity);
+            expect(ingredient.unit).toBe(data.unit);
+            expect(ingredient.price).toBe(data.price);
+            expect(ingredient.genre).toBe(data.genre);
+            expect(ingredient.unit_price).toBe(data.price / data.quantity);
+        });
+
+        test('should calculate unit_price correctly', () => {
+            const ingredient = new Ingredient({
+                name: 'テスト食材',
+                store: 'テストスーパー',
+                quantity: 500,
+                unit: 'g',
+                price: 250,
+                genre: 'vegetable',
+            });
+
+            expect(ingredient.unit_price).toBe(0.5);
+        });
+
+        test('should handle zero quantity', () => {
+            const ingredient = new Ingredient({
+                name: 'テスト食材',
+                store: 'テストスーパー',
+                quantity: 0,
+                unit: 'g',
+                price: 100,
+                genre: 'vegetable',
+            });
+
+            expect(ingredient.unit_price).toBeUndefined();
+        });
+    });
+
+    describe('save()', () => {
+        test('should insert new ingredient', async () => {
+            const ingredient = new Ingredient(createTestIngredient());
+            mockDb.query.mockResolvedValueOnce([{ insertId: 1 }]);
+
+            await ingredient.save();
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('INSERT INTO'),
+                expect.arrayContaining([
+                    ingredient.name,
+                    ingredient.store,
+                    ingredient.quantity,
+                    ingredient.unit,
+                    ingredient.price,
+                    ingredient.unit_price,
+                    ingredient.genre,
+                ])
+            );
+            expect(ingredient.id).toBe(1);
+        });
+
+        test('should update existing ingredient', async () => {
+            const ingredient = new Ingredient(createTestIngredient());
+            ingredient.id = 1;
+            mockDb.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+            await ingredient.save();
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('UPDATE'),
+                expect.arrayContaining([
+                    ingredient.name,
+                    ingredient.store,
+                    ingredient.quantity,
+                    ingredient.unit,
+                    ingredient.price,
+                    ingredient.unit_price,
+                    ingredient.genre,
+                    1,
+                ])
+            );
+        });
+
+        test('should recalculate unit_price before saving', async () => {
+            const ingredient = new Ingredient({
+                name: 'テスト食材',
+                store: 'テストスーパー',
+                quantity: 200,
+                unit: 'g',
+                price: 300,
+                genre: 'vegetable',
+            });
+            mockDb.query.mockResolvedValueOnce([{ insertId: 1 }]);
+
+            await ingredient.save();
+
+            expect(ingredient.unit_price).toBe(1.5);
+        });
+    });
+
+    describe('findById()', () => {
+        test('should return ingredient when found', async () => {
+            const mockIngredient = {
+                id: 1,
+                name: 'テスト食材',
+                store: 'テストスーパー',
+                quantity: 100,
+                unit: 'g',
+                price: 200,
+                unit_price: 2.0,
+                genre: 'vegetable',
+                created_at: new Date(),
+                updated_at: new Date(),
+            };
+            mockDb.queryOne.mockResolvedValueOnce(mockIngredient);
+
+            const result = await Ingredient.findById(1);
+
+            expect(mockDb.queryOne).toHaveBeenCalledWith(
+                'SELECT * FROM `ingredients` WHERE id = ?',
+                [1]
+            );
+            expect(result).toBeInstanceOf(Ingredient);
+            expect(result?.id).toBe(1);
+            expect(result?.name).toBe('テスト食材');
+        });
+
+        test('should return null when not found', async () => {
+            mockDb.queryOne.mockResolvedValueOnce(null);
+
+            const result = await Ingredient.findById(999);
+
+            expect(result).toBeNull();
+        });
+    });
+
+    describe('search()', () => {
+        test('should search ingredients with name filter', async () => {
+            const mockIngredients = [
+                { id: 1, name: '豚肉', genre: 'meat' },
+                { id: 2, name: '豚バラ肉', genre: 'meat' },
+            ];
+            mockDb.query.mockResolvedValueOnce(mockIngredients);
+
+            const result = await Ingredient.search({ name: '豚' });
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('name LIKE ?'),
+                expect.arrayContaining(['%豚%'])
+            );
+            expect(result).toHaveLength(2);
+        });
+
+        test('should search ingredients with genre filter', async () => {
+            const mockIngredients = [
+                { id: 1, name: '豚肉', genre: 'meat' },
+            ];
+            mockDb.query.mockResolvedValueOnce(mockIngredients);
+
+            const result = await Ingredient.search({ genre: 'meat' });
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('genre = ?'),
+                expect.arrayContaining(['meat'])
+            );
+            expect(result).toHaveLength(1);
+        });
+
+        test('should search ingredients with price range', async () => {
+            const mockIngredients = [
+                { id: 1, name: '高級食材', price: 1000 },
+            ];
+            mockDb.query.mockResolvedValueOnce(mockIngredients);
+
+            const result = await Ingredient.search({
+                minPrice: 500,
+                maxPrice: 1500,
+            });
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('price >= ?'),
+                expect.arrayContaining([500, 1500])
+            );
+        });
+
+        test('should apply sorting and pagination', async () => {
+            const mockIngredients = [
+                { id: 1, name: '食材A' },
+                { id: 2, name: '食材B' },
+            ];
+            mockDb.query.mockResolvedValueOnce(mockIngredients);
+
+            const result = await Ingredient.search({
+                sortBy: 'name',
+                sortOrder: 'ASC',
+                limit: 10,
+                offset: 20,
+            });
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('ORDER BY name ASC'),
+                expect.arrayContaining([10, 20])
+            );
+        });
+    });
+
+    describe('getGenreStatistics()', () => {
+        test('should return genre statistics', async () => {
+            const mockStats = [
+                {
+                    genre: 'meat',
+                    ingredient_count: 5,
+                    avg_unit_price: 1.5,
+                    min_unit_price: 0.8,
+                    max_unit_price: 3.0,
+                    total_purchase_cost: 2500,
+                },
+                {
+                    genre: 'vegetable',
+                    ingredient_count: 10,
+                    avg_unit_price: 0.3,
+                    min_unit_price: 0.1,
+                    max_unit_price: 0.8,
+                    total_purchase_cost: 1200,
+                },
+            ];
+            mockDb.query.mockResolvedValueOnce(mockStats);
+
+            const result = await Ingredient.getGenreStatistics();
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('GROUP BY genre')
+            );
+            expect(result).toEqual(mockStats);
+        });
+    });
+
+    describe('getPopularIngredients()', () => {
+        test('should return popular ingredients', async () => {
+            const mockPopular = [
+                {
+                    id: 1,
+                    name: '豚肉',
+                    usage_count: 15,
+                    total_used_cost: 3000,
+                },
+                {
+                    id: 2,
+                    name: '玉ねぎ',
+                    usage_count: 12,
+                    total_used_cost: 800,
+                },
+            ];
+            mockDb.query.mockResolvedValueOnce(mockPopular);
+
+            const result = await Ingredient.getPopularIngredients(5);
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                expect.stringContaining('ORDER BY usage_count DESC'),
+                [5]
+            );
+            expect(result).toEqual(mockPopular);
+        });
+    });
+
+    describe('delete()', () => {
+        test('should delete ingredient', async () => {
+            const ingredient = new Ingredient(createTestIngredient());
+            ingredient.id = 1;
+            mockDb.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+            await ingredient.delete();
+
+            expect(mockDb.query).toHaveBeenCalledWith(
+                'DELETE FROM `ingredients` WHERE id = ?',
+                [1]
+            );
+        });
+
+        test('should throw error when no ID', async () => {
+            const ingredient = new Ingredient(createTestIngredient());
+
+            await expect(ingredient.delete()).rejects.toThrow(
+                'Cannot delete model without ID'
+            );
+        });
+    });
+
+    describe('Validation', () => {
+        test('should validate required fields', () => {
+            expect(() => {
+                new Ingredient({} as any);
+            }).not.toThrow();
+        });
+
+        test('should handle invalid data gracefully', () => {
+            const ingredient = new Ingredient({
+                name: '',
+                store: '',
+                quantity: -1,
+                unit: '',
+                price: -100,
+                genre: 'invalid' as any,
+            });
+
+            expect(ingredient.name).toBe('');
+            expect(ingredient.quantity).toBe(-1);
+            expect(ingredient.price).toBe(-100);
+        });
+    });
+});
