@@ -1,0 +1,43 @@
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+    "ms-vscode.vscode-npm-script",
+    "christian-kohler.npm-intellisense",
+    "ms-vscode.vscode-jest",
+    "humao.rest-client",
+    "ms-vscode-remote.vscode-remote-extensionpack",
+    "ms-azuretools.vscode-docker",
+    "formulahendry.auto-rename-tag",
+    "bradlc.vscode-tailwindcss",
+    "usernamehw.errorlens",
+    "gruntfuggly.todo-tree",
+    "aaron-bond.better-comments",
+    "alefragnani.bookmarks",
+    "streetsidesoftware.code-spell-checker",
+    "editorconfig.editorconfig",
+    "yzhang.markdown-all-in-one",
+    "shd101wyy.markdown-preview-enhanced",
+    "mechatroner.rainbow-csv",
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-mysql",
+    "ckolkman.vscode-postgres",
+    "formulahendry.code-runner",
+    "visualstudioexptteam.vscodeintellicode",
+    "github.copilot",
+    "github.copilot-chat",
+    "ms-vscode.hexeditor",
+    "pflannery.vscode-versionlens",
+    "christian-kohler.path-intellisense",
+    "zignd.html-css-class-completion",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.theme-tomorrowkit"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript",
+    "hookyqr.beautify"
+  ]
+}
