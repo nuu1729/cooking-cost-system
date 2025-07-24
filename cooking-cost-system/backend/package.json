@@ -1,25 +1,83 @@
 {
     "name": "cooking-cost-backend",
     "version": "2.0.0",
-    "description": "料理原価計算システム バックエンドAPI",
+    "description": "料理原価計算システム バックエンドAPI - モダンなTypeScript実装",
     "main": "dist/server.js",
     "scripts": {
         "dev": "nodemon --exec ts-node src/server.ts",
-        "build": "tsc",
+        "dev:debug": "nodemon --exec ts-node --inspect src/server.ts",
+        "build": "tsc && npm run copy-assets",
+        "build:clean": "npm run clean && npm run build",
+        "copy-assets": "cp -r database dist/ && cp .env.example dist/",
         "start": "node dist/server.js",
+        "start:prod": "NODE_ENV=production node dist/server.js",
         "test": "jest",
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
+        "test:integration": "jest --testMatch='**/__tests__/integration/**/*.test.ts'",
+        "test:e2e": "jest --testMatch='**/__tests__/e2e/**/*.test.ts'",
+        "test:unit": "jest --testMatch='**/__tests__/unit/**/*.test.ts' --testMatch='**/__tests__/models/**/*.test.ts' --testMatch='**/__tests__/routes/**/*.test.ts'",
+        "test:ci": "jest --ci --coverage --watchAll=false",
         "lint": "eslint src/**/*.ts",
         "lint:fix": "eslint src/**/*.ts --fix",
-        "typecheck": "tsc --noEmit"
+        "lint:staged": "lint-staged",
+        "format": "prettier --write \"src/**/*.{ts,js,json}\"",
+        "format:check": "prettier --check \"src/**/*.{ts,js,json}\"",
+        "typecheck": "tsc --noEmit",
+        "typecheck:watch": "tsc --noEmit --watch",
+        "clean": "rimraf dist coverage .nyc_output",
+        "clean:all": "npm run clean && rimraf node_modules package-lock.json",
+        "audit": "npm audit --audit-level=moderate",
+        "audit:fix": "npm audit fix",
+        "security": "npm audit && snyk test",
+        "outdated": "npm outdated",
+        "update:deps": "npm update && npm audit fix",
+        "migrate": "ts-node src/scripts/migrate.ts",
+        "migrate:run": "ts-node src/scripts/migrate.ts run",
+        "migrate:status": "ts-node src/scripts/migrate.ts status",
+        "migrate:create": "ts-node src/scripts/migrate.ts create",
+        "migrate:samples": "ts-node src/scripts/migrate.ts --generate-samples",
+        "seed": "ts-node src/scripts/seed.ts",
+        "db:create": "mysql -u root -p -e \"CREATE DATABASE IF NOT EXISTS cooking_cost_system; CREATE USER IF NOT EXISTS 'cooking_user'@'localhost' IDENTIFIED BY 'cooking_password'; GRANT ALL PRIVILEGES ON cooking_cost_system.* TO 'cooking_user'@'localhost'; FLUSH PRIVILEGES;\"",
+        "db:migrate": "npm run migrate:run",
+        "db:seed": "npm run seed",
+        "db:reset": "mysql -u root -p -e \"DROP DATABASE IF EXISTS cooking_cost_system;\" && npm run db:create && npm run db:migrate && npm run db:seed",
+        "db:backup": "mkdir -p backups && mysqldump -u cooking_user -p cooking_cost_system > backups/backup_$(date +%Y%m%d_%H%M%S).sql",
+        "docker:build": "docker build -t cooking-cost-backend .",
+        "docker:build:dev": "docker build -f Dockerfile.dev -t cooking-cost-backend:dev .",
+        "docker:run": "docker run -p 3001:3001 --env-file .env cooking-cost-backend",
+        "docker:run:dev": "docker run -it -p 3001:3001 -v $(pwd):/app --env-file .env cooking-cost-backend:dev",
+        "docker:compose": "docker-compose up --build",
+        "docker:compose:dev": "docker-compose up backend-dev",
+        "docker:compose:prod": "docker-compose --profile production up",
+        "docker:compose:down": "docker-compose down",
+        "k8s:deploy": "kubectl apply -f deploy/kubernetes.yaml",
+        "k8s:delete": "kubectl delete -f deploy/kubernetes.yaml",
+        "docs": "typedoc src/ --out docs/api/",
+        "docs:serve": "npm run docs && npx http-server docs/api -p 8080",
+        "benchmark": "clinic doctor -- node dist/server.js",
+        "profile": "clinic flame -- node dist/server.js",
+        "analyze": "clinic bubbleprof -- node dist/server.js",
+        "health": "curl -f http://localhost:3001/health || echo 'Server not running'",
+        "logs": "tail -f logs/combined-*.log",
+        "logs:error": "tail -f logs/error-*.log",
+        "setup": "npm install && cp .env.example .env && mkdir -p logs uploads",
+        "setup:dev": "npm run setup && npm run db:create && npm run db:migrate && npm run db:seed",
+        "quick-start": "npm run setup:dev && npm run dev",
+        "precommit": "npm run lint:staged && npm run typecheck",
+        "prepush": "npm run test:ci && npm run build",
+        "prepare": "husky install",
+        "release": "standard-version",
+        "release:major": "standard-version --release-as major",
+        "release:minor": "standard-version --release-as minor",
+        "release:patch": "standard-version --release-as patch",
+        "postinstall": "patch-package"
     },
     "dependencies": {
         "express": "^4.18.2",
         "cors": "^2.8.5",
         "helmet": "^7.0.0",
         "mysql2": "^3.6.0",
-        "typeorm": "^0.3.17",
         "reflect-metadata": "^0.1.13",
         "class-validator": "^0.14.0",
         "class-transformer": "^0.5.1",
@@ -43,14 +101,28 @@
         "@types/multer": "^1.4.7",
         "@types/compression": "^1.7.3",
         "@types/jest": "^29.5.4",
+        "@types/supertest": "^2.0.12",
         "@typescript-eslint/eslint-plugin": "^6.4.1",
         "@typescript-eslint/parser": "^6.4.1",
         "eslint": "^8.47.0",
+        "eslint-config-prettier": "^9.0.0",
+        "eslint-plugin-prettier": "^5.0.0",
+        "prettier": "^3.0.2",
         "jest": "^29.6.2",
+        "jest-junit": "^16.0.0",
         "ts-jest": "^29.1.1",
         "ts-node": "^10.9.1",
         "nodemon": "^3.0.1",
-        "typescript": "^5.1.6"
+        "typescript": "^5.1.6",
+        "supertest": "^6.3.3",
+        "rimraf": "^5.0.1",
+        "husky": "^8.0.3",
+        "lint-staged": "^14.0.1",
+        "standard-version": "^9.5.0",
+        "typedoc": "^0.25.0",
+        "clinic": "^12.0.0",
+        "patch-package": "^8.0.0",
+        "snyk": "^1.1200.0"
     },
     "engines": {
         "node": ">=18.0.0",
@@ -63,8 +135,84 @@
         "ingredients",
         "nodejs",
         "typescript",
-        "express"
+        "express",
+        "mysql",
+        "api",
+        "backend",
+        "food-service",
+        "recipe-management",
+        "cost-analysis"
     ],
-    "author": "Your Name",
-    "license": "MIT"
+    "author": {
+        "name": "Cooking Cost System Team",
+        "email": "dev@cooking-system.com",
+        "url": "https://github.com/cooking-cost-system"
+    },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/cooking-cost-system/backend.git"
+    },
+    "bugs": {
+        "url": "https://github.com/cooking-cost-system/backend/issues"
+    },
+    "homepage": "https://github.com/cooking-cost-system/backend#readme",
+    "lint-staged": {
+        "*.{ts,js}": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "*.{json,md}": [
+            "prettier --write"
+        ]
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "npm run precommit",
+            "pre-push": "npm run prepush"
+        }
+    },
+    "jest": {
+        "preset": "ts-jest",
+        "testEnvironment": "node",
+        "roots": ["<rootDir>/src"],
+        "testMatch": [
+            "**/__tests__/**/*.test.ts",
+            "**/*.test.ts",
+            "**/*.spec.ts"
+        ],
+        "transform": {
+            "^.+\\.ts$": "ts-jest"
+        },
+        "collectCoverageFrom": [
+            "src/**/*.{ts,js}",
+            "!src/**/*.d.ts",
+            "!src/__tests__/**/*",
+            "!src/server.ts"
+        ],
+        "coverageDirectory": "coverage",
+        "coverageReporters": [
+            "text",
+            "text-summary",
+            "html",
+            "lcov",
+            "clover"
+        ],
+        "coverageThreshold": {
+            "global": {
+                "branches": 70,
+                "functions": 70,
+                "lines": 70,
+                "statements": 70
+            }
+        },
+        "setupFilesAfterEnv": ["<rootDir>/tests/setup.ts"],
+        "testTimeout": 30000
+    },
+    "nodemonConfig": {
+        "watch": ["src"],
+        "ext": "ts",
+        "ignore": ["src/**/*.test.ts", "src/**/*.spec.ts"],
+        "exec": "ts-node src/server.ts"
+    }
 }
