@@ -1,0 +1,427 @@
+# ================================
+# CI/CD Pipeline for Cooking Cost System Backend
+# ================================
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: cooking-cost-backend
+
+jobs:
+  # ================================
+  # コード品質チェック & テスト
+  # ================================
+  
+  test:
+    name: Test & Quality Check
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: cooking_cost_system_test
+          MYSQL_USER: test_user
+          MYSQL_PASSWORD: test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run typecheck
+
+      - name: Setup Test Database
+        working-directory: ./backend
+        run: |
+          mysql -h 127.0.0.1 -u root -proot_password -e "
+            CREATE DATABASE IF NOT EXISTS cooking_cost_system_test;
+            GRANT ALL PRIVILEGES ON cooking_cost_system_test.* TO 'test_user'@'%';
+            FLUSH PRIVILEGES;
+          "
+          mysql -h 127.0.0.1 -u test_user -ptest_password cooking_cost_system_test < database/init/01_create_tables.sql
+
+      - name: Run Linting
+        working-directory: ./backend
+        run: npm run lint
+
+      - name: Run Type Checking
+        working-directory: ./backend
+        run: npm run typecheck
+
+      - name: Run Tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: cooking_cost_system_test
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          JWT_SECRET: test-jwt-secret
+          LOG_LEVEL: error
+        run: npm run test:coverage
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ================================
+  # セキュリティスキャン
+  # ================================
+  
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Run Security Audit
+        working-directory: ./backend
+        run: npm audit --audit-level=high
+
+      - name: Run Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          command: test
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/init@v2
+        with:
+          languages: typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
+  # ================================
+  # Docker イメージビルド
+  # ================================
+  
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push'
+    
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and Push Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.spdx.json
+
+  # ================================
+  # 脆弱性スキャン
+  # ================================
+  
+  vulnerability-scan:
+    name: Container Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ needs.build.outputs.image-tag }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy Scan Results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ================================
+  # ステージング環境デプロイ
+  # ================================
+  
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build, vulnerability-scan]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Update Kubeconfig
+        run: |
+          aws eks update-kubeconfig --name cooking-cost-staging --region ap-northeast-1
+
+      - name: Deploy to Staging
+        run: |
+          helm upgrade --install cooking-cost-backend ./helm/cooking-cost-backend \
+            --namespace cooking-cost-staging \
+            --create-namespace \
+            --set image.tag=${{ needs.build.outputs.image-tag }} \
+            --set environment=staging \
+            --values ./helm/values-staging.yaml \
+            --wait --timeout=300s
+
+      - name: Run Smoke Tests
+        run: |
+          kubectl wait --for=condition=available deployment/cooking-cost-backend \
+            --namespace cooking-cost-staging --timeout=300s
+          
+          # ヘルスチェック実行
+          STAGING_URL=$(kubectl get ingress cooking-cost-ingress \
+            -n cooking-cost-staging -o jsonpath='{.spec.rules[0].host}')
+          
+          curl -f https://${STAGING_URL}/health || exit 1
+          curl -f https://${STAGING_URL}/api || exit 1
+
+  # ================================
+  # 本番環境デプロイ
+  # ================================
+  
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, vulnerability-scan]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.12.0'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ap-northeast-1
+
+      - name: Update Kubeconfig
+        run: |
+          aws eks update-kubeconfig --name cooking-cost-production --region ap-northeast-1
+
+      - name: Deploy to Production
+        run: |
+          helm upgrade --install cooking-cost-backend ./helm/cooking-cost-backend \
+            --namespace cooking-cost-production \
+            --create-namespace \
+            --set image.tag=${{ needs.build.outputs.image-tag }} \
+            --set environment=production \
+            --values ./helm/values-production.yaml \
+            --wait --timeout=600s
+
+      - name: Run Health Checks
+        run: |
+          kubectl wait --for=condition=available deployment/cooking-cost-backend \
+            --namespace cooking-cost-production --timeout=600s
+          
+          # 本番ヘルスチェック
+          PROD_URL=$(kubectl get ingress cooking-cost-ingress \
+            -n cooking-cost-production -o jsonpath='{.spec.rules[0].host}')
+          
+          for i in {1..5}; do
+            if curl -f https://${PROD_URL}/health; then
+              echo "Health check passed"
+              break
+            fi
+            echo "Health check failed, retrying in 30s..."
+            sleep 30
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sbom.spdx.json
+          generate_release_notes: true
+          body: |
+            ## 🚀 Production Deployment
+            
+            This release has been automatically deployed to production.
+            
+            **Container Image:** `${{ needs.build.outputs.image-tag }}`
+            **Digest:** `${{ needs.build.outputs.image-digest }}`
+            
+            ### 📊 Metrics
+            - Build Time: ${{ github.event.head_commit.timestamp }}
+            - Commit: ${{ github.sha }}
+            - Branch: ${{ github.ref_name }}
+
+  # ================================
+  # 通知
+  # ================================
+  
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          fields: repo,commit,author,action,eventName,ref,workflow
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send Email Notification
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "🚨 Deployment Failed: ${{ github.repository }}"
+          body: |
+            Deployment failed for ${{ github.repository }}
+            
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Workflow: ${{ github.workflow }}
+            
+            Please check the GitHub Actions logs for more details.
+          to: devops@cooking-system.com
