@@ -1,0 +1,385 @@
+import request from 'supertest';
+import app from '../../app';
+import { Ingredient } from '../../models/Ingredient';
+import { createTestIngredient, createAuthHeaders } from '../../../tests/utils/test-helpers';
+
+// モデルのモック
+jest.mock('../../models/Ingredient');
+
+describe('Ingredients Routes', () => {
+    const mockIngredient = Ingredient as jest.Mocked<typeof Ingredient>;
+    
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    describe('GET /api/ingredients', () => {
+        test('should return ingredients list', async () => {
+            const mockIngredients = [
+                {
+                    id: 1,
+                    name: '豚バラ肉',
+                    store: 'スーパーマルエツ',
+                    quantity: 500,
+                    unit: 'g',
+                    price: 450,
+                    unit_price: 0.9,
+                    genre: 'meat',
+                    toJSON: () => ({ id: 1, name: '豚バラ肉' }),
+                },
+            ];
+            mockIngredient.search.mockResolvedValueOnce(mockIngredients as any);
+
+            const response = await request(app)
+                .get('/api/ingredients')
+                .expect(200);
+
+            expect(response.body).toHaveProperty('success', true);
+            expect(response.body).toHaveProperty('data');
+            expect(response.body.data).toHaveLength(1);
+            expect(response.body).toHaveProperty('timestamp');
+        });
+
+        test('should handle search parameters', async () => {
+            mockIngredient.search.mockResolvedValueOnce([]);
+
+            await request(app)
+                .get('/api/ingredients')
+                .query({
+                    name: '豚肉',
+                    genre: 'meat',
+                    minPrice: 100,
+                    maxPrice: 1000,
+                    sortBy: 'name',
+                    sortOrder: 'ASC',
+                    limit: 20,
+                    offset: 0,
+                })
+                .expect(200);
+
+            expect(mockIngredient.search).toHaveBeenCalledWith({
+                name: '豚肉',
+                genre: 'meat',
+                minPrice: 100,
+                maxPrice: 1000,
+                sortBy: 'name',
+                sortOrder: 'ASC',
+                limit: 20,
+                offset: 0,
+            });
+        });
+
+        test('should apply default pagination', async () => {
+            mockIngredient.search.mockResolvedValueOnce([]);
+
+            await request(app)
+                .get('/api/ingredients')
+                .expect(200);
+
+            expect(mockIngredient.search).toHaveBeenCalledWith({
+                sortBy: 'created_at',
+                sortOrder: 'DESC',
+                limit: 50,
+                offset: 0,
+            });
+        });
+    });
+
+    describe('GET /api/ingredients/:id', () => {
+        test('should return ingredient by ID', async () => {
+            const mockIngredient = {
+                id: 1,
+                name: '豚バラ肉',
+                toJSON: () => ({ id: 1, name: '豚バラ肉' }),
+            };
+            (Ingredient.findById as jest.Mock).mockResolvedValueOnce(mockIngredient);
+
+            const response = await request(app)
+                .get('/api/ingredients/1')
+                .expect(200);
+
+            expect(response.body).toHaveProperty('success', true);
+            expect(response.body.data.id).toBe(1);
+            expect(Ingredient.findById).toHaveBeenCalledWith(1);
+        });
+
+        test('should return 404 for non-existent ingredient', async () => {
+            (Ingredient.findById as jest.Mock).mockResolvedValueOnce(null);
+
+            const response = await request(app)
+                .get('/api/ingredients/999')
+                .expect(404);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error', 'NOT_FOUND');
+        });
+
+        test('should return 400 for invalid ID', async () => {
+            const response = await request(app)
+                .get('/api/ingredients/invalid')
+                .expect(400);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error', 'BAD_REQUEST');
+        });
+    });
+
+    describe('POST /api/ingredients', () => {
+        test('should create new ingredient', async () => {
+            const newIngredient = createTestIngredient();
+            const mockSavedIngredient = {
+                id: 1,
+                ...newIngredient,
+                unit_price: newIngredient.price / newIngredient.quantity,
+                save: jest.fn().mockResolvedValueOnce(undefined),
+                toJSON: () => ({ id: 1, ...newIngredient }),
+            };
+
+            // Ingredientコンストラクタのモック
+            (Ingredient as any).mockImplementation(() => mockSavedIngredient);
+
+            const response = await request(app)
+                .post('/api/ingredients')
+                .send(newIngredient)
+                .expect(201);
+
+            expect(response.body).toHaveProperty('success', true);
+            expect(response.body).toHaveProperty('message', 'Ingredient created successfully');
+            expect(response.body.data.name).toBe(newIngredient.name);
+            expect(mockSavedIngredient.save).toHaveBeenCalled();
+        });
+
+        test('should validate required fields', async () => {
+            const response = await request(app)
+                .post('/api/ingredients')
+                .send({})
+                .expect(400);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error', 'BAD_REQUEST');
+            expect(response.body.message).toContain('required');
+        });
+
+        test('should validate positive values', async () => {
+            const invalidData = createTestIngredient({
+                quantity: -1,
+                price: -100,
+            });
+
+            const response = await request(app)
+                .post('/api/ingredients')
+                .send(invalidData)
+                .expect(400);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error', 'BAD_REQUEST');
+        });
+
+        test('should validate genre', async () => {
+            const invalidData = createTestIngredient({
+                genre: 'invalid' as any,
+            });
+
+            const response = await request(app)
+                .post('/api/ingredients')
+                .send(invalidData)
+                .expect(400);
+
+            expect(response.body).toHaveProperty('success', false);
+        });
+    });
+
+    describe('PUT /api/ingredients/:id', () => {
+        test('should update existing ingredient', async () => {
+            const existingIngredient = {
+                id: 1,
+                name: '豚バラ肉',
+                save: jest.fn().mockResolvedValueOnce(undefined),
+                toJSON: () => ({ id: 1, name: '更新された豚バラ肉' }),
+            };
+            (Ingredient.findById as jest.Mock).mockResolvedValueOnce(existingIngredient);
+
+            const updateData = { name: '更新された豚バラ肉' };
+
+            const response = await request(app)
+                .put('/api/ingredients/1')
+                .send(updateData)
+                .expect(200);
+
+            expect(response.body).toHaveProperty('success', true);
+            expect(response.body).toHaveProperty('message', 'Ingredient updated successfully');
+            expect(existingIngredient.save).toHaveBeenCalled();
+        });
+
+        test('should return 404 for non-existent ingredient', async () => {
+            (Ingredient.findById as jest.Mock).mockResolvedValueOnce(null);
+
+            const response = await request(app)
+                .put('/api/ingredients/999')
+                .send({ name: '更新' })
+                .expect(404);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error', 'NOT_FOUND');
+        });
+    });
+
+    describe('DELETE /api/ingredients/:id', () => {
+        test('should delete existing ingredient', async () => {
+            const existingIngredient = {
+                id: 1,
+                name: '豚バラ肉',
+                delete: jest.fn().mockResolvedValueOnce(undefined),
+            };
+            (Ingredient.findById as jest.Mock).mockResolvedValueOnce(existingIngredient);
+
+            const response = await request(app)
+                .delete('/api/ingredients/1')
+                .expect(200);
+
+            expect(response.body).toHaveProperty('success', true);
+            expect(response.body).toHaveProperty('message', 'Ingredient deleted successfully');
+            expect(existingIngredient.delete).toHaveBeenCalled();
+        });
+
+        test('should return 404 for non-existent ingredient', async () => {
+            (Ingredient.findById as jest.Mock).mockResolvedValueOnce(null);
+
+            const response = await request(app)
+                .delete('/api/ingredients/999')
+                .expect(404);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error', 'NOT_FOUND');
+        });
+    });
+
+    describe('GET /api/ingredients/stats/genre', () => {
+        test('should return genre statistics', async () => {
+            const mockStats = [
+                {
+                    genre: 'meat',
+                    ingredient_count: 5,
+                    avg_unit_price: 1.5,
+                },
+                {
+                    genre: 'vegetable',
+                    ingredient_count: 10,
+                    avg_unit_price: 0.3,
+                },
+            ];
+            (Ingredient.getGenreStatistics as jest.Mock).mockResolvedValueOnce(mockStats);
+
+            const response = await request(app)
+                .get('/api/ingredients/stats/genre')
+                .expect(200);
+
+            expect(response.body).toHaveProperty('success', true);
+            expect(response.body.data).toEqual(mockStats);
+        });
+    });
+
+    describe('GET /api/ingredients/popular', () => {
+        test('should return popular ingredients', async () => {
+            const mockPopular = [
+                {
+                    id: 1,
+                    name: '豚肉',
+                    usage_count: 15,
+                    total_used_cost: 3000,
+                },
+            ];
+            (Ingredient.getPopularIngredients as jest.Mock).mockResolvedValueOnce(mockPopular);
+
+            const response = await request(app)
+                .get('/api/ingredients/popular')
+                .query({ limit: 5 })
+                .expect(200);
+
+            expect(response.body).toHaveProperty('success', true);
+            expect(response.body.data).toEqual(mockPopular);
+            expect(Ingredient.getPopularIngredients).toHaveBeenCalledWith(5);
+        });
+
+        test('should use default limit', async () => {
+            (Ingredient.getPopularIngredients as jest.Mock).mockResolvedValueOnce([]);
+
+            await request(app)
+                .get('/api/ingredients/popular')
+                .expect(200);
+
+            expect(Ingredient.getPopularIngredients).toHaveBeenCalledWith(10);
+        });
+    });
+
+    describe('Error Handling', () => {
+        test('should handle database errors', async () => {
+            (Ingredient.search as jest.Mock).mockRejectedValueOnce(new Error('Database error'));
+
+            const response = await request(app)
+                .get('/api/ingredients')
+                .expect(500);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error');
+        });
+
+        test('should handle validation errors', async () => {
+            const response = await request(app)
+                .post('/api/ingredients')
+                .send({
+                    name: '', // 空の名前
+                    quantity: 'invalid', // 無効な数値
+                })
+                .expect(400);
+
+            expect(response.body).toHaveProperty('success', false);
+            expect(response.body).toHaveProperty('error', 'BAD_REQUEST');
+        });
+
+        test('should handle unexpected errors gracefully', async () => {
+            (Ingredient.findById as jest.Mock).mockImplementation(() => {
+                throw new Error('Unexpected error');
+            });
+
+            const response = await request(app)
+                .get('/api/ingredients/1')
+                .expect(500);
+
+            expect(response.body).toHaveProperty('success', false);
+        });
+    });
+
+    describe('Rate Limiting', () => {
+        test('should apply rate limiting', async () => {
+            // レート制限のテストは実装に依存するため、
+            // ここでは基本的な構造のみテスト
+            mockIngredient.search.mockResolvedValue([]);
+
+            // 複数のリクエストを送信
+            const requests = Array.from({ length: 5 }, () =>
+                request(app).get('/api/ingredients')
+            );
+
+            const responses = await Promise.all(requests);
+            
+            // 全て成功するはず（制限内のため）
+            responses.forEach(response => {
+                expect(response.status).toBe(200);
+            });
+        });
+    });
+
+    describe('CORS', () => {
+        test('should include CORS headers', async () => {
+            mockIngredient.search.mockResolvedValueOnce([]);
+
+            const response = await request(app)
+                .get('/api/ingredients')
+                .expect(200);
+
+            // CORS ヘッダーの確認は実装に依存
+            expect(response.headers).toHaveProperty('access-control-allow-origin');
+        });
+    });
+});
