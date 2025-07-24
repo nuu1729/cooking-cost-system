@@ -1,0 +1,261 @@
+{
+  "app": {
+    "name": "料理原価計算システム",
+    "version": "2.0.0",
+    "environment": "development",
+    "port": 3001,
+    "host": "0.0.0.0"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 3306,
+    "name": "cooking_cost_system",
+    "user": "cooking_user",
+    "password": "cooking_password",
+    "charset": "utf8mb4",
+    "timezone": "+09:00",
+    "connectionLimit": 10,
+    "acquireTimeout": 60000,
+    "timeout": 60000,
+    "ssl": false,
+    "debug": true
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": null,
+    "db": 0,
+    "keyPrefix": "cooking_cost:",
+    "connectTimeout": 10000,
+    "commandTimeout": 5000,
+    "retryDelayOnFailover": 100,
+    "maxRetriesPerRequest": 3,
+    "lazyConnect": true
+  },
+  "auth": {
+    "jwt": {
+      "secret": "development-jwt-secret-key",
+      "expiresIn": "24h",
+      "issuer": "cooking-cost-system",
+      "audience": "cooking-cost-users"
+    },
+    "session": {
+      "secret": "development-session-secret",
+      "name": "cooking-cost-session",
+      "resave": false,
+      "saveUninitialized": false,
+      "cookie": {
+        "secure": false,
+        "httpOnly": true,
+        "maxAge": 86400000
+      }
+    }
+  },
+  "cors": {
+    "origins": [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001"
+    ],
+    "credentials": true,
+    "optionsSuccessStatus": 200
+  },
+  "upload": {
+    "maxFileSize": 10485760,
+    "allowedTypes": [
+      "image/jpeg",
+      "image/jpg", 
+      "image/png",
+      "image/gif",
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/csv",
+      "application/json"
+    ],
+    "uploadDir": "./uploads",
+    "tempDir": "./temp",
+    "preserveFileName": false,
+    "generateThumbnails": true
+  },
+  "logging": {
+    "level": "debug",
+    "format": "dev",
+    "directory": "./logs",
+    "filename": "app-%DATE%.log",
+    "datePattern": "YYYY-MM-DD",
+    "maxSize": "20m",
+    "maxFiles": "14d",
+    "compress": true,
+    "console": {
+      "enabled": true,
+      "level": "debug",
+      "colorize": true
+    },
+    "file": {
+      "enabled": true,
+      "level": "info"
+    },
+    "error": {
+      "enabled": true,
+      "level": "error",
+      "filename": "error-%DATE%.log"
+    }
+  },
+  "rateLimit": {
+    "general": {
+      "windowMs": 900000,
+      "max": 1000,
+      "message": "Too many requests from this IP"
+    },
+    "api": {
+      "windowMs": 900000,
+      "max": 500,
+      "skip": ["127.0.0.1", "::1"]
+    },
+    "upload": {
+      "windowMs": 3600000,
+      "max": 50
+    },
+    "auth": {
+      "windowMs": 900000,
+      "max": 10
+    }
+  },
+  "validation": {
+    "strictMode": false,
+    "allowUnknown": true,
+    "stripUnknown": false,
+    "abortEarly": false
+  },
+  "cache": {
+    "enabled": true,
+    "defaultTTL": 3600,
+    "checkPeriod": 600,
+    "maxKeys": 10000,
+    "ingredients": {
+      "ttl": 1800
+    },
+    "dishes": {
+      "ttl": 3600
+    },
+    "reports": {
+      "ttl": 900
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "healthCheck": {
+      "enabled": true,
+      "interval": 30000,
+      "timeout": 5000
+    },
+    "metrics": {
+      "enabled": true,
+      "prometheus": {
+        "enabled": true,
+        "endpoint": "/metrics"
+      }
+    },
+    "profiling": {
+      "enabled": true,
+      "sampleRate": 0.1
+    }
+  },
+  "email": {
+    "enabled": false,
+    "smtp": {
+      "host": "localhost",
+      "port": 587,
+      "secure": false,
+      "auth": {
+        "user": "",
+        "pass": ""
+      }
+    },
+    "from": "noreply@cooking-cost-system.local",
+    "templates": {
+      "directory": "./templates/email"
+    }
+  },
+  "backup": {
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retention": {
+      "days": 7,
+      "weeks": 4,
+      "months": 12
+    },
+    "compression": true,
+    "encryption": false,
+    "storage": {
+      "local": {
+        "enabled": true,
+        "directory": "./backups"
+      },
+      "s3": {
+        "enabled": false,
+        "bucket": "",
+        "region": "",
+        "accessKeyId": "",
+        "secretAccessKey": ""
+      }
+    }
+  },
+  "features": {
+    "enableSwagger": true,
+    "enableGraphQL": false,
+    "enableWebSockets": false,
+    "enableElasticsearch": false,
+    "enableRedisCache": true,
+    "enableFileCompression": true,
+    "enableRequestTracing": true,
+    "enablePerformanceMonitoring": true
+  },
+  "security": {
+    "helmet": {
+      "enabled": true,
+      "contentSecurityPolicy": false,
+      "crossOriginEmbedderPolicy": false
+    },
+    "csrf": {
+      "enabled": false,
+      "ignoreMethods": ["GET", "HEAD", "OPTIONS"]
+    },
+    "encryption": {
+      "algorithm": "aes-256-gcm",
+      "keyDerivation": "pbkdf2"
+    },
+    "passwords": {
+      "minLength": 8,
+      "requireNumbers": true,
+      "requireSymbols": false,
+      "requireUppercase": false,
+      "requireLowercase": false
+    }
+  },
+  "api": {
+    "version": "v2",
+    "prefix": "/api",
+    "pagination": {
+      "defaultLimit": 20,
+      "maxLimit": 100
+    },
+    "documentation": {
+      "enabled": true,
+      "path": "/docs",
+      "title": "料理原価計算システム API",
+      "description": "モダンな料理原価計算システムのREST API",
+      "version": "2.0.0"
+    }
+  },
+  "development": {
+    "reloadOnChanges": true,
+    "showErrorDetails": true,
+    "enableDebugRoutes": true,
+    "mockExternalServices": true,
+    "seedDatabase": true,
+    "hotReload": true,
+    "sourceMap": true
+  }
+}
