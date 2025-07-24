@@ -1,207 +1,279 @@
-import { useCallback } from 'react';
-import toast, { 
-  Toast, 
-  ToastOptions, 
-  toast as hotToast,
-  Toaster as HotToaster 
-} from 'react-hot-toast';
+import { useState, useEffect, useCallback } from 'react';
 
-interface ToastMessage {
-  type: 'success' | 'error' | 'info' | 'warning' | 'loading';
-  message: string;
-  duration?: number;
-  id?: string;
-}
+type SetValue<T> = T | ((val: T) => T);
 
-interface UseToastReturn {
-  showToast: (message: ToastMessage) => string;
-  success: (message: string, options?: ToastOptions) => string;
-  error: (message: string, options?: ToastOptions) => string;
-  info: (message: string, options?: ToastOptions) => string;
-  warning: (message: string, options?: ToastOptions) => string;
-  loading: (message: string, options?: ToastOptions) => string;
-  dismiss: (toastId?: string) => void;
-  dismissAll: () => void;
-  promise: <T>(
-    promise: Promise<T>,
-    messages: {
-      loading: string;
-      success: string | ((data: T) => string);
-      error: string | ((error: any) => string);
+/**
+ * useLocalStorage - ローカルストレージと同期する状態管理フック
+ * @param key - ローカルストレージのキー
+ * @param initialValue - 初期値
+ * @returns [値, セッター関数, 削除関数]
+ */
+export function useLocalStorage<T>(
+  key: string,
+  initialValue: T
+): [T, (value: SetValue<T>) => void, () => void] {
+  // 初期値を取得する関数
+  const getStoredValue = useCallback((): T => {
+    try {
+      if (typeof window === 'undefined') {
+        return initialValue;
+      }
+
+      const item = window.localStorage.getItem(key);
+      if (item === null) {
+        return initialValue;
+      }
+
+      return JSON.parse(item);
+    } catch (error) {
+      console.warn(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  }, [key, initialValue]);
+
+  // 状態を初期化
+  const [storedValue, setStoredValue] = useState<T>(getStoredValue);
+
+  // 値を設定する関数
+  const setValue = useCallback(
+    (value: SetValue<T>) => {
+      try {
+        const valueToStore = value instanceof Function ? value(storedValue) : value;
+        setStoredValue(valueToStore);
+
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(key, JSON.stringify(valueToStore));
+          
+          // カスタムイベントを発火して他のタブ/ウィンドウに変更を通知
+          window.dispatchEvent(
+            new CustomEvent('local-storage', {
+              detail: { key, newValue: valueToStore },
+            })
+          );
+        }
+      } catch (error) {
+        console.error(`Error setting localStorage key "${key}":`, error);
+      }
     },
-    options?: ToastOptions
-  ) => Promise<T>;
-}
+    [key, storedValue]
+  );
 
-export const useToast = (): UseToastReturn => {
-  const showToast = useCallback((message: ToastMessage): string => {
-    const options: ToastOptions = {
-      duration: message.duration || getDefaultDuration(message.type),
-      id: message.id,
+  // 値を削除する関数
+  const removeValue = useCallback(() => {
+    try {
+      setStoredValue(initialValue);
+      
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(key);
+        
+        // カスタムイベントを発火
+        window.dispatchEvent(
+          new CustomEvent('local-storage', {
+            detail: { key, newValue: null },
+          })
+        );
+      }
+    } catch (error) {
+      console.error(`Error removing localStorage key "${key}":`, error);
+    }
+  }, [key, initialValue]);
+
+  // 他のタブ/ウィンドウでの変更を監視
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === key && e.newValue !== null) {
+        try {
+          setStoredValue(JSON.parse(e.newValue));
+        } catch (error) {
+          console.warn(`Error parsing localStorage value for key "${key}":`, error);
+        }
+      }
     };
 
-    switch (message.type) {
-      case 'success':
-        return toast.success(message.message, options);
-      case 'error':
-        return toast.error(message.message, options);
-      case 'loading':
-        return toast.loading(message.message, options);
-      case 'warning':
-        return toast(message.message, {
-          ...options,
-          icon: '⚠️',
-          style: {
-            background: '#ff9800',
-            color: '#fff',
-          },
-        });
-      case 'info':
-        return toast(message.message, {
-          ...options,
-          icon: 'ℹ️',
-          style: {
-            background: '#2196f3',
-            color: '#fff',
-          },
-        });
-      default:
-        return toast(message.message, options);
+    const handleCustomStorageChange = (e: CustomEvent) => {
+      if (e.detail.key === key) {
+        setStoredValue(e.detail.newValue ?? initialValue);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('local-storage', handleCustomStorageChange as EventListener);
     }
-  }, []);
 
-  const success = useCallback((message: string, options?: ToastOptions): string => {
-    return toast.success(message, options);
-  }, []);
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('local-storage', handleCustomStorageChange as EventListener);
+      }
+    };
+  }, [key, initialValue]);
 
-  const error = useCallback((message: string, options?: ToastOptions): string => {
-    return toast.error(message, options);
-  }, []);
+  return [storedValue, setValue, removeValue];
+}
 
-  const info = useCallback((message: string, options?: ToastOptions): string => {
-    return toast(message, {
-      icon: 'ℹ️',
-      style: {
-        background: '#2196f3',
-        color: '#fff',
-      },
-      ...options,
-    });
-  }, []);
+/**
+ * useSessionStorage - セッションストレージと同期する状態管理フック
+ * @param key - セッションストレージのキー
+ * @param initialValue - 初期値
+ * @returns [値, セッター関数, 削除関数]
+ */
+export function useSessionStorage<T>(
+  key: string,
+  initialValue: T
+): [T, (value: SetValue<T>) => void, () => void] {
+  const getStoredValue = useCallback((): T => {
+    try {
+      if (typeof window === 'undefined') {
+        return initialValue;
+      }
 
-  const warning = useCallback((message: string, options?: ToastOptions): string => {
-    return toast(message, {
-      icon: '⚠️',
-      style: {
-        background: '#ff9800',
-        color: '#fff',
-      },
-      ...options,
-    });
-  }, []);
+      const item = window.sessionStorage.getItem(key);
+      if (item === null) {
+        return initialValue;
+      }
 
-  const loading = useCallback((message: string, options?: ToastOptions): string => {
-    return toast.loading(message, options);
-  }, []);
-
-  const dismiss = useCallback((toastId?: string): void => {
-    if (toastId) {
-      toast.dismiss(toastId);
-    } else {
-      toast.dismiss();
+      return JSON.parse(item);
+    } catch (error) {
+      console.warn(`Error reading sessionStorage key "${key}":`, error);
+      return initialValue;
     }
-  }, []);
+  }, [key, initialValue]);
 
-  const dismissAll = useCallback((): void => {
-    toast.dismiss();
-  }, []);
+  const [storedValue, setStoredValue] = useState<T>(getStoredValue);
 
-  const promise = useCallback(<T>(
-    promise: Promise<T>,
-    messages: {
-      loading: string;
-      success: string | ((data: T) => string);
-      error: string | ((error: any) => string);
+  const setValue = useCallback(
+    (value: SetValue<T>) => {
+      try {
+        const valueToStore = value instanceof Function ? value(storedValue) : value;
+        setStoredValue(valueToStore);
+
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
+        }
+      } catch (error) {
+        console.error(`Error setting sessionStorage key "${key}":`, error);
+      }
     },
-    options?: ToastOptions
-  ): Promise<T> => {
-    return toast.promise(promise, messages, options);
-  }, []);
+    [key, storedValue]
+  );
 
-  return {
-    showToast,
-    success,
-    error,
-    info,
-    warning,
-    loading,
-    dismiss,
-    dismissAll,
-    promise,
-  };
-};
+  const removeValue = useCallback(() => {
+    try {
+      setStoredValue(initialValue);
+      
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error(`Error removing sessionStorage key "${key}":`, error);
+    }
+  }, [key, initialValue]);
 
-// デフォルトの表示時間を取得
-const getDefaultDuration = (type: ToastMessage['type']): number => {
-  switch (type) {
-    case 'success':
-      return 3000;
-    case 'error':
-      return 5000;
-    case 'warning':
-      return 4000;
-    case 'info':
-      return 4000;
-    case 'loading':
-      return Infinity;
-    default:
-      return 4000;
+  return [storedValue, setValue, removeValue];
+}
+
+/**
+ * useStorageState - ローカルストレージまたはセッションストレージを選択できる汎用フック
+ * @param key - ストレージのキー
+ * @param initialValue - 初期値
+ * @param storageType - ストレージタイプ
+ * @returns [値, セッター関数, 削除関数]
+ */
+export function useStorageState<T>(
+  key: string,
+  initialValue: T,
+  storageType: 'localStorage' | 'sessionStorage' = 'localStorage'
+): [T, (value: SetValue<T>) => void, () => void] {
+  if (storageType === 'sessionStorage') {
+    return useSessionStorage(key, initialValue);
   }
-};
+  return useLocalStorage(key, initialValue);
+}
 
-// トーストプロバイダーのデフォルト設定
-export const toastConfig = {
-  position: 'top-right' as const,
-  reverseOrder: false,
-  gutter: 8,
-  containerStyle: {},
-  toastOptions: {
-    className: '',
-    duration: 4000,
-    style: {
-      background: '#363636',
-      color: '#fff',
-      borderRadius: '8px',
-      padding: '12px 16px',
-      fontSize: '14px',
-      fontFamily: '"Noto Sans JP", sans-serif',
-    },
-    success: {
-      duration: 3000,
-      iconTheme: {
-        primary: '#4caf50',
-        secondary: '#fff',
-      },
-      style: {
-        background: '#4caf50',
-        color: '#fff',
-      },
-    },
-    error: {
-      duration: 5000,
-      iconTheme: {
-        primary: '#f44336',
-        secondary: '#fff',
-      },
-      style: {
-        background: '#f44336',
-        color: '#fff',
-      },
-    },
-    loading: {
-      duration: Infinity,
-    },
+// ユーティリティ関数
+export const storageUtils = {
+  /**
+   * ローカルストレージから値を取得
+   */
+  getItem: <T>(key: string, defaultValue: T): T => {
+    try {
+      if (typeof window === 'undefined') {
+        return defaultValue;
+      }
+
+      const item = window.localStorage.getItem(key);
+      if (item === null) {
+        return defaultValue;
+      }
+
+      return JSON.parse(item);
+    } catch (error) {
+      console.warn(`Error reading localStorage key "${key}":`, error);
+      return defaultValue;
+    }
+  },
+
+  /**
+   * ローカルストレージに値を設定
+   */
+  setItem: <T>(key: string, value: T): void => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(value));
+      }
+    } catch (error) {
+      console.error(`Error setting localStorage key "${key}":`, error);
+    }
+  },
+
+  /**
+   * ローカルストレージから値を削除
+   */
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error(`Error removing localStorage key "${key}":`, error);
+    }
+  },
+
+  /**
+   * ローカルストレージをクリア
+   */
+  clear: (): void => {
+    try {
+      if (typeof window !== 'undefined') {
+        window.localStorage.clear();
+      }
+    } catch (error) {
+      console.error('Error clearing localStorage:', error);
+    }
+  },
+
+  /**
+   * ストレージサイズを取得（概算）
+   */
+  getSize: (): number => {
+    try {
+      if (typeof window === 'undefined') {
+        return 0;
+      }
+
+      let total = 0;
+      for (const key in window.localStorage) {
+        if (window.localStorage.hasOwnProperty(key)) {
+          total += window.localStorage[key].length + key.length;
+        }
+      }
+      return total;
+    } catch (error) {
+      console.error('Error calculating localStorage size:', error);
+      return 0;
+    }
   },
 };
 
-export default useToast;
+export default useLocalStorage;
