@@ -1,0 +1,377 @@
+# Prometheus 設定ファイル
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'cooking-cost-system'
+    environment: 'production'
+
+# アラートルール設定
+rule_files:
+  - "alert_rules.yml"
+
+# アラートマネージャー設定
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# スクレイプ設定
+scrape_configs:
+  # Prometheus 自体の監視
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # 料理原価計算システム API
+  - job_name: 'cooking-cost-api'
+    static_configs:
+      - targets: ['backend:3001']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # Node Exporter（システムメトリクス）
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # MySQL Exporter
+  - job_name: 'mysql-exporter'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+    scrape_interval: 30s
+
+  # Redis Exporter
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+
+  # Nginx Exporter
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 30s
+
+  # cAdvisor（コンテナメトリクス）
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+
+# ================================
+# config/alert_rules.yml - アラートルール設定
+# ================================
+
+---
+groups:
+  # API関連のアラート
+  - name: cooking-cost-api
+    rules:
+      # 高いエラー率
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{job="cooking-cost-api",status=~"5.."}[5m]) / rate(http_requests_total{job="cooking-cost-api"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: cooking-cost-api
+        annotations:
+          summary: "高いエラー率が検出されました"
+          description: "APIのエラー率が過去5分間で10%を超えています。現在の値: {{ $value }}"
+
+      # 高いレスポンス時間
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="cooking-cost-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: cooking-cost-api
+        annotations:
+          summary: "高いレスポンス時間が検出されました"
+          description: "APIの95%ileレスポンス時間が2秒を超えています。現在の値: {{ $value }}秒"
+
+      # APIダウン
+      - alert: APIDown
+        expr: up{job="cooking-cost-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: cooking-cost-api
+        annotations:
+          summary: "APIサーバーがダウンしています"
+          description: "料理原価計算システムAPIが1分間応答していません"
+
+      # 高いメモリ使用量
+      - alert: HighMemoryUsage
+        expr: nodejs_memory_heap_used_bytes{job="cooking-cost-api"} / nodejs_memory_heap_total_bytes{job="cooking-cost-api"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: cooking-cost-api
+        annotations:
+          summary: "高いメモリ使用量が検出されました"
+          description: "APIサーバーのメモリ使用量が90%を超えています。現在の値: {{ $value }}%"
+
+  # データベース関連のアラート
+  - name: database
+    rules:
+      # MySQL ダウン
+      - alert: MySQLDown
+        expr: up{job="mysql-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: mysql
+        annotations:
+          summary: "MySQLサーバーがダウンしています"
+          description: "MySQLサーバーが1分間応答していません"
+
+      # 高い接続数
+      - alert: HighMySQLConnections
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: mysql
+        annotations:
+          summary: "MySQL接続数が高くなっています"
+          description: "MySQL接続数が最大接続数の80%を超えています。現在: {{ $value }}%"
+
+      # 遅いクエリ
+      - alert: SlowQueries
+        expr: rate(mysql_global_status_slow_queries[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: mysql
+        annotations:
+          summary: "遅いクエリが検出されました"
+          description: "1秒あたり0.1以上の遅いクエリが実行されています。レート: {{ $value }}"
+
+  # Redis関連のアラート
+  - name: redis
+    rules:
+      # Redis ダウン
+      - alert: RedisDown
+        expr: up{job="redis-exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redisサーバーがダウンしています"
+          description: "Redisサーバーが1分間応答していません"
+
+      # 高いメモリ使用量
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redisメモリ使用量が高くなっています"
+          description: "Redisメモリ使用量が90%を超えています。現在の値: {{ $value }}%"
+
+  # システム関連のアラート
+  - name: system
+    rules:
+      # 高いCPU使用量
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "高いCPU使用量が検出されました"
+          description: "CPU使用量が80%を超えています。現在の値: {{ $value }}%"
+
+      # 高いディスク使用量
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes - node_filesystem_free_bytes) / node_filesystem_size_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "高いディスク使用量が検出されました"
+          description: "ディスク使用量が85%を超えています。現在の値: {{ $value }}%"
+
+      # ディスク容量不足
+      - alert: DiskSpaceLow
+        expr: node_filesystem_free_bytes / node_filesystem_size_bytes < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "ディスク容量が不足しています"
+          description: "ディスクの空き容量が10%を下回りました。残り容量: {{ $value }}%"
+
+# ================================
+# config/grafana/datasources.yml - Grafana データソース設定
+# ================================
+
+---
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      httpMethod: "GET"
+
+  - name: MySQL
+    type: mysql
+    access: proxy
+    url: database:3306
+    database: cooking_cost_system
+    user: cooking_user
+    secureJsonData:
+      password: cooking_password
+    jsonData:
+      maxOpenConns: 10
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+
+# ================================
+# config/grafana/dashboards.yml - Grafana ダッシュボード設定
+# ================================
+
+---
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+
+# ================================
+# config/fluentd.conf - Fluentd ログ集約設定
+# ================================
+
+---
+<system>
+  log_level info
+</system>
+
+# Nginx アクセスログ
+<source>
+  @type tail
+  path /var/log/nginx/access.log
+  pos_file /var/log/fluentd/nginx_access.log.pos
+  tag nginx.access
+  format nginx
+  keep_time_key true
+</source>
+
+# Nginx エラーログ
+<source>
+  @type tail
+  path /var/log/nginx/error.log
+  pos_file /var/log/fluentd/nginx_error.log.pos
+  tag nginx.error
+  format /^(?<time>[^ ]+ [^ ]+) \[(?<log_level>\w+)\] (?<pid>\d+).(?<tid>\d+): (?<message>.*)$/
+  time_format %Y/%m/%d %H:%M:%S
+  keep_time_key true
+</source>
+
+# アプリケーションログ
+<source>
+  @type tail
+  path /var/log/app/*.log
+  pos_file /var/log/fluentd/app.log.pos
+  tag app.log
+  format json
+  keep_time_key true
+</source>
+
+# MySQL スローログ
+<source>
+  @type tail
+  path /var/log/mysql/slow.log
+  pos_file /var/log/fluentd/mysql_slow.log.pos
+  tag mysql.slow
+  format /^# Time: (?<time>[^\n]+)\n# User@Host: (?<user>[^\s]+)\s+@\s+\[(?<host>[^\]]*)\]\s+Id:\s+(?<id>\d+)\n# Query_time: (?<query_time>[\d.]+)\s+Lock_time: (?<lock_time>[\d.]+)\s+Rows_sent: (?<rows_sent>\d+)\s+Rows_examined: (?<rows_examined>\d+)\n(?<message>.*)/m
+  time_format %Y-%m-%dT%H:%M:%S.%L%z
+  keep_time_key true
+</source>
+
+# フィルタリング
+<filter **>
+  @type record_transformer
+  <record>
+    hostname "#{Socket.gethostname}"
+    service cooking-cost-system
+  </record>
+</filter>
+
+# エラーログの強調
+<filter *.error>
+  @type record_transformer
+  <record>
+    severity ERROR
+  </record>
+</filter>
+
+# アクセスログのパース
+<filter nginx.access>
+  @type parser
+  key_name message
+  <parse>
+    @type nginx
+  </parse>
+</filter>
+
+# 出力設定
+<match **>
+  @type copy
+  
+  # 標準出力
+  <store>
+    @type stdout
+  </store>
+  
+  # Elasticsearch（オプション）
+  <store>
+    @type elasticsearch
+    host elasticsearch
+    port 9200
+    index_name cooking-cost-logs
+    type_name _doc
+    flush_interval 10s
+    include_tag_key true
+    tag_key @log_name
+  </store>
+  
+  # ファイル出力
+  <store>
+    @type file
+    path /var/log/fluentd/aggregate
+    time_slice_format %Y%m%d%H
+    time_slice_wait 10m
+    time_format %Y-%m-%d %H:%M:%S
+    compress gzip
+  </store>
+</match>
