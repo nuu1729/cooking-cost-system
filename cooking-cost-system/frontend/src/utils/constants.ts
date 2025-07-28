@@ -21,8 +21,8 @@ export const PAGINATION = {
 
 // ソート設定
 export const SORT_ORDERS = {
-  ASC: 'asc' as const,
-  DESC: 'desc' as const,
+  ASC: 'ASC' as const,
+  DESC: 'DESC' as const,
 } as const;
 
 export const SORT_FIELDS = {
@@ -270,23 +270,6 @@ export const HTTP_STATUS = {
   SERVICE_UNAVAILABLE: 503,
 } as const;
 
-// Query Keys（React Query用）
-export const QUERY_KEYS = {
-  INGREDIENTS: ['ingredients'] as const,
-  INGREDIENT_DETAIL: (id: number) => ['ingredients', id] as const,
-  DISHES: ['dishes'] as const,
-  DISH_DETAIL: (id: number) => ['dishes', id] as const,
-  COMPLETED_FOODS: ['completedFoods'] as const,
-  COMPLETED_FOOD_DETAIL: (id: number) => ['completedFoods', id] as const,
-  REPORTS: ['reports'] as const,
-  DASHBOARD: ['dashboard'] as const,
-  MEMO: ['memo'] as const,
-  GENRE_STATS: ['genreStats'] as const,
-  POPULAR_ITEMS: ['popularItems'] as const,
-  COST_TRENDS: ['costTrends'] as const,
-  HEALTH: ['health'] as const,
-} as const;
-
 // 正規表現パターン
 export const REGEX_PATTERNS = {
   EMAIL: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -374,7 +357,6 @@ export default {
   ERROR_MESSAGES,
   SUCCESS_MESSAGES,
   HTTP_STATUS,
-  QUERY_KEYS,
   REGEX_PATTERNS,
   UNIT_CONVERSIONS,
   BREAKPOINTS,
