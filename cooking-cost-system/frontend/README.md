@@ -1,215 +1,200 @@
-# 🍽️ 料理原価計算システム v2.0 - Frontend
+# 料理原価計算システム フロントエンド
 
-モダンな料理原価計算システムのフロントエンドアプリケーションです。
+## 概要
 
-## 🚀 主な機能
+料理の原価を効率的に計算・管理するWebアプリケーションのフロントエンド部分です。食材の管理から料理の作成、完成品の価格設定まで、一連の原価計算フローをサポートします。
 
-- **食材管理**: 食材の追加、編集、削除、ジャンル別分類
-- **料理作成**: ドラッグ&ドロップで直感的な料理レシピ作成
-- **完成品管理**: 複数の料理を組み合わせた完成品の登録
-- **原価計算**: リアルタイムでの原価・利益率計算
-- **レポート機能**: ダッシュボードでの統計・分析表示
-- **レスポンシブデザイン**: PC・タブレット・スマートフォン対応
+## 主な機能
 
-## 🛠️ 技術スタック
+- 🛒 **食材管理**: 食材の登録・編集・削除、単価計算
+- 🍳 **料理作成**: ドラッグ&ドロップで食材を組み合わせた料理作成
+- 🏆 **完成品管理**: 料理を組み合わせた完成品の価格設定と利益計算
+- 📊 **レポート機能**: 原価分析、利益率計算、統計情報
+- 📱 **PWA対応**: オフライン機能、モバイル対応
+- 🎨 **直感的なUI**: Material-UIを使用したモダンなデザイン
 
-- **Framework**: React 18 with TypeScript
-- **UI Library**: Material-UI (MUI) v5
-- **State Management**: React Query + Context API
-- **Routing**: React Router v6
-- **Form Handling**: React Hook Form + Yup
-- **Drag & Drop**: React DnD
-- **Build Tool**: Vite
-- **Testing**: Vitest + Testing Library
-- **PWA**: Vite PWA Plugin
+## 技術スタック
 
-## 📦 セットアップ
+- **フレームワーク**: React 18 + TypeScript
+- **ビルドツール**: Vite
+- **UIライブラリ**: Material-UI (MUI) v5
+- **状態管理**: React Query v4
+- **フォーム管理**: React Hook Form + Yup
+- **ルーティング**: React Router Dom v6
+- **アニメーション**: Framer Motion
+- **ドラッグ&ドロップ**: React DnD
+- **通知**: React Hot Toast
+- **日付処理**: date-fns
+- **HTTP通信**: Axios
+
+## セットアップ
 
 ### 前提条件
 
-- Node.js 18.0.0以上
-- npm 9.0.0以上
+- Node.js (v18.0.0以上)
+- npm (v9.0.0以上)
 
 ### インストール
 
+1. リポジトリをクローン
 ```bash
-# 依存関係のインストール
+git clone [repository-url]
+cd cooking-cost-system/frontend
+```
+
+2. 依存関係をインストール
+```bash
 npm install
+```
 
-# 環境変数の設定
+3. 環境変数を設定
+```bash
 cp .env.example .env
-
-# 開発サーバーの起動
-npm run dev
+# .envファイルを編集して適切な値を設定
 ```
 
-### 環境変数
-
-`.env`ファイルで以下の環境変数を設定してください：
-
-```env
-VITE_API_URL=http://localhost:3001/api
-VITE_APP_TITLE=料理原価計算システム
-VITE_APP_VERSION=2.0.0
-VITE_ENABLE_DEV_TOOLS=true
-```
-
-## 🔧 開発
-
-### 開発サーバー
-
+4. 開発サーバーを起動
 ```bash
 npm run dev
 ```
 
-ブラウザで `http://localhost:3000` にアクセスしてください。
+5. ブラウザで `http://localhost:3000` にアクセス
 
-### ビルド
+## 利用可能なスクリプト
 
-```bash
-# 本番用ビルド
-npm run build
+- `npm run dev` - 開発サーバーを起動
+- `npm run build` - 本番用ビルドを作成
+- `npm run preview` - ビルドしたアプリをプレビュー
+- `npm run lint` - ESLintでコードをチェック
+- `npm run format` - Prettierでコードをフォーマット
+- `npm run type-check` - TypeScriptの型チェック
+- `npm run test` - テストを実行
+- `npm run test:coverage` - カバレッジ付きでテストを実行
 
-# プレビュー
-npm run preview
-```
-
-### テスト
-
-```bash
-# 単体テスト
-npm run test
-
-# テストUI
-npm run test:ui
-
-# カバレッジ
-npm run test:coverage
-
-# E2Eテスト
-npm run test:e2e
-```
-
-### コード品質
-
-```bash
-# ESLint
-npm run lint
-npm run lint:fix
-
-# TypeScript型チェック
-npm run typecheck
-
-# フォーマット
-npm run format
-```
-
-## 📱 PWA対応
-
-このアプリケーションはPWA（Progressive Web App）として動作します：
-
-- オフライン対応
-- インストール可能
-- プッシュ通知対応
-- レスポンシブデザイン
-
-## 🏗️ プロジェクト構造
+## プロジェクト構造
 
 ```
 src/
-├── components/          # 再利用可能なUIコンポーネント
-│   ├── common/         # 共通コンポーネント
-│   ├── dishes/         # 料理関連コンポーネント
-│   ├── ingredients/    # 食材関連コンポーネント
-│   └── reports/        # レポート関連コンポーネント
-├── contexts/           # React Context
-├── hooks/              # カスタムフック
-├── pages/              # ページコンポーネント
-├── services/           # API通信
-├── types/              # TypeScript型定義
-├── utils/              # ユーティリティ関数
-└── test/               # テスト設定
+├── components/        # 再利用可能なコンポーネント
+│   ├── common/       # 共通コンポーネント
+│   ├── ingredients/  # 食材関連コンポーネント
+│   ├── dishes/       # 料理関連コンポーネント
+│   └── completedFoods/ # 完成品関連コンポーネント
+├── contexts/         # React Context
+├── hooks/            # カスタムフック
+├── pages/            # ページコンポーネント
+├── services/         # API通信関連
+├── styles/           # スタイル関連
+├── types/            # TypeScript型定義
+└── utils/            # ユーティリティ関数
 ```
 
-## 🎨 デザインシステム
+## 環境変数
 
-### カラーパレット
+| 変数名 | 説明 | デフォルト値 |
+|--------|------|--------------|
+| `VITE_API_URL` | バックエンドAPIのURL | `http://localhost:3001/api` |
+| `VITE_APP_NAME` | アプリケーション名 | `料理原価計算システム` |
+| `VITE_ENABLE_AUTH` | 認証機能の有効化 | `false` |
+| `VITE_PWA_ENABLED` | PWA機能の有効化 | `true` |
 
-- **Primary**: #1976d2 (Material Blue)
-- **Secondary**: #dc004e (Material Pink)
-- **Success**: #4caf50 (Material Green)
-- **Warning**: #ff9800 (Material Orange)
-- **Error**: #f44336 (Material Red)
+詳細は `.env.example` を参照してください。
 
-### ジャンル別カラー
+## コードスタイル
 
-- **肉類**: #d32f2f (赤)
-- **野菜**: #388e3c (緑)
-- **調味料**: #fbc02d (黄)
-- **ソース**: #ff5722 (オレンジ)
-- **冷凍**: #2196f3 (青)
-- **ドリンク**: #9c27b0 (紫)
+このプロジェクトでは以下のツールを使用してコード品質を維持しています：
 
-## 🚀 デプロイ
+- **ESLint**: JavaScriptとTypeScriptのリンター
+- **Prettier**: コードフォーマッター
+- **TypeScript**: 型安全性の確保
 
-### Docker
+コードをコミットする前に以下を実行してください：
 
 ```bash
-# 開発用
-docker build -f Dockerfile.dev -t cooking-cost-frontend:dev .
-docker run -p 3000:3000 cooking-cost-frontend:dev
-
-# 本番用
-docker build -f Dockerfile -t cooking-cost-frontend:prod .
-docker run -p 8080:8080 cooking-cost-frontend:prod
+npm run lint
+npm run format
+npm run type-check
 ```
 
-### Vercel / Netlify
+## テスト
 
-1. GitHubリポジトリに接続
-2. ビルドコマンド: `npm run build`
-3. 出力ディレクトリ: `build`
-4. 環境変数を設定
+テストフレームワークとして Vitest を使用しています。
 
-## 📋 使用方法
+```bash
+# テスト実行
+npm run test
 
-### 食材管理
+# カバレッジ付きテスト
+npm run test:coverage
 
-1. 右下の「+」ボタンから食材を追加
-2. 名前、購入場所、数量、単位、価格、ジャンルを入力
-3. 自動的に単価が計算されます
+# テストUI
+npm run test:ui
+```
 
-### 料理作成
+## ビルドとデプロイ
 
-1. 食材一覧から料理作成エリアにドラッグ&ドロップ
-2. 使用量を入力
-3. 料理名を設定して作成
+### 本番用ビルド
 
-### 完成品登録
+```bash
+npm run build
+```
 
-1. 料理一覧から完成品作成エリアにドラッグ&ドロップ
-2. 使用量（割合または人前）を設定
-3. 販売価格を入力して利益率を確認
+ビルドされたファイルは `dist/` ディレクトリに出力されます。
 
-## 🤝 コントリビューション
+### PWA機能
 
-1. フォークしてください
-2. 機能ブランチを作成してください (`git checkout -b feature/amazing-feature`)
-3. 変更をコミットしてください (`git commit -m 'Add some amazing feature'`)
-4. ブランチにプッシュしてください (`git push origin feature/amazing-feature`)
-5. プルリクエストを開いてください
+このアプリケーションはPWA（Progressive Web App）として構築されており、以下の機能を提供します：
 
-## 📝 ライセンス
+- オフライン対応
+- ホーム画面への追加
+- プッシュ通知（実装済み）
+- バックグラウンド同期
+
+## ブラウザサポート
+
+- Chrome (最新版)
+- Firefox (最新版)
+- Safari (最新版)
+- Edge (最新版)
+
+## コントリビューション
+
+1. このリポジトリをフォーク
+2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
+
+## トラブルシューティング
+
+### よくある問題
+
+**Q: 開発サーバーが起動しない**
+A: Node.jsのバージョンを確認してください（v18.0.0以上が必要）
+
+**Q: ビルドエラーが発生する**
+A: 依存関係を再インストールしてください
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Q: APIとの通信ができない**
+A: バックエンドサーバーが起動していることと、`.env`の`VITE_API_URL`が正しいことを確認してください
+
+## ライセンス
 
 MIT License
 
-## 🆘 サポート
+## 変更履歴
 
-問題が発生した場合は、GitHubのIssuesページでお知らせください。
+### v2.0.0
+- TypeScriptで完全リライト
+- Material-UI v5にアップグレード
+- React Query v4を採用
+- PWA機能を追加
+- ドラッグ&ドロップ機能を実装
 
-## 🏆 謝辞
-
-- Material-UI チーム
-- React チーム
-- Vite チーム
-- TypeScript チーム
+### v1.0.0
+- 初回リリース
+- 基本的な原価計算機能を実装
