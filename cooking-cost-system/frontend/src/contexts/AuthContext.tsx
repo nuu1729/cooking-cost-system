@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import toast from 'react-hot-toast';
 import { 
     User, 
     LoginRequest, 
@@ -7,7 +8,6 @@ import {
     ApiResponse 
 } from '../types';
 import { authApi } from '../services/api';
-import { useToast } from './AppContext';
 
 // 認証状態の型定義
 interface AuthState {
@@ -140,7 +140,6 @@ interface AuthContextProviderProps {
 
 export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ children }) => {
     const [state, dispatch] = useReducer(authReducer, initialState);
-    const { addToast } = useToast();
 
     // トークン管理
     const getStoredToken = (): string | null => {
@@ -213,12 +212,12 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
         setStoredToken(token);
         dispatch({ type: 'AUTH_SUCCESS', payload: { user, token } });
         
-        addToast({ type: 'success', message: 'ログインに成功しました' });
+        toast.success('ログインに成功しました');
         return true;
         } catch (error: any) {
         const errorMessage = error.response?.data?.message || 'ログインに失敗しました';
         dispatch({ type: 'AUTH_FAILURE', payload: errorMessage });
-        addToast({ type: 'error', message: errorMessage });
+        toast.error(errorMessage);
         return false;
         }
     };
@@ -230,17 +229,14 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
         try {
         const response = await authApi.register(userData);
         
-        addToast({ 
-            type: 'success', 
-            message: 'ユーザー登録が完了しました。ログインしてください。' 
-        });
+        toast.success('ユーザー登録が完了しました。ログインしてください。');
         
         dispatch({ type: 'CLEAR_ERROR' });
         return true;
         } catch (error: any) {
         const errorMessage = error.response?.data?.message || 'ユーザー登録に失敗しました';
         dispatch({ type: 'AUTH_FAILURE', payload: errorMessage });
-        addToast({ type: 'error', message: errorMessage });
+        toast.error(errorMessage);
         return false;
         }
     };
@@ -256,7 +252,7 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
         } finally {
         removeStoredToken();
         dispatch({ type: 'LOGOUT' });
-        addToast({ type: 'info', message: 'ログアウトしました' });
+        toast.success('ログアウトしました');
         }
     };
 
@@ -282,11 +278,11 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
     const updatePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
         try {
         await authApi.updatePassword(currentPassword, newPassword);
-        addToast({ type: 'success', message: 'パスワードが更新されました' });
+        toast.success('パスワードが更新されました');
         return true;
         } catch (error: any) {
         const errorMessage = error.response?.data?.message || 'パスワード更新に失敗しました';
-        addToast({ type: 'error', message: errorMessage });
+        toast.error(errorMessage);
         return false;
         }
     };
@@ -310,54 +306,6 @@ export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ childr
 
         return () => clearInterval(interval);
     }, [state.authEnabled, state.isAuthenticated, state.token]);
-
-    // Axiosインターセプターの設定
-    useEffect(() => {
-        const { api } = require('../services/api');
-        
-        // リクエストインターセプター
-        const requestInterceptor = api.interceptors.request.use(
-        (config: any) => {
-            const token = getStoredToken();
-            if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-            }
-            return config;
-        },
-        (error: any) => Promise.reject(error)
-        );
-
-        // レスポンスインターセプター
-        const responseInterceptor = api.interceptors.response.use(
-        (response: any) => response,
-        async (error: any) => {
-            const originalRequest = error.config;
-            
-            if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            
-            try {
-                const success = await refreshToken();
-                if (success) {
-                const newToken = getStoredToken();
-                originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                return api(originalRequest);
-                }
-            } catch (refreshError) {
-                console.error('Token refresh failed:', refreshError);
-                logout();
-            }
-            }
-            
-            return Promise.reject(error);
-        }
-        );
-
-        return () => {
-        api.interceptors.request.eject(requestInterceptor);
-        api.interceptors.response.eject(responseInterceptor);
-        };
-    }, []);
 
     // コンテキスト値
     const contextValue: AuthContextType = {
