@@ -11,12 +11,13 @@ import {
     Fab,
     Fade,
 } from '@mui/material';
-import { Add as AddIcon, Analytics as AnalyticsIcon } from '@mui/icons-material';
+import { Add as AddIcon } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 
 // コンポーネントのインポート
 import AddIngredientModal from '../components/common/AddIngredientModal';
 import DishBuilder from '../components/common/DishBuilder';
+import CompletedFoodBuilder from '../components/completedFoods/CompletedFoodsBuilder';
 import { IngredientCard } from '../components/ingredients/IngredientCard';
 import { DishCard } from '../components/dishes/DishCard';
 import { CompletedFoodCard } from '../components/completedFoods/CompletedFoodCard';
@@ -24,7 +25,7 @@ import { StatsCard } from '../components/reports/StatsCard';
 
 // API & Types
 import { ingredientApi, dishApi, completedFoodApi, reportApi } from '../services/api';
-import { Ingredient, Dish, CompletedFood, GENRE_INFO } from '../types';
+import { Ingredient, Dish, CompletedFood } from '../types';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -61,7 +62,7 @@ const MainPage: React.FC = () => {
         queryFn: () => dishApi.getAll({ limit: 30 }),
     });
 
-    const { data: foodsResponse, isLoading: foodsLoading } = useQuery({
+    const { data: foodsResponse, isLoading: foodsLoading, refetch: refetchFoods } = useQuery({
         queryKey: ['completedFoods'],
         queryFn: () => completedFoodApi.getAll({ limit: 20 }),
     });
@@ -87,6 +88,10 @@ const MainPage: React.FC = () => {
 
     const handleDishCreated = () => {
         refetchDishes();
+    };
+
+    const handleFoodCreated = () => {
+        refetchFoods();
     };
 
     // 統計データ
@@ -253,10 +258,20 @@ const MainPage: React.FC = () => {
 
             {/* 右側パネル - 料理作成・完成品作成 */}
             <Grid item xs={12} lg={4}>
-            <DishBuilder 
-                ingredients={ingredients} 
-                onDishCreated={handleDishCreated}
-            />
+            <Grid container spacing={2}>
+                <Grid item xs={12}>
+                <DishBuilder 
+                    ingredients={ingredients} 
+                    onDishCreated={handleDishCreated}
+                />
+                </Grid>
+                <Grid item xs={12}>
+                <CompletedFoodBuilder 
+                    dishes={dishes} 
+                    onFoodCreated={handleFoodCreated}
+                />
+                </Grid>
+            </Grid>
             </Grid>
         </Grid>
 
