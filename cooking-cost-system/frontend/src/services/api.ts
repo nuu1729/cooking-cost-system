@@ -9,7 +9,11 @@ import {
     CompletedFood,
     CreateCompletedFoodRequest,
     ApiResponse,
-    PaginatedResponse
+    PaginatedResponse,
+    LoginRequest,
+    RegisterRequest,
+    LoginResponse,
+    User
 } from '../types';
 
 // APIベースURL設定
@@ -378,11 +382,23 @@ export const uploadApi = {
     },
 };
 
-// 認証API（将来用）
+// 認証API
 export const authApi = {
+    // 認証状態チェック
+    getAuthStatus: async (): Promise<ApiResponse<{ authEnabled: boolean }>> => {
+        const response = await apiClient.get('/auth/status');
+        return response.data;
+    },
+
     // ログイン
-    login: async (username: string, password: string): Promise<ApiResponse<any>> => {
-        const response = await apiClient.post('/auth/login', { username, password });
+    login: async (credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
+        const response = await apiClient.post('/auth/login', credentials);
+        return response.data;
+    },
+    
+    // ユーザー登録
+    register: async (userData: RegisterRequest): Promise<ApiResponse<User>> => {
+        const response = await apiClient.post('/auth/register', userData);
         return response.data;
     },
     
@@ -393,8 +409,23 @@ export const authApi = {
     },
     
     // 現在のユーザー情報取得
-    getCurrentUser: async (): Promise<ApiResponse<any>> => {
+    getCurrentUser: async (): Promise<ApiResponse<User>> => {
         const response = await apiClient.get('/auth/me');
+        return response.data;
+    },
+
+    // トークンリフレッシュ
+    refreshToken: async (): Promise<ApiResponse<{ token: string }>> => {
+        const response = await apiClient.post('/auth/refresh');
+        return response.data;
+    },
+
+    // パスワード更新
+    updatePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
+        const response = await apiClient.put('/auth/password', {
+            currentPassword,
+            newPassword,
+        });
         return response.data;
     },
 };
@@ -409,5 +440,8 @@ export const healthApi = {
         return response.data;
     },
 };
+
+// APIクライアントのエクスポート（他のモジュールで使用する場合）
+export { apiClient as api };
 
 export default apiClient;
