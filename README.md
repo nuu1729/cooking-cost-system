@@ -53,18 +53,6 @@ graph TD
     
     class A,B,C appStyle
     class D,E,F dockerStyle
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │────│   Backend API    │────│   Database      │
-│   React + TS    │    │   Node.js + TS   │    │   MySQL 8.0     │
-│   Material-UI   │    │   Express        │    │   (Container)   │
-│   React Query   │    │   TypeORM        │    │                 │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                        │                        │
-         ▼                        ▼                        ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Docker        │    │   Docker         │    │   Docker        │
-│   Container     │    │   Container      │    │   Container     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 (Mermaidでフローチャートにする予定)
 
