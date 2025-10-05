@@ -93,7 +93,7 @@ graph TD
 
 ```bash
 # 1. リポジトリクローン
-git clone [<repository-url>](https://github.com/nuu1729/cooking-cost-system/tree/main)
+git clone https://github.com/nuu1729/cooking-cost-system/tree/main
 cd cooking-cost-system
 
 # 2. 環境変数設定
