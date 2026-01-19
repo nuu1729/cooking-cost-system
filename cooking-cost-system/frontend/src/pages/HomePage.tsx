@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 const HomePage: React.FC = () => {
     return (
         <div className="relative h-[calc(100vh-80px)] flex flex-row overflow-hidden">
-            {/* Left side - Content (Matches Figma) */}
-            <div className="w-1/2 flex items-center justify-center bg-white p-12">
+            {/* Left side - Content (65%) */}
+            <div className="w-[65%] flex items-center justify-center bg-white p-12">
                 <motion.div
                     initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -18,8 +18,8 @@ const HomePage: React.FC = () => {
                 </motion.div>
             </div>
 
-            {/* Right side - Image (Matches Figma) */}
-            <div className="w-1/2 relative bg-gray-100">
+            {/* Right side - Image (35%) */}
+            <div className="w-[35%] relative bg-gray-100 border-l border-gray-200">
                 <img
                     src="/images/ming_outlook.jpeg"
                     alt="Mingering Diner Exterior"
