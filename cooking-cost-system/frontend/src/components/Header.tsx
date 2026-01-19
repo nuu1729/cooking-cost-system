@@ -13,21 +13,24 @@ const navItems = [
 
 const Header: React.FC = () => {
     return (
-        <header className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50">
+        <header className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50 overflow-visible">
             {/* Logo Area */}
-            <div className="flex items-start h-full">
-                <img
-                    src="/images/ming_10th_icon.png"
-                    alt="Mingering Diner Logo"
-                    className="w-auto object-contain bg-white z-10 shadow-md"
-                    style={{
-                        height: '140px',
-                        marginTop: '40px',
-                        marginLeft: '0px'
-                    }}
-                />
+            <div className="flex items-center h-full relative" style={{ minWidth: '150px' }}>
+                <div className="absolute top-0 left-0 z-50">
+                    <img
+                        src="/images/ming_10th_icon.png"
+                        alt="Mingering Diner Logo"
+                        className="w-auto object-contain bg-white shadow-xl"
+                        style={{
+                            height: '140px',
+                            display: 'block',
+                            position: 'relative',
+                            top: '10px' // 10px down from the top of the viewport
+                        }}
+                    />
+                </div>
 
-                <div className="w-[1px] h-8 bg-[#888] mx-6 self-center" />
+                <div className="w-[1px] h-8 bg-[#888] mx-6 ml-40" />
 
                 <h2 className="text-xl font-bold text-black tracking-tight self-center">
                     料理原価計算システム
