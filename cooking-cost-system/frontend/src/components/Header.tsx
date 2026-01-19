@@ -15,11 +15,11 @@ const Header: React.FC = () => {
     return (
         <header className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50">
             {/* Logo Area */}
-            <div className="flex items-center h-full">
+            <div className="flex items-start h-full">
                 <img
                     src="/images/ming_10th_icon.png"
                     alt="Mingering Diner Logo"
-                    className="h-[120px] w-auto object-contain bg-white z-10 mt-20 shadow-md"
+                    className="h-[120px] w-auto object-contain bg-white z-10 shadow-md transform translate-y-4"
                 />
 
                 <div className="w-[1px] h-8 bg-[#888] mx-6" />
