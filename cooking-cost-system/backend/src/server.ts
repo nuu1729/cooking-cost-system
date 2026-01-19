@@ -36,11 +36,12 @@ async function startServer() {
     try {
         // データベース初期化
         await initializeDatabase();
-        
+
         // Express アプリケーション起動
-        const app = new App();
+        const appInstance = new App();
+        const app = appInstance.getApp();
         app.listen(PORT);
-        
+
         logger.info(`🚀 Server is running on http://${HOST}:${PORT}`, {
             environment: process.env.NODE_ENV || 'development',
             port: PORT,

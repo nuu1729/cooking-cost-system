@@ -1,0 +1,143 @@
+{
+  "version": 6,
+  "entities": [
+    {
+      "entity": {
+        "type": "Project",
+        "id": "286ad9d4-c9a3-4405-9770-6a3d7444bbbf",
+        "name": "WEB_HANKAN"
+      },
+      "children": [
+        {
+          "entity": {
+            "type": "Request",
+            "method": {
+              "requestBody": true,
+              "link": "http://tools.ietf.org/html/rfc7231#section-4.3.3",
+              "name": "POST"
+            },
+            "body": {
+              "formBody": {
+                "overrideContentType": true,
+                "encoding": "application/x-www-form-urlencoded",
+                "items": []
+              },
+              "bodyType": "Text",
+              "textBody": "{\n  \"userName\": \"瀬戸内太郎\",\n  \"password\": \"test1234\"\n}"
+            },
+            "uri": {
+              "query": {
+                "delimiter": "&",
+                "items": []
+              },
+              "scheme": {
+                "name": "http",
+                "version": "V11"
+              },
+              "host": "localhost:5000",
+              "path": "/api/common/login"
+            },
+            "id": "d554f71e-17e4-477e-9079-127188b7e06f",
+            "name": "ha001_login",
+            "headers": [
+              {
+                "enabled": true,
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "entity": {
+            "type": "Request",
+            "method": {
+              "requestBody": true,
+              "link": "http://tools.ietf.org/html/rfc7231#section-4.3.3",
+              "name": "POST"
+            },
+            "body": {
+              "formBody": {
+                "overrideContentType": true,
+                "encoding": "application/x-www-form-urlencoded",
+                "items": []
+              },
+              "bodyType": "Text",
+              "textBody": "{}"
+            },
+            "uri": {
+              "query": {
+                "delimiter": "&",
+                "items": []
+              },
+              "scheme": {
+                "name": "http",
+                "version": "V11"
+              },
+              "host": "localhost:5000",
+              "path": "/api/common/get-user-info"
+            },
+            "id": "f18715aa-ed3c-458f-8dc4-f0df42e560cd",
+            "name": "ha002_get_user_info",
+            "headers": [
+              {
+                "enabled": true,
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "enabled": true,
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2Nzc2Nzc2NCwianRpIjoiMjBlNjEyN2EtZTQ4Zi00M2IyLWE3NTQtYmFkYjQ0MWVlN2JmIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3Njc3Njc3NjQsImNzcmYiOiJmOWU1ZGVkMS1mNjEwLTQ4NDAtYjNlYS1mZmZiNzkxOWY3NjMiLCJleHAiOjE3Njc3Njg2NjQsIm5hbWUiOiJcdTcwMmNcdTYyMzhcdTUxODUgXHU1OTJhXHU5MGNlIn0.fX1sX56jjALi3iAqRzh9UNCKMz6oTh-875i9-V7fyQA"
+              }
+            ]
+          }
+        },
+        {
+          "entity": {
+            "type": "Request",
+            "method": {
+              "requestBody": true,
+              "link": "http://tools.ietf.org/html/rfc7231#section-4.3.3",
+              "name": "POST"
+            },
+            "body": {
+              "formBody": {
+                "overrideContentType": true,
+                "encoding": "application/x-www-form-urlencoded",
+                "items": []
+              },
+              "bodyType": "Text",
+              "textBody": "{\n  \"mailAddress\": \"arauchi@setouchisystem.co.jp\"\n}"
+            },
+            "uri": {
+              "query": {
+                "delimiter": "&",
+                "items": []
+              },
+              "scheme": {
+                "name": "http",
+                "version": "V11"
+              },
+              "host": "localhost:5000",
+              "path": "/api/common/send-password-change-mail"
+            },
+            "id": "9f8eed51-3996-49f4-9a5a-7b84c5fc70dc",
+            "name": "ha003_send_password_reset_mail",
+            "headers": [
+              {
+                "enabled": true,
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2Nzc2Nzc2NCwianRpIjoiMjBlNjEyN2EtZTQ4Zi00M2IyLWE3NTQtYmFkYjQ0MWVlN2JmIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3Njc3Njc3NjQsImNzcmYiOiJmOWU1ZGVkMS1mNjEwLTQ4NDAtYjNlYS1mZmZiNzkxOWY3NjMiLCJleHAiOjE3Njc3Njg2NjQsIm5hbWUiOiJcdTcwMmNcdTYyMzhcdTUxODUgXHU1OTJhXHU5MGNlIn0.fX1sX56jjALi3iAqRzh9UNCKMz6oTh-875i9-V7fyQA"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

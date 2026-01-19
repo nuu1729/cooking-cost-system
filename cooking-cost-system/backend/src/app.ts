@@ -3,7 +3,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+// rateLimit import removed as it is not used here directly
 import path from 'path';
 
 // Middleware imports
@@ -22,7 +22,7 @@ import memoRouter from './routes/memo';
 import uploadRouter from './routes/upload';
 import authRouter from './routes/auth';
 
-class App {
+export class App {
     public app: Application;
 
     constructor() {
@@ -30,7 +30,6 @@ class App {
         this.initializeMiddleware();
         this.initializeRoutes();
         this.initializeErrorHandling();
-        this.initializeHealthCheck();
     }
 
     private initializeMiddleware(): void {
@@ -56,7 +55,7 @@ class App {
         this.app.use(cors(corsOptions));
 
         // レート制限
-        this.app.use('/api/', rateLimit(rateLimitConfig));
+        this.app.use('/api/', rateLimitConfig as any);
 
         // 圧縮
         this.app.use(compression({
@@ -70,16 +69,16 @@ class App {
         }));
 
         // JSONパーサー
-        this.app.use(express.json({ 
+        this.app.use(express.json({
             limit: '10mb',
             verify: (req: any, res, buf) => {
                 req.rawBody = buf;
             }
         }));
-        
-        this.app.use(express.urlencoded({ 
-            extended: true, 
-            limit: '10mb' 
+
+        this.app.use(express.urlencoded({
+            extended: true,
+            limit: '10mb'
         }));
 
         // リクエストログ
@@ -99,6 +98,9 @@ class App {
     }
 
     private initializeRoutes(): void {
+        // ヘルスチェック (最優先で登録)
+        this.registerHealthCheck();
+
         // ルートエンドポイント
         this.app.get('/', (req: Request, res: Response) => {
             res.json({
@@ -169,7 +171,7 @@ class App {
         this.app.use(errorHandler);
     }
 
-    private initializeHealthCheck(): void {
+    private registerHealthCheck(): void {
         // 基本ヘルスチェック
         this.app.get('/health', async (req: Request, res: Response) => {
             try {
@@ -279,4 +281,4 @@ nodejs_external_memory_bytes ${process.memoryUsage().external}
     }
 }
 
-export default new App().getApp();
+export default App;

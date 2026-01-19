@@ -9,7 +9,7 @@ export abstract class BaseModel {
     protected static tableName: string;
 
     // データベースインスタンス取得
-    protected static get db() {
+    public static get db() {
         return getDatabase();
     }
 
@@ -25,7 +25,7 @@ export abstract class BaseModel {
     ): Promise<T[]> {
         const model = new this();
         const tableName = (this as any).tableName;
-        
+
         let sql = `SELECT * FROM \`${tableName}\``;
         const params: any[] = [];
 
@@ -48,7 +48,7 @@ export abstract class BaseModel {
             }
         }
 
-        const rows = await this.db.query(sql, params);
+        const rows = await BaseModel.db.query(sql, params);
         return rows.map((row: any) => Object.assign(new this(), row));
     }
 
@@ -59,8 +59,8 @@ export abstract class BaseModel {
     ): Promise<T | null> {
         const tableName = (this as any).tableName;
         const sql = `SELECT * FROM \`${tableName}\` WHERE id = ?`;
-        const row = await this.db.queryOne(sql, [id]);
-        
+        const row = await BaseModel.db.queryOne(sql, [id]);
+
         return row ? Object.assign(new this(), row) : null;
     }
 
@@ -72,22 +72,22 @@ export abstract class BaseModel {
         const tableName = (this as any).tableName;
         const whereConditions = Object.keys(where).map(key => `\`${key}\` = ?`);
         const sql = `SELECT * FROM \`${tableName}\` WHERE ${whereConditions.join(' AND ')}`;
-        
-        const row = await this.db.queryOne(sql, Object.values(where));
+
+        const row = await BaseModel.db.queryOne(sql, Object.values(where));
         return row ? Object.assign(new this(), row) : null;
     }
 
     // 保存（INSERT/UPDATE）
     async save(): Promise<this> {
         const tableName = (this.constructor as any).tableName;
-        
+
         if (this.id) {
             // UPDATE
             const fields = this.getUpdateableFields();
             const setClause = Object.keys(fields).map(key => `\`${key}\` = ?`).join(', ');
             const sql = `UPDATE \`${tableName}\` SET ${setClause} WHERE id = ?`;
             const params = [...Object.values(fields), this.id];
-            
+
             await BaseModel.db.query(sql, params);
             this.updated_at = new Date();
         } else {
@@ -96,13 +96,13 @@ export abstract class BaseModel {
             const columns = Object.keys(fields).map(key => `\`${key}\``).join(', ');
             const values = Object.keys(fields).map(() => '?').join(', ');
             const sql = `INSERT INTO \`${tableName}\` (${columns}) VALUES (${values})`;
-            
+
             const result = await BaseModel.db.query(sql, Object.values(fields)) as any;
             this.id = result.insertId;
             this.created_at = new Date();
             this.updated_at = new Date();
         }
-        
+
         return this;
     }
 
@@ -111,7 +111,7 @@ export abstract class BaseModel {
         if (!this.id) {
             throw new Error('Cannot delete model without ID');
         }
-        
+
         const tableName = (this.constructor as any).tableName;
         const sql = `DELETE FROM \`${tableName}\` WHERE id = ?`;
         await BaseModel.db.query(sql, [this.id]);
@@ -121,26 +121,26 @@ export abstract class BaseModel {
     static async deleteById(id: number): Promise<void> {
         const tableName = (this as any).tableName;
         const sql = `DELETE FROM \`${tableName}\` WHERE id = ?`;
-        await this.db.query(sql, [id]);
+        await BaseModel.db.query(sql, [id]);
     }
 
     // 挿入可能なフィールドを取得
     protected getInsertableFields(): Record<string, any> {
         const fields: Record<string, any> = {};
-        
+
         Object.keys(this).forEach(key => {
             if (key !== 'id' && key !== 'created_at' && key !== 'updated_at') {
                 fields[key] = (this as any)[key];
             }
         });
-        
+
         return fields;
     }
 
     // 更新可能なフィールドを取得
     protected getUpdateableFields(): Record<string, any> {
         const fields: Record<string, any> = {};
-        
+
         Object.keys(this).forEach(key => {
             if (key !== 'id' && key !== 'created_at') {
                 if (key === 'updated_at') {
@@ -150,14 +150,14 @@ export abstract class BaseModel {
                 }
             }
         });
-        
+
         return fields;
     }
 
     // JSON シリアライゼーション
     toJSON(): Record<string, any> {
         const obj: Record<string, any> = {};
-        
+
         Object.keys(this).forEach(key => {
             const value = (this as any)[key];
             if (value instanceof Date) {
@@ -166,7 +166,7 @@ export abstract class BaseModel {
                 obj[key] = value;
             }
         });
-        
+
         return obj;
     }
 }

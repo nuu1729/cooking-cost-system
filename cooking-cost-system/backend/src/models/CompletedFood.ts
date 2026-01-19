@@ -111,7 +111,7 @@ export class CompletedFood extends BaseModel {
             WHERE fd.food_id = ?
         `;
 
-        const dishes = await this.db.query(dishesSql, [id]);
+        const dishes = await BaseModel.db.query(dishesSql, [id]);
         (food as any).dishes = dishes;
 
         return food;
@@ -171,7 +171,7 @@ export class CompletedFood extends BaseModel {
             }
         }
 
-        const rows = await this.db.query(sql, params);
+        const rows = await BaseModel.db.query(sql, params);
         return rows.map((row: any) => Object.assign(new CompletedFood(), row));
     }
 
@@ -187,7 +187,7 @@ export class CompletedFood extends BaseModel {
             ORDER BY profit_rate DESC
             LIMIT ?
         `;
-        return this.db.query(sql, [limit]);
+        return BaseModel.db.query(sql, [limit]);
     }
 
     // 完成品削除（関連データも削除）
@@ -199,7 +199,7 @@ export class CompletedFood extends BaseModel {
         await BaseModel.db.transaction(async (query) => {
             // 完成品-料理関連データ削除
             await query('DELETE FROM food_dishes WHERE food_id = ?', [this.id]);
-            
+
             // 完成品削除
             await query('DELETE FROM completed_foods WHERE id = ?', [this.id]);
         });

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
-import { Ingredient } from '../models/Ingredient';
+import { Ingredient } from '../models/Ingredients';
 import { Dish } from '../models/Dish';
 import { CompletedFood } from '../models/CompletedFood';
 import { getDatabase } from '../database';
@@ -185,12 +185,12 @@ router.get('/export', asyncHandler(async (req: Request, res: Response) => {
         // CSV形式での出力（簡易実装）
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename="${type}_report.csv"`);
-        
+
         // CSV変換（実際の実装では専用ライブラリを使用）
-        const csvData = Array.isArray(data) 
+        const csvData = Array.isArray(data)
             ? data.map(item => Object.values(item).join(',')).join('\n')
             : JSON.stringify(data);
-        
+
         res.send(csvData);
     } else {
         res.json({

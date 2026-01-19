@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { asyncHandler, NotFoundError, BadRequestError } from '../middleware/errorHandler';
-import { Ingredient } from '../models/Ingredient';
+import { Ingredient } from '../models/Ingredients';
 import { CreateIngredientRequest, UpdateIngredientRequest, IngredientSearchParams } from '../types/ingredient';
 import { logger } from '../utils/logger';
 
@@ -14,16 +14,16 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
         genre: req.query.genre as any,
         minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
         maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
-        sortBy: (req.query.sortBy as string) || 'created_at',
+        sortBy: (req.query.sortBy as 'name' | 'price' | 'unit_price' | 'created_at') || 'created_at',
         sortOrder: (req.query.sortOrder as 'ASC' | 'DESC') || 'DESC',
         limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
         offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
     };
 
     const ingredients = await Ingredient.search(searchParams);
-    
+
     logger.info(`Retrieved ${ingredients.length} ingredients`, { searchParams });
-    
+
     res.json({
         success: true,
         data: ingredients,
@@ -35,13 +35,13 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
 // GET /api/ingredients/:id - 食材詳細取得
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
     const id = parseInt(req.params.id);
-    
+
     if (isNaN(id)) {
         throw new BadRequestError('Invalid ingredient ID');
     }
 
     const ingredient = await Ingredient.findById(id);
-    
+
     if (!ingredient) {
         throw new NotFoundError('Ingredient');
     }
@@ -89,7 +89,7 @@ router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
     }
 
     const ingredient = await Ingredient.findById(id);
-    
+
     if (!ingredient) {
         throw new NotFoundError('Ingredient');
     }
@@ -117,7 +117,7 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
     }
 
     const ingredient = await Ingredient.findById(id);
-    
+
     if (!ingredient) {
         throw new NotFoundError('Ingredient');
     }
@@ -136,7 +136,7 @@ router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
 // GET /api/ingredients/stats/genre - ジャンル別統計
 router.get('/stats/genre', asyncHandler(async (req: Request, res: Response) => {
     const stats = await Ingredient.getGenreStatistics();
-    
+
     res.json({
         success: true,
         data: stats,
@@ -148,7 +148,7 @@ router.get('/stats/genre', asyncHandler(async (req: Request, res: Response) => {
 router.get('/popular', asyncHandler(async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const popularIngredients = await Ingredient.getPopularIngredients(limit);
-    
+
     res.json({
         success: true,
         data: popularIngredients,

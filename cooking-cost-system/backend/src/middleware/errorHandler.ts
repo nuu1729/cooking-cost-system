@@ -53,6 +53,14 @@ export class NotFoundError extends AppError {
     }
 }
 
+// 不正なリクエストエラークラス
+export class BadRequestError extends AppError {
+    constructor(message: string = 'Bad Request') {
+        super(message, 400);
+        this.code = 'BAD_REQUEST';
+    }
+}
+
 // 競合エラークラス
 export class ConflictError extends AppError {
     constructor(message: string = 'Resource conflict') {
@@ -77,35 +85,35 @@ const handleDatabaseError = (error: any): AppError => {
     // MySQL エラーコード別処理
     switch (error.code) {
         case 'ER_DUP_ENTRY':
-        message = 'Duplicate entry detected';
-        statusCode = 409;
-        break;
+            message = 'Duplicate entry detected';
+            statusCode = 409;
+            break;
         case 'ER_NO_REFERENCED_ROW_2':
-        message = 'Referenced record not found';
-        statusCode = 400;
-        break;
+            message = 'Referenced record not found';
+            statusCode = 400;
+            break;
         case 'ER_ROW_IS_REFERENCED_2':
-        message = 'Cannot delete record because it is referenced by other records';
-        statusCode = 400;
-        break;
+            message = 'Cannot delete record because it is referenced by other records';
+            statusCode = 400;
+            break;
         case 'ER_DATA_TOO_LONG':
-        message = 'Data too long for column';
-        statusCode = 400;
-        break;
+            message = 'Data too long for column';
+            statusCode = 400;
+            break;
         case 'ER_BAD_NULL_ERROR':
-        message = 'Required field cannot be null';
-        statusCode = 400;
-        break;
+            message = 'Required field cannot be null';
+            statusCode = 400;
+            break;
         case 'ECONNREFUSED':
-        message = 'Database connection refused';
-        statusCode = 503;
-        break;
+            message = 'Database connection refused';
+            statusCode = 503;
+            break;
         case 'PROTOCOL_CONNECTION_LOST':
-        message = 'Database connection lost';
-        statusCode = 503;
-        break;
+            message = 'Database connection lost';
+            statusCode = 503;
+            break;
         default:
-        message = 'Database error occurred';
+            message = 'Database error occurred';
     }
 
     return new AppError(message, statusCode);
@@ -163,29 +171,29 @@ const sendErrorProd = (err: AppError, req: Request, res: Response) => {
     // 運用上のエラーのみクライアントに詳細を送信
     if (err.isOperational) {
         const errorResponse: ErrorResponse = {
-        success: false,
-        error: err.code || 'Error',
-        message: err.message,
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
-        method: req.method,
+            success: false,
+            error: err.code || 'Error',
+            message: err.message,
+            timestamp: new Date().toISOString(),
+            path: req.originalUrl,
+            method: req.method,
         };
 
         // バリデーションエラーの場合は詳細情報を追加
         if (err instanceof ValidationError) {
-        errorResponse.details = err.details;
+            errorResponse.details = err.details;
         }
 
         res.status(err.statusCode).json(errorResponse);
     } else {
         // プログラミングエラーの場合は一般的なメッセージを送信
         res.status(500).json({
-        success: false,
-        error: 'Internal Server Error',
-        message: 'Something went wrong',
-        timestamp: new Date().toISOString(),
-        path: req.originalUrl,
-        method: req.method,
+            success: false,
+            error: 'Internal Server Error',
+            message: 'Something went wrong',
+            timestamp: new Date().toISOString(),
+            path: req.originalUrl,
+            method: req.method,
         });
     }
 };
@@ -196,7 +204,7 @@ export const errorHandler = (
     req: Request,
     res: Response,
     next: NextFunction
-    ): void => {
+): void => {
     let error = { ...err };
     error.message = err.message;
 
@@ -284,8 +292,8 @@ export const setupGlobalErrorHandlers = (): void => {
         logger.info('SIGINT received, shutting down gracefully');
         process.exit(0);
     });
-    };
+};
 
-    export {
+export {
     AppError as default,
 };

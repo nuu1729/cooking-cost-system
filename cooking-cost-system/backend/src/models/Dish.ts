@@ -1,5 +1,5 @@
 import { BaseModel } from './BaseModel';
-import { Ingredient } from './Ingredient';
+import { Ingredient } from './Ingredients';
 
 export interface DishIngredientData {
     ingredient_id: number;
@@ -90,7 +90,7 @@ export class Dish extends BaseModel {
             WHERE di.dish_id = ?
         `;
 
-        const ingredients = await this.db.query(ingredientsSql, [id]);
+        const ingredients = await BaseModel.db.query(ingredientsSql, [id]);
         (dish as any).ingredients = ingredients;
 
         return dish;
@@ -144,7 +144,7 @@ export class Dish extends BaseModel {
             }
         }
 
-        const rows = await this.db.query(sql, params);
+        const rows = await BaseModel.db.query(sql, params);
         return rows.map((row: any) => Object.assign(new Dish(), row));
     }
 
@@ -160,7 +160,7 @@ export class Dish extends BaseModel {
             FROM dishes 
             GROUP BY genre
         `;
-        return this.db.query(sql);
+        return BaseModel.db.query(sql);
     }
 
     // 料理削除（関連データも削除）
@@ -172,10 +172,10 @@ export class Dish extends BaseModel {
         await BaseModel.db.transaction(async (query) => {
             // 料理-食材関連データ削除
             await query('DELETE FROM dish_ingredients WHERE dish_id = ?', [this.id]);
-            
+
             // 完成品-料理関連データ削除
             await query('DELETE FROM food_dishes WHERE dish_id = ?', [this.id]);
-            
+
             // 料理削除
             await query('DELETE FROM dishes WHERE id = ?', [this.id]);
         });

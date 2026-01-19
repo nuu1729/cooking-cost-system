@@ -9,6 +9,7 @@ const colors = {
     info: 'green',
     http: 'magenta',
     debug: 'white',
+    timestamp: 'gray',
 };
 
 winston.addColors(colors);
@@ -28,10 +29,9 @@ const consoleFormat = winston.format.combine(
     winston.format.align(),
     winston.format.printf((info) => {
         const { timestamp, level, message, ...args } = info;
-        const ts = winston.format.colorize().colorize('timestamp', `[${timestamp}]`);
-        return `${ts} ${level}: ${message} ${
-            Object.keys(args).length ? JSON.stringify(args, null, 2) : ''
-        }`;
+        const ts = `[${timestamp}]`;
+        return `${ts} ${level}: ${message} ${Object.keys(args).length ? JSON.stringify(args, null, 2) : ''
+            }`;
     })
 );
 
@@ -49,7 +49,7 @@ const loggerConfig: winston.LoggerOptions = {
             format: consoleFormat,
             level: process.env.NODE_ENV === 'production' ? 'warn' : 'debug',
         }),
-        
+
         // エラーログファイル
         new DailyRotateFile({
             filename: path.join(logDir, 'error-%DATE%.log'),
@@ -59,7 +59,7 @@ const loggerConfig: winston.LoggerOptions = {
             maxFiles: '14d',
             zippedArchive: true,
         }),
-        
+
         // 全てのログファイル
         new DailyRotateFile({
             filename: path.join(logDir, 'app-%DATE%.log'),
@@ -68,7 +68,7 @@ const loggerConfig: winston.LoggerOptions = {
             maxFiles: '30d',
             zippedArchive: true,
         }),
-        
+
         // アクセスログファイル
         new DailyRotateFile({
             filename: path.join(logDir, 'access-%DATE%.log'),
@@ -79,14 +79,14 @@ const loggerConfig: winston.LoggerOptions = {
             zippedArchive: true,
         }),
     ],
-    
+
     // 本番環境でない場合は例外も記録
     exceptionHandlers: process.env.NODE_ENV !== 'production' ? [
         new winston.transports.File({
             filename: path.join(logDir, 'exceptions.log')
         })
     ] : [],
-    
+
     rejectionHandlers: process.env.NODE_ENV !== 'production' ? [
         new winston.transports.File({
             filename: path.join(logDir, 'rejections.log')
@@ -100,7 +100,7 @@ export const logger = winston.createLogger(loggerConfig);
 // HTTPリクエストログ用ミドルウェア
 export const requestLogger = (req: any, res: any, next: any) => {
     const start = Date.now();
-    
+
     res.on('finish', () => {
         const duration = Date.now() - start;
         const logData = {
@@ -141,13 +141,13 @@ export const sanitizeLogData = (data: any): any => {
     if (process.env.NODE_ENV === 'production') {
         const sensitive = ['password', 'token', 'secret', 'key'];
         const sanitized = { ...data };
-        
+
         Object.keys(sanitized).forEach(key => {
             if (sensitive.some(s => key.toLowerCase().includes(s))) {
                 sanitized[key] = '***';
             }
         });
-        
+
         return sanitized;
     }
     return data;

@@ -87,17 +87,15 @@ export class Ingredient extends BaseModel {
         const sortOrder = criteria.sortOrder || 'DESC';
         sql += ` ORDER BY ${sortBy} ${sortOrder}`;
 
-        if (criteria.limit) {
-            sql += ' LIMIT ?';
-            params.push(criteria.limit);
+        if (criteria.limit !== undefined) {
+            sql += ` LIMIT ${Number(criteria.limit)}`;
 
-            if (criteria.offset) {
-                sql += ' OFFSET ?';
-                params.push(criteria.offset);
+            if (criteria.offset !== undefined) {
+                sql += ` OFFSET ${Number(criteria.offset)}`;
             }
         }
 
-        const rows = await this.db.query(sql, params);
+        const rows = await BaseModel.db.query(sql, params);
         return rows.map((row: any) => Object.assign(new Ingredient(), row));
     }
 
@@ -114,7 +112,7 @@ export class Ingredient extends BaseModel {
             FROM ingredients 
             GROUP BY genre
         `;
-        return this.db.query(sql);
+        return BaseModel.db.query(sql);
     }
 
     // よく使われる食材
@@ -134,6 +132,6 @@ export class Ingredient extends BaseModel {
             ORDER BY usage_count DESC, total_used_cost DESC
             LIMIT ?
         `;
-        return this.db.query(sql, [limit]);
+        return BaseModel.db.query(sql, [limit]);
     }
 }

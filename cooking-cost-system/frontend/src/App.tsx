@@ -1,186 +1,37 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Box, CircularProgress, Container } from '@mui/material';
-import { motion, AnimatePresence } from 'framer-motion';
-
 import Layout from './components/common/Layout';
-import { useAppContext } from './contexts/AppContext';
 
-// 遅延読み込み用のページコンポーネント
-const MainPage = React.lazy(() => import('./pages/MainPage'));
-const AdminPage = React.lazy(() => import('./pages/AdminPage'));
-const ReportsPage = React.lazy(() => import('./pages/ReportsPage'));
-const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
-const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
-
-// ローディングコンポーネント
-const LoadingSpinner: React.FC = () => (
-    <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="60vh"
-        flexDirection="column"
-        gap={2}
-    >
-        <CircularProgress size={40} />
-        <Box color="text.secondary" fontSize="0.875rem">
-        読み込み中...
-        </Box>
-    </Box>
-);
-
-// ページアニメーション設定
-const pageVariants = {
-    initial: {
-        opacity: 0,
-        x: -20,
-    },
-    in: {
-        opacity: 1,
-        x: 0,
-    },
-    out: {
-        opacity: 0,
-        x: 20,
-    },
-};
-
-const pageTransition = {
-    type: 'tween',
-    ease: 'anticipate',
-    duration: 0.3,
-};
-
-// ページラッパーコンポーネント
-const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-    >
-        {children}
-    </motion.div>
-);
+// Pages
+import HomePage from './pages/HomePage';
 
 const App: React.FC = () => {
-    const { isLoading, error } = useAppContext();
-
-    // アプリケーションレベルのエラー表示
-    if (error) {
-        return (
-        <Container maxWidth="sm" sx={{ py: 4 }}>
-            <Box textAlign="center">
-            <h1>🚨 エラーが発生しました</h1>
-            <p>{error}</p>
-            <button 
-                onClick={() => window.location.reload()}
-                style={{
-                padding: '10px 20px',
-                backgroundColor: '#1976d2',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-                }}
-            >
-                再読み込み
-            </button>
-            </Box>
-        </Container>
-        );
-    }
-
     return (
         <Layout>
-        <AnimatePresence mode="wait">
-            <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-                {/* メインページ */}
-                <Route 
-                path="/" 
-                element={
-                    <PageWrapper>
-                    <MainPage />
-                    </PageWrapper>
-                } 
-                />
-                
-                {/* 管理ページ */}
-                <Route 
-                path="/admin" 
-                element={
-                    <PageWrapper>
-                    <AdminPage />
-                    </PageWrapper>
-                } 
-                />
-                
-                {/* レポートページ */}
-                <Route 
-                path="/reports" 
-                element={
-                    <PageWrapper>
-                    <ReportsPage />
-                    </PageWrapper>
-                } 
-                />
-                
-                {/* 設定ページ */}
-                <Route 
-                path="/settings" 
-                element={
-                    <PageWrapper>
-                    <SettingsPage />
-                    </PageWrapper>
-                } 
-                />
-                
-                {/* 404 ページ */}
-                <Route 
-                path="/404" 
-                element={
-                    <PageWrapper>
-                    <NotFoundPage />
-                    </PageWrapper>
-                } 
-                />
-                
-                {/* 未定義のルートは404にリダイレクト */}
-                <Route 
-                path="*" 
-                element={<Navigate to="/404" replace />} 
-                />
-            </Routes>
-            </Suspense>
-        </AnimatePresence>
+            <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]">読み込み中...</div>}>
+                <Routes>
+                    <Route path="/" element={<HomePage />} />
 
-        {/* グローバルローディング */}
-        {isLoading && (
-            <Box
-            position="fixed"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            bgcolor="rgba(255, 255, 255, 0.7)"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            zIndex={9999}
-            >
-            <Box textAlign="center">
-                <CircularProgress />
-                <Box mt={2} color="text.secondary">
-                処理中...
-                </Box>
-            </Box>
-            </Box>
-        )}
+                    {/* 今後開発予定の画面（プレースホルダー） */}
+                    <Route path="/ingredients/add" element={<Placeholder title="食材追加" />} />
+                    <Route path="/ingredients/edit" element={<Placeholder title="食材編集" />} />
+                    <Route path="/ingredients/search" element={<Placeholder title="食材検索" />} />
+                    <Route path="/dishes/medium" element={<Placeholder title="中料理" />} />
+                    <Route path="/dishes/large" element={<Placeholder title="大料理" />} />
+                    <Route path="/calculator" element={<Placeholder title="販売価格計算" />} />
+
+                    {/* 404 */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </Suspense>
         </Layout>
     );
 };
+
+const Placeholder: React.FC<{ title: string }> = ({ title }) => (
+    <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+        <h1 className="text-3xl font-bold text-gray-400">{title} (開発中)</h1>
+    </div>
+);
 
 export default App;
