@@ -25,7 +25,7 @@ const Header: React.FC = () => {
                             height: '140px',
                             display: 'block',
                             position: 'relative',
-                            top: '10px' // 10px down from the top of the viewport
+                            top: '0px'
                         }}
                     />
                 </div>
