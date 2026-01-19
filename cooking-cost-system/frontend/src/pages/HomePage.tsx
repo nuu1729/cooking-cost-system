@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 const HomePage: React.FC = () => {
     return (
-        <div className="relative h-[calc(100vh-80px)] flex overflow-hidden">
+        <div className="relative h-[calc(100vh-80px)] flex flex-row overflow-hidden">
             {/* Left side - Content (Matches Figma) */}
             <div className="w-1/2 flex items-center justify-center bg-white p-12">
                 <motion.div
@@ -21,7 +21,7 @@ const HomePage: React.FC = () => {
             {/* Right side - Image (Matches Figma) */}
             <div className="w-1/2 relative bg-gray-100">
                 <img
-                    src="/images/ming_outlook.png"
+                    src="/images/ming_outlook.jpeg"
                     alt="Mingering Diner Exterior"
                     className="absolute inset-0 w-full h-full object-cover"
                 />
