@@ -13,16 +13,16 @@ const navItems = [
 
 const Header: React.FC = () => {
     return (
-        <header className="h-[120px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50">
+        <header className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50">
             {/* Logo Area */}
-            <div className="h-full flex items-center">
+            <div className="flex items-center h-full">
                 <img
                     src="/images/ming_10th_icon.png"
                     alt="Mingering Diner Logo"
-                    className="h-full w-auto object-contain bg-white"
+                    className="h-[120px] w-auto object-contain bg-white z-10"
                 />
 
-                <div className="w-[2px] h-10 bg-[#a0a0a0] mx-6" />
+                <div className="w-[1px] h-8 bg-[#888] mx-6" />
 
                 <h2 className="text-xl font-bold text-black tracking-tight">
                     料理原価計算システム
@@ -30,7 +30,7 @@ const Header: React.FC = () => {
             </div>
 
             {/* Navigation */}
-            <nav className="ml-auto flex items-center h-full gap-8 px-10">
+            <nav className="ml-auto flex items-center h-full gap-6 px-10">
                 {navItems.map((item) => (
                     <NavLink
                         key={item.path}
@@ -40,9 +40,9 @@ const Header: React.FC = () => {
                             }`
                         }
                     >
-                        <span className="text-lg">{item.label}</span>
+                        <span className="text-base">{item.label}</span>
                         {item.subLabel && (
-                            <span className="text-xs font-medium tracking-widest">{item.subLabel}</span>
+                            <span className="text-[10px] font-medium tracking-widest -mt-1">{item.subLabel}</span>
                         )}
                     </NavLink>
                 ))}
