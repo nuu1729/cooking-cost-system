@@ -19,12 +19,17 @@ const Header: React.FC = () => {
                 <img
                     src="/images/ming_10th_icon.png"
                     alt="Mingering Diner Logo"
-                    className="h-[120px] w-auto object-contain bg-white z-10 shadow-md transform translate-y-4"
+                    className="w-auto object-contain bg-white z-10 shadow-md"
+                    style={{
+                        height: '140px',
+                        marginTop: '40px',
+                        marginLeft: '0px'
+                    }}
                 />
 
-                <div className="w-[1px] h-8 bg-[#888] mx-6" />
+                <div className="w-[1px] h-8 bg-[#888] mx-6 self-center" />
 
-                <h2 className="text-xl font-bold text-black tracking-tight">
+                <h2 className="text-xl font-bold text-black tracking-tight self-center">
                     料理原価計算システム
                 </h2>
             </div>
