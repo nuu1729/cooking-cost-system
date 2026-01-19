@@ -19,7 +19,7 @@ const Header: React.FC = () => {
                 <img
                     src="/images/ming_10th_icon.png"
                     alt="Mingering Diner Logo"
-                    className="h-[120px] w-auto object-contain bg-white z-10 mt-10 shadow-md"
+                    className="h-[120px] w-auto object-contain bg-white z-10 mt-20 shadow-md"
                 />
 
                 <div className="w-[1px] h-8 bg-[#888] mx-6" />
