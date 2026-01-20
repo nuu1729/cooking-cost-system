@@ -157,7 +157,7 @@ const EditIngredientPage: React.FC = () => {
         }
     };
 
-    // Voice Input Parser (Same as Add Page for consistency)
+    // Voice Input Parser
     const parseVoiceData = useCallback((text: string) => {
         const data = { ...formData };
         const cleanText = text.replace(/、|。/g, ' ').trim();
@@ -194,11 +194,6 @@ const EditIngredientPage: React.FC = () => {
             !w.includes('ml') && !w.includes('ミリ') && !w.includes('個')
         );
 
-        if (nonDataWords.length >= 1) {
-            // Only update name if it matches an existing item? 
-            // For Edit, maybe we shouldn't update name via voice unless we are sure.
-            // But let's follow the Add logic for now.
-        }
         if (nonDataWords.length >= 2) {
             data.supplier = nonDataWords[nonDataWords.length - 1];
         }
@@ -236,6 +231,21 @@ const EditIngredientPage: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isConfirming, formData]);
 
+    // Custom Icon Component based on edit_icon.png model
+    const IngredientEditIcon = () => (
+        <svg viewBox="0 0 100 100" className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            {/* Apple Motif */}
+            <circle cx="35" cy="55" r="18" />
+            <path d="M35 37c0-3 2-6 5-6" />
+            {/* Carrot Motif */}
+            <path d="M65 30 L55 50" strokeWidth="4" />
+            <path d="M62 28 Q65 20 72 25" />
+            {/* Note & Pencil Motif */}
+            <rect x="50" y="55" width="25" height="25" rx="2" />
+            <path d="M75 50 L85 40 M82 43 L88 37" strokeWidth="3" />
+        </svg>
+    );
+
     return (
         <div className="min-h-[calc(100vh-80px)] bg-[#f9f9f9] py-16 px-4">
             <div className="max-w-6xl mx-auto">
@@ -245,8 +255,8 @@ const EditIngredientPage: React.FC = () => {
                     <div className="w-full md:w-2/3 space-y-8">
                         {/* Title Section */}
                         <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-[#10b981] rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-green-200/50">
-                                <img src="/icons/edit_icon.png" alt="Edit Icon" className="w-full h-full object-cover p-1" />
+                            <div className="w-12 h-12 bg-[#10b981] rounded-xl flex items-center justify-center shadow-lg shadow-green-200/50">
+                                <IngredientEditIcon />
                             </div>
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-800">食材情報を編集</h1>
@@ -268,7 +278,6 @@ const EditIngredientPage: React.FC = () => {
                                     onChange={(e) => {
                                         setSearchQuery(e.target.value);
                                         setShowResults(true);
-                                        // Update formData name too for display
                                         setFormData(prev => ({ ...prev, name: e.target.value }));
                                     }}
                                     onFocus={() => setShowResults(true)}
