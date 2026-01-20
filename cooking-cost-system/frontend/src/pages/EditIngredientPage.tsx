@@ -231,18 +231,37 @@ const EditIngredientPage: React.FC = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isConfirming, formData]);
 
-    // Custom Icon Component based on edit_icon.png model
+    // Custom Icon Component: Professional Line Art representing Ingredients + Document
     const IngredientEditIcon = () => (
-        <svg viewBox="0 0 100 100" className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            {/* Apple Motif */}
-            <circle cx="35" cy="55" r="18" />
-            <path d="M35 37c0-3 2-6 5-6" />
-            {/* Carrot Motif */}
-            <path d="M65 30 L55 50" strokeWidth="4" />
-            <path d="M62 28 Q65 20 72 25" />
-            {/* Note & Pencil Motif */}
-            <rect x="50" y="55" width="25" height="25" rx="2" />
-            <path d="M75 50 L85 40 M82 43 L88 37" strokeWidth="3" />
+        <svg viewBox="0 0 100 100" className="w-9 h-9 text-white" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Document / Clipboard Base */}
+            <path
+                d="M30 20 H70 C72.2 20 74 21.8 74 24 V76 C74 78.2 72.2 80 70 80 H30 C27.8 80 26 78.2 26 76 V24 C26 21.8 27.8 20 30 20Z"
+                stroke="currentColor"
+                strokeWidth="3.5"
+                strokeLinejoin="round"
+            />
+            {/* Document Lines */}
+            <path d="M38 35 H62" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.4" />
+            <path d="M38 45 H50" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.4" />
+
+            {/* Apple Silhouette (Ingredient) */}
+            <path
+                d="M55 58 C55 52 62 48 68 48 C74 48 81 52 81 58 C81 68 74 74 68 74 C62 74 55 68 55 58Z"
+                fill="currentColor"
+                stroke="#10b981"
+                strokeWidth="1.5"
+            />
+            <path d="M68 48 Q70 42 74 40" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+
+            {/* Pencil (Edit Action) */}
+            <path
+                d="M78 25 L88 35 L80 43 L70 33 L78 25Z"
+                fill="currentColor"
+                stroke="#10b981"
+                strokeWidth="1"
+            />
+            <path d="M70 33 L67 36 L70 39" fill="currentColor" />
         </svg>
     );
 
