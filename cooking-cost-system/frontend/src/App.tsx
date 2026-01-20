@@ -4,6 +4,7 @@ import Layout from './components/common/Layout';
 
 // Pages
 import HomePage from './pages/HomePage';
+import AddIngredientPage from './pages/AddIngredientPage';
 
 const App: React.FC = () => {
     return (
@@ -13,7 +14,7 @@ const App: React.FC = () => {
                     <Route path="/" element={<HomePage />} />
 
                     {/* 今後開発予定の画面（プレースホルダー） */}
-                    <Route path="/ingredients/add" element={<Placeholder title="食材追加" />} />
+                    <Route path="/ingredients/add" element={<AddIngredientPage />} />
                     <Route path="/ingredients/edit" element={<Placeholder title="食材編集" />} />
                     <Route path="/ingredients/search" element={<Placeholder title="食材検索" />} />
                     <Route path="/dishes/medium" element={<Placeholder title="中料理" />} />
