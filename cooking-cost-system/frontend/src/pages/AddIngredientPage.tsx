@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ingredientApi } from '../services/api';
+import toast from 'react-hot-toast';
 
 // Speech Recognition Types (for TypeScript)
 declare global {
@@ -67,13 +69,31 @@ const AddIngredientPage: React.FC = () => {
 
     const handleFinalSubmit = async () => {
         setIsSubmitting(true);
-        setTimeout(() => {
-            alert('食材を登録しました');
+        try {
+            // API call to backend
+            const response = await ingredientApi.create({
+                name: formData.name,
+                store: formData.supplier,
+                price: parseFloat(formData.price),
+                quantity: parseFloat(formData.quantity),
+                unit: formData.unit,
+                genre: 'seasoning' // Default genre for now, we can add a selector later
+            });
+
+            if (response.success) {
+                toast.success('食材をデータベースに登録しました！');
+                setFormData({ name: '', price: '', quantity: '', unit: 'g', supplier: '' });
+                setErrors({});
+            } else {
+                toast.error(response.message || '登録に失敗しました');
+            }
+        } catch (error: any) {
+            console.error('Registration failed:', error);
+            // Error is handled by apiClient interceptor (toast.error)
+        } finally {
             setIsSubmitting(false);
             setIsConfirming(false);
-            setFormData({ name: '', price: '', quantity: '', unit: 'g', supplier: '' });
-            setErrors({});
-        }, 800);
+        }
     };
 
     // Voice Input Parser
@@ -81,22 +101,16 @@ const AddIngredientPage: React.FC = () => {
         const data = { ...formData };
 
         // Typical phrases: "トマト 500円 300グラム コスモス"
-        // Cleanup text
         const cleanText = text.replace(/、|。/g, ' ').trim();
         const words = cleanText.split(/\s+/);
 
-        console.log('Parsing voice input:', words);
-
         words.forEach((word) => {
-            // Price: match numbers followed by 円
             const priceMatch = word.match(/(\d+)円/);
             if (priceMatch) {
                 data.price = priceMatch[1];
                 return;
             }
 
-            // Quantity & Unit
-            // g: grams
             const gMatch = word.match(/([\d.]+)グラム/) || word.match(/([\d.]+)g/i);
             if (gMatch) {
                 data.quantity = gMatch[1];
@@ -104,7 +118,6 @@ const AddIngredientPage: React.FC = () => {
                 return;
             }
 
-            // ml: milliliters
             const mlMatch = word.match(/([\d.]+)ミリリットル/) || word.match(/([\d.]+)ml/i);
             if (mlMatch) {
                 data.quantity = mlMatch[1];
@@ -112,21 +125,14 @@ const AddIngredientPage: React.FC = () => {
                 return;
             }
 
-            // 個: pieces
             const unitMatch = word.match(/([\d.]+)個/);
             if (unitMatch) {
                 data.quantity = unitMatch[1];
                 data.unit = '個';
                 return;
             }
-
-            // If it's just a pure number, decide if it's price or quantity based on common sense
-            // or previous words. For now, let's trust explicit units.
         });
 
-        // Simple heuristic: 
-        // 1st word without unit/¥ -> name
-        // Last word without unit/¥ -> supplier (if there are > 2 words)
         const nonDataWords = words.filter(w =>
             !w.includes('円') &&
             !w.includes('g') && !w.includes('グラム') &&
@@ -142,7 +148,6 @@ const AddIngredientPage: React.FC = () => {
         }
 
         setFormData(data);
-        // Clear errors for filled fields
         (Object.keys(data) as Array<keyof FormData>).forEach(key => {
             if (data[key] !== '') {
                 setErrors(prev => ({ ...prev, [key]: false }));
@@ -154,7 +159,7 @@ const AddIngredientPage: React.FC = () => {
     const startListening = () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            alert('お使いのブラウザは音声認識に対応していません。');
+            toast.error('お使いのブラウザは音声認識に対応していません。');
             return;
         }
 
@@ -375,7 +380,6 @@ const AddIngredientPage: React.FC = () => {
                             </div>
                         </motion.button>
 
-                        {/* Helper Guide for Voice */}
                         <div className="bg-white/50 border border-gray-100 rounded-2xl p-6 text-sm text-gray-500 leading-relaxed shadow-sm">
                             <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
@@ -404,7 +408,7 @@ const AddIngredientPage: React.FC = () => {
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden"
+                            className="relative bg-white w-full max-lg rounded-[2.5rem] shadow-2xl overflow-hidden"
                         >
                             <div className="p-10 space-y-8">
                                 <div className="text-center space-y-2">
