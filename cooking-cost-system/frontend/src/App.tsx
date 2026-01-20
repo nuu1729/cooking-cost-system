@@ -6,6 +6,7 @@ import Layout from './components/common/Layout';
 import HomePage from './pages/HomePage';
 import AddIngredientPage from './pages/AddIngredientPage';
 import EditIngredientPage from './pages/EditIngredientPage';
+import SearchIngredientPage from './pages/SearchIngredientPage';
 
 const App: React.FC = () => {
     return (
@@ -17,7 +18,7 @@ const App: React.FC = () => {
                     {/* 今後開発予定の画面（プレースホルダー） */}
                     <Route path="/ingredients/add" element={<AddIngredientPage />} />
                     <Route path="/ingredients/edit" element={<EditIngredientPage />} />
-                    <Route path="/ingredients/search" element={<Placeholder title="食材検索" />} />
+                    <Route path="/ingredients/search" element={<SearchIngredientPage />} />
                     <Route path="/dishes/medium" element={<Placeholder title="中料理" />} />
                     <Route path="/dishes/large" element={<Placeholder title="大料理" />} />
                     <Route path="/calculator" element={<Placeholder title="販売価格計算" />} />
