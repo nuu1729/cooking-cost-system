@@ -1,5 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Speech Recognition Types (for TypeScript)
+declare global {
+    interface Window {
+        SpeechRecognition: any;
+        webkitSpeechRecognition: any;
+    }
+}
 
 interface FormData {
     name: string;
@@ -22,6 +30,10 @@ const AddIngredientPage: React.FC = () => {
     const [isConfirming, setIsConfirming] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Voice Input State
+    const [isListening, setIsListening] = useState(false);
+    const [lastTranscript, setLastTranscript] = useState('');
+
     // Handle form validation
     const validate = () => {
         const newErrors: Partial<Record<keyof FormData, boolean>> = {};
@@ -41,14 +53,13 @@ const AddIngredientPage: React.FC = () => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-        // Clear error when user starts typing
         if (errors[name as keyof FormData]) {
             setErrors(prev => ({ ...prev, [name]: false }));
         }
     };
 
-    const handlePreSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handlePreSubmit = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (validate()) {
             setIsConfirming(true);
         }
@@ -56,7 +67,6 @@ const AddIngredientPage: React.FC = () => {
 
     const handleFinalSubmit = async () => {
         setIsSubmitting(true);
-        // Simulate API call
         setTimeout(() => {
             alert('食材を登録しました');
             setIsSubmitting(false);
@@ -64,6 +74,115 @@ const AddIngredientPage: React.FC = () => {
             setFormData({ name: '', price: '', quantity: '', unit: 'g', supplier: '' });
             setErrors({});
         }, 800);
+    };
+
+    // Voice Input Parser
+    const parseVoiceData = useCallback((text: string) => {
+        const data = { ...formData };
+
+        // Typical phrases: "トマト 500円 300グラム コスモス"
+        // Cleanup text
+        const cleanText = text.replace(/、|。/g, ' ').trim();
+        const words = cleanText.split(/\s+/);
+
+        console.log('Parsing voice input:', words);
+
+        words.forEach((word) => {
+            // Price: match numbers followed by 円
+            const priceMatch = word.match(/(\d+)円/);
+            if (priceMatch) {
+                data.price = priceMatch[1];
+                return;
+            }
+
+            // Quantity & Unit
+            // g: grams
+            const gMatch = word.match(/([\d.]+)グラム/) || word.match(/([\d.]+)g/i);
+            if (gMatch) {
+                data.quantity = gMatch[1];
+                data.unit = 'g';
+                return;
+            }
+
+            // ml: milliliters
+            const mlMatch = word.match(/([\d.]+)ミリリットル/) || word.match(/([\d.]+)ml/i);
+            if (mlMatch) {
+                data.quantity = mlMatch[1];
+                data.unit = 'ml';
+                return;
+            }
+
+            // 個: pieces
+            const unitMatch = word.match(/([\d.]+)個/);
+            if (unitMatch) {
+                data.quantity = unitMatch[1];
+                data.unit = '個';
+                return;
+            }
+
+            // If it's just a pure number, decide if it's price or quantity based on common sense
+            // or previous words. For now, let's trust explicit units.
+        });
+
+        // Simple heuristic: 
+        // 1st word without unit/¥ -> name
+        // Last word without unit/¥ -> supplier (if there are > 2 words)
+        const nonDataWords = words.filter(w =>
+            !w.includes('円') &&
+            !w.includes('g') && !w.includes('グラム') &&
+            !w.includes('ml') && !w.includes('ミリ') &&
+            !w.includes('個')
+        );
+
+        if (nonDataWords.length >= 1) {
+            data.name = nonDataWords[0];
+        }
+        if (nonDataWords.length >= 2) {
+            data.supplier = nonDataWords[nonDataWords.length - 1];
+        }
+
+        setFormData(data);
+        // Clear errors for filled fields
+        (Object.keys(data) as Array<keyof FormData>).forEach(key => {
+            if (data[key] !== '') {
+                setErrors(prev => ({ ...prev, [key]: false }));
+            }
+        });
+    }, [formData]);
+
+    // Speech Recognition Setup
+    const startListening = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert('お使いのブラウザは音声認識に対応していません。');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ja-JP';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            setIsListening(true);
+        };
+
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            setLastTranscript(transcript);
+            parseVoiceData(transcript);
+        };
+
+        recognition.onerror = (event: any) => {
+            console.error('Speech recognition error:', event.error);
+            setIsListening(false);
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognition.start();
     };
 
     // Keyboard support for Modal
@@ -98,6 +217,35 @@ const AddIngredientPage: React.FC = () => {
                                 <p className="text-gray-500 mt-1">購入した食材の情報を入力してください</p>
                             </div>
                         </div>
+
+                        {/* Last Transcript Display */}
+                        <AnimatePresence>
+                            {lastTranscript && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="bg-purple-50 border border-purple-100 rounded-2xl p-4 flex items-center gap-3"
+                                >
+                                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-purple-700 italic text-sm font-medium leading-relaxed font-['Outfit']">
+                                        "{lastTranscript}"
+                                    </p>
+                                    <button
+                                        onClick={() => setLastTranscript('')}
+                                        className="ml-auto text-purple-300 hover:text-purple-500 transition-colors"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         <form onSubmit={handlePreSubmit} className="space-y-6 bg-transparent">
                             {/* 商品名 */}
@@ -194,14 +342,23 @@ const AddIngredientPage: React.FC = () => {
                     {/* Right Column: Actions */}
                     <div className="w-full md:w-1/3 flex flex-col gap-6 pt-24">
                         <motion.button
+                            onClick={startListening}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            className="w-full py-8 rounded-[2rem] bg-gradient-to-r from-[#a855f7] to-[#ec4899] text-white flex flex-col items-center justify-center gap-3 shadow-xl hover:shadow-purple-200 transition-all duration-300"
+                            animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
+                            className={`w-full py-8 rounded-[2rem] text-white flex flex-col items-center justify-center gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 shadow-red-200' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899] shadow-purple-200 hover:shadow-purple-300'}`}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                            </svg>
-                            <span className="text-xl font-bold">音声で入力</span>
+                            <div className="relative">
+                                {isListening && (
+                                    <span className="absolute inset-0 rounded-full animate-ping bg-red-200 opacity-75"></span>
+                                )}
+                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-10 w-10 relative z-10 ${isListening ? 'animate-pulse' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                </svg>
+                            </div>
+                            <span className="text-xl font-bold font-['Outfit']">
+                                {isListening ? '聴いています...' : '音声で入力'}
+                            </span>
                         </motion.button>
 
                         <motion.button
@@ -214,9 +371,20 @@ const AddIngredientPage: React.FC = () => {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
                                 </svg>
-                                <span className="text-[24px] font-bold">食材を登録</span>
+                                <span className="text-[24px] font-bold font-['Outfit']">食材を登録</span>
                             </div>
                         </motion.button>
+
+                        {/* Helper Guide for Voice */}
+                        <div className="bg-white/50 border border-gray-100 rounded-2xl p-6 text-sm text-gray-500 leading-relaxed shadow-sm">
+                            <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                音声入力のコツ
+                            </h4>
+                            「トマト、500円、300グラム、コスモス」のように連続して話すと自動で各項目に入力されます。
+                        </div>
                     </div>
                 </div>
             </div>
@@ -240,7 +408,7 @@ const AddIngredientPage: React.FC = () => {
                         >
                             <div className="p-10 space-y-8">
                                 <div className="text-center space-y-2">
-                                    <h3 className="text-2xl font-black text-gray-800">登録内容の確認</h3>
+                                    <h3 className="text-2xl font-black text-gray-800 font-['Outfit']">登録内容の確認</h3>
                                     <p className="text-gray-500">この内容で登録してもよろしいですか？</p>
                                 </div>
 
@@ -267,14 +435,14 @@ const AddIngredientPage: React.FC = () => {
                                     <button
                                         onClick={handleFinalSubmit}
                                         disabled={isSubmitting}
-                                        className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all flex items-center justify-center gap-3"
+                                        className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all flex items-center justify-center gap-3 font-['Outfit']"
                                     >
                                         {isSubmitting ? '登録中...' : '登録を確定する (Enter)'}
                                     </button>
                                     <button
                                         onClick={() => setIsConfirming(false)}
                                         disabled={isSubmitting}
-                                        className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all"
+                                        className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']"
                                     >
                                         戻る (ESC)
                                     </button>
