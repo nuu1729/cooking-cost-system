@@ -34,7 +34,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/cooking-cost-system.git"
+    "url": "git+https://github.com/nuu1729/cooking-cost-system.git"
   },
   "keywords": [
     "cooking",
@@ -46,6 +46,6 @@
     "typescript",
     "docker"
   ],
-  "author": "Your Name <your.email@example.com>",
+  "author": "nuu1729 <[EMAIL_ADDRESS]>",
   "license": "MIT"
 }

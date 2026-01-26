@@ -132,4 +132,7 @@ frontend/coverage/
 .cache/
 .parcel-cache/
 .eslintcache
-.stylelintcache
+# =================================
+# Documents (Local)
+# =================================
+docs/開発手順書モデル/
