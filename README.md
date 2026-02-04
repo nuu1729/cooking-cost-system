@@ -54,7 +54,6 @@ graph TD
     class A,B,C appStyle
     class D,E,F dockerStyle
 ```
-(Mermaidでフローチャートにする予定)
 
 ## 🎯 機能一覧
 
