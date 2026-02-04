@@ -7,27 +7,38 @@ import HomePage from './pages/HomePage';
 import AddIngredientPage from './pages/AddIngredientPage';
 import EditIngredientPage from './pages/EditIngredientPage';
 import SearchIngredientPage from './pages/SearchIngredientPage';
+import LoginPage from './pages/LoginPage';
 
 const App: React.FC = () => {
     return (
-        <Layout>
-            <Suspense fallback={<div className="flex items-center justify-center min-h-[60vh]">読み込み中...</div>}>
-                <Routes>
-                    <Route path="/" element={<HomePage />} />
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">読み込み中...</div>}>
+            <Routes>
+                <Route path="/login" element={<LoginPage />} />
 
-                    {/* 今後開発予定の画面（プレースホルダー） */}
-                    <Route path="/ingredients/add" element={<AddIngredientPage />} />
-                    <Route path="/ingredients/edit" element={<EditIngredientPage />} />
-                    <Route path="/ingredients/search" element={<SearchIngredientPage />} />
-                    <Route path="/dishes/medium" element={<Placeholder title="中料理" />} />
-                    <Route path="/dishes/large" element={<Placeholder title="大料理" />} />
-                    <Route path="/calculator" element={<Placeholder title="販売価格計算" />} />
+                {/* Main Application Routes wrapped in Layout */}
+                <Route
+                    path="/*"
+                    element={
+                        <Layout>
+                            <Routes>
+                                <Route path="/" element={<HomePage />} />
 
-                    {/* 404 */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-            </Suspense>
-        </Layout>
+                                {/* 今後開発予定の画面（プレースホルダー） */}
+                                <Route path="/ingredients/add" element={<AddIngredientPage />} />
+                                <Route path="/ingredients/edit" element={<EditIngredientPage />} />
+                                <Route path="/ingredients/search" element={<SearchIngredientPage />} />
+                                <Route path="/dishes/medium" element={<Placeholder title="中料理" />} />
+                                <Route path="/dishes/large" element={<Placeholder title="大料理" />} />
+                                <Route path="/calculator" element={<Placeholder title="販売価格計算" />} />
+
+                                {/* 404 - Inside Layout */}
+                                <Route path="*" element={<Navigate to="/" replace />} />
+                            </Routes>
+                        </Layout>
+                    }
+                />
+            </Routes>
+        </Suspense>
     );
 };
 
