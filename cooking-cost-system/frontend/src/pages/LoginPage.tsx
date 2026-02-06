@@ -178,16 +178,16 @@ const LoginPage: React.FC = () => {
                                 {isSubmitting ? '処理中...' : (mode === 'login' ? 'ログイン' : 'アカウント作成')}
                             </button>
 
-                            {/* Switch Mode Link (Hidden/Disabled) */}
-                            {/* <div className="text-center pt-2">
+                            {/* Create Account Link */}
+                            <div className="text-center pt-4">
                                 <button
                                     type="button"
-                                    onClick={toggleMode}
-                                    className="text-[#1E90FF] text-xs font-bold hover:underline"
+                                    onClick={() => navigate('/signup')}
+                                    className="text-[#1E90FF] text-sm font-bold hover:underline"
                                 >
-                                    {mode === 'login' ? '新規アカウント作成' : 'ログインへ戻る'}
+                                    新規アカウント作成
                                 </button>
-                            </div> */}
+                            </div>
 
                             {/* Divider */}
                             <div className="relative flex py-2 items-center">
