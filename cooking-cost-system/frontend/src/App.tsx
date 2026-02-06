@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import AddIngredientPage from './pages/AddIngredientPage';
 import EditIngredientPage from './pages/EditIngredientPage';
 import SearchIngredientPage from './pages/SearchIngredientPage';
+import SignupPage from './pages/SignupPage';
 import LoginPage from './pages/LoginPage';
 
 const App: React.FC = () => {
@@ -14,6 +15,7 @@ const App: React.FC = () => {
         <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">読み込み中...</div>}>
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
 
                 {/* Main Application Routes wrapped in Layout */}
                 <Route
