@@ -1,0 +1,119 @@
+### 目的
+- **バックエンド開発の生産性と品質の底上げ**を、Cursorの「ルール」「再利用コマンド」「自動コンテキスト収集」「自動リファクタリング・品質ゲート」で一元化する
+- **人による使い方の差を最小化**し、設計書の手動添付や生成後の人手リファクタを極力排除する
+
+### 現状課題の整理
+- **使い方の差**: 個人ごとにプロンプトや参照ファイルがバラバラ → ルール化・テンプレ化・自動化で吸収
+- **設計書の添付が煩雑**: 画面仕様書・OpenAPI・API処理説明書・DDLを都度貼る必要 → 画面ID/APIコードからの自動収集
+- **生成コードのリファクタ負荷**: AI生成物にルール逸脱や匂い → 生成時ルールの強制と自動リライト、品質ゲートで機械化
+
+### 基本方針（全体像）
+- **ルールはリポジトリに集約**: `.cursor/rules/*.mdc` を単一の真実源に
+- **指示はコマンド化**: 「生成系」「更新系」「リファクタ系」コマンドをCursorに保存し、@呼び出しと変数入力で再利用
+- **コンテキストは自動収集**: 画面ID・APIコードを入力すると、関連ドキュメントを自動で束ねて参照に流し込む
+- **自動リファクタリング＋品質ゲート**: ルール逸脱を自動修正し、CI/ローカルでブロック
+- **チーム標準の世代規約を厳守**: DTO/Response・Validation・SQLの規約を組込み（例：専用Response DTOの必須化[[memory:4079581]]、バリデーション文言の外出し[[memory:4063166]]、MERGEによるUpsert統一[[memory:4063183]]）
+
+### ルールの標準化（.cursor/rules）
+- **必須ルールファイル**
+  - `backend-coding-standard.mdc`（命名/階層/依存/例外/ログ/トランザクション）
+  - `java-dto-and-response-rules.mdc`（Response DTO必須、空レスポンスでも専用クラス継承[[memory:4079581]]、@JsonProperty不要の原則とvalidation-messages.properties外出し[[memory:4063166]]）
+  - `sql-authoring-rules.mdc`（UpsertはMERGEで実装[[memory:4063183]]、プレースホルダ/トランザクション/戻り件数規約）
+  - `api-doc-rules.mdc`（共通処理は中央定義へのインライン参照に統一[[memory:4063175]]）
+- **使用方法**
+  - 生成やレビュー時にコマンドから `@.cursor/rules/backend-coding-standard.mdc` 等を常時インクルード
+  - ルールは変更履歴を残しPRで合意し、全員が同一ルールで生成・レビュー
+
+### 再利用コマンド（テンプレ）の整備
+- **生成系**
+  - `scaffold:teacher-endpoint`（OpenAPI→Controller/Facade/Service/Dao/SQLの骨子生成、Response/Request DTO、例外・ログ雛形）
+  - `scaffold:sql-merge-upsert`（指定テーブル・キーからMERGEテンプレ生成[[memory:4063183]]）
+- **更新系**
+  - `update:openapi-sync`（既存エンドポイントのOpenAPI差分に基づくDTO・Facade更新）
+  - `update:validation-externalize`（アノテーションのmessage内文言を外部化[[memory:4063166]]）
+- **リファクタ系**
+  - `refactor:java-clean`（命名/例外/ログ/不使用importの一括整理、Response DTO未遵守の検出・修正[[memory:4079581]]）
+  - `refactor:sql-style`（キーワード大文字/結合順序/不要括弧/パラメータ命名統一）
+- **コマンド実行時に常時読み込むルール**
+  - `@.cursor/rules/backend-coding-standard.mdc`
+  - `@.cursor/rules/java-dto-and-response-rules.mdc`
+  - `@.cursor/rules/sql-authoring-rules.mdc`
+  - 目的別追加（例：`@.cursor/rules/api-doc-rules.mdc`）
+
+### 自動コンテキスト収集の仕組み
+- **入力**: 画面ID（例：TT-02）またはAPIコード（例：ST-01）
+- **収集**（設計ディレクトリ構成に準拠）
+  - 画面・API対応一覧から対象APIを特定
+  - OpenAPI定義（teacher/student/common/external）該当pathsを取得
+  - API処理説明書（該当コードのmd）と関連SQL処理説明書を取得
+  - DDL（master/transaction）から対象テーブルのCREATEを抜粋
+- **実行方法**
+  - コマンド：`context:collect [--screen TT-02 | --api ST-01]`
+  - 出力：コマンドが見つけたファイルを「参照」として自動添付（@file参照）し、生成コマンドへパイプ
+  - 参照に失敗した場合は不足リストを即時提示（人手依頼の時間を短縮）
+
+### コード生成の原則（要点）
+- **層構造**: Controller→Facade→Service→Dao→SQL の一方向依存
+- **例外**: ビジネス/バリデーション/システムの層適切な分類とメッセージ外部化[[memory:4063166]]
+- **DTO/Response**: 空レスポンスでも専用Response DTO必須、BaseResponse直返却禁止[[memory:4079581]]
+- **SQL**: UpsertはMERGE、命名と戻り件数規約の統一[[memory:4063183]]
+- **API仕様の扱い**: 共通処理は中央定義ファイルへの参照で冗長削除[[memory:4063175]]
+ - **認証情報の取得**: 生徒/先生IDは`AuthenticationService`から取得（クライアント渡し禁止）
+ - **業務日付の取得**: 日時は`SystemDateService#getSystemDate()`を使用（`now()`禁止）
+ - **コード定義のEnum化**: `docs/00_共通/コード定義書.md`に従い、`common/attribute`配下のEnumで管理・使用
+
+### 自動リファクタリングと品質ゲート
+- **ローカル（保存時/コマンド実行時）**
+  - Spotless（Google Java Format）＋ Checkstyle ＋ PMD ＋ SpotBugs
+  - OpenRewriteのレシピ：命名/例外ハンドリング/ログ/DTOルール適合/不要@JsonProperty除去[[memory:4063166]]
+  - SQL整形・静的検査（sqlfluff等が適合する場合）
+- **CI**
+  - 上記全てを必須ジョブとして実行。逸脱はPRをブロック
+  - OpenAPI差分チェック（仕様と実装の乖離検出）
+
+### 具体的な開発フロー（例）
+1. `context:collect --api ST-01` で参照を自動添付
+2. `scaffold:teacher-endpoint` を実行（ルール自動適用・下位層まで雛形生成）
+3. `refactor:java-clean` と `refactor:sql-style` を実行（機械リライト）
+4. 単体動作確認 → PR。CIで品質ゲート通過を確認
+
+### ロードマップ
+- **Week 1**: ルール草案作成・合意、最小コマンド（context:collect / scaffold:teacher-endpoint）
+- **Week 2**: 自動リファクタリング導入（OpenRewrite/Spotless/Checkstyle）、CI連携
+- **Week 3**: 更新系コマンド/SQLテンプレ拡充、パイロットとフィードバック
+- **Week 4**: 全員切替、メトリクス運用開始
+
+### 成果指標（KPI）
+- 生成〜PR作成までの平均所要時間
+- 生成後の人手修正行数/回数（ルール逸脱）
+- CIでの初回合格率・指摘種別の推移
+- ルール/コマンドの再利用率（実行回数）
+
+### 付録：推奨コマンド雛形（抜粋）
+```markdown
+コマンド名: context:collect
+入力: --screen <画面ID> | --api <APIコード>
+参照に自動添付: 画面・API対応一覧, OpenAPI, API処理説明書, DDL, SQL説明書
+常時適用ルール: @.cursor/rules/backend-coding-standard.mdc
+```
+
+```markdown
+コマンド名: scaffold:teacher-endpoint
+入力: --path <OpenAPI pathsファイル> | --api <APIコード>
+生成: Controller/Facade/Service/Dao/SQL/Request&Response DTO
+常時適用ルール: 
+- @.cursor/rules/backend-coding-standard.mdc
+- @.cursor/rules/java-dto-and-response-rules.mdc
+- @.cursor/rules/sql-authoring-rules.mdc
+```
+
+```markdown
+コマンド名: refactor:java-clean
+処理: 命名/例外/ログ/未使用import削除、Response DTO未遵守の検出と置換、不要@JsonProperty除去
+常時適用ルール: @.cursor/rules/java-dto-and-response-rules.mdc
+```
+
+### 補足
+- ドキュメントの完成時は作成者のモチベーション向上のため称賛を明示する文化を推奨[[memory:4063189]]
+- チーム共有の文章は箇条書き基調で簡潔に[[memory:4063188]]
+

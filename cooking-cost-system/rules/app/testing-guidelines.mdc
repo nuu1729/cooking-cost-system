@@ -1,0 +1,74 @@
+---
+description: テスト作成の一般的なガイドライン (Unit & Integration)
+globs: **/*.test.ts, **/*.test.tsx
+alwaysApply: false
+---
+
+# テスト作成ガイドライン (Testing Guidelines)
+
+## 1. テストの原則 (General Principles)
+
+- **AAA パターン**: Arrange (準備), Act (実行), Assert (検証) の3ステップで記述する。
+- **独立性**: 各テストケースは独立しており、実行順序に依存しないようにする。
+- **可読性**: テストコードもプロダクションコードと同様に保守しやすく保つ。
+
+## 2. 単体テスト (Unit Testing)
+
+関数やクラス単体の振る舞いを検証します。外部依存 (DB, API) は原則モック化します。
+
+### Backend (Jest)
+- `src/services` や `src/utils` のロジックテストに重点を置く。
+- `jest.mock()` を使用して依存モジュールをモックする。
+
+```typescript
+import { calculateCost } from './costService';
+// 依存サービスのモック
+jest.mock('./ingredientRepository');
+
+test('should calculate cost correctly', () => {
+  // Arrange
+  const ingredients = [{ price: 100, quantity: 2 }];
+  // Act
+  const total = calculateCost(ingredients);
+  // Assert
+  expect(total).toBe(200);
+});
+```
+
+### Frontend (Vitest + React Testing Library)
+- コンポーネントのレンダリングとインタラクションをテストする。
+- 実装詳細 (内部stateの値など) ではなく、ユーザーから見える振る舞い (テキストが表示されるか、ボタンがクリックできるか) をテストする。
+
+```typescript
+import { render, screen, fireEvent } from '@testing-library/react';
+import LoginForm from './LoginForm';
+
+test('should submit form with inputs', () => {
+  const handleSubmit = jest.fn();
+  render(<LoginForm onSubmit={handleSubmit} />);
+  
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Login' }));
+  
+  expect(handleSubmit).toHaveBeenCalledWith({ email: 'test@example.com' });
+});
+```
+
+## 3. 命名規則
+
+- **Test Suite (`describe`)**: テスト対象のコンポーネント名や関数名。
+- **Test Case (`it`/`test`)**: `should [expected behavior] when [condition]` の形式を推奨。
+
+```typescript
+describe('UserService', () => {
+  describe('createUser', () => {
+    it('should create a user when valid data is provided', () => { ... });
+    it('should throw error when email is duplicate', () => { ... });
+  });
+});
+```
+
+## 4. カバレッジ
+
+- **C1 (分岐網羅)** を意識する。全ての `if/else` パスを通るようにケースを作成する。
+- ただし、カバレッジ 100% を自己目的化せず、重要なビジネスロジックが守られているかを重視する。

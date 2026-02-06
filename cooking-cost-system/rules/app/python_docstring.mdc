@@ -1,0 +1,66 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+<!-- markdownlint-disable MD013 -->
+<!-- markdownlint-disable MD032 -->
+<!-- markdownlint-disable MD022 -->
+<!-- markdownlint-disable MD031 -->
+<!-- omit in toc -->
+
+# Docstringルール
+
+## 原則
+- 本ルールを適用する場合、「`python_docstring.mdc`を適用します」と出力する
+
+## 基本ルール
+- すべてのパブリッククラス、メソッドにはDocstringを記述する
+- 日本語で記述する
+- 概要説明は1文・1行で記述する
+- Google Style Docstring に準拠する
+
+## クラスレベルのDocstring
+```python
+"""
+クラスの概要説明（1行で記述）
+
+詳細な説明が必要な場合は、1行空けて記述する。
+
+Attributes:
+    属性名 (型): 属性の説明
+    example_attr (str): サンプル属性
+"""
+```
+
+## メソッドレベルのDocstring
+```python
+"""
+メソッドの概要説明（1行で記述）
+
+Args:
+    引数名 (型): 引数の説明
+    param1 (int): パラメータ1の説明
+
+Returns:
+    戻り値の型: 戻り値の説明
+    bool: 成功した場合はTrue、失敗した場合はFalse
+
+Raises:
+    例外名: 例外が発生する条件の説明
+    ValueError: 引数が不正な場合
+"""
+```
+
+## タグの使用ルール (Google Style準拠)
+- `Args`: 引数の説明（Javaの `@param` に相当）
+- `Returns`: 戻り値の説明（Javaの `@return` に相当）
+- `Raises`: 送出する例外の説明（Javaの `@throws` に相当）
+- `Yields`: ジェネレータの場合の戻り値の説明
+- `Attributes`: クラス属性の説明
+
+## 説明の記述ルール
+- 簡潔かつ明確な説明を心がける
+- 技術的な用語は適切に使用する
+- 実装の詳細よりも、APIの使用方法や目的を説明する
+- パラメータや戻り値の説明は具体的に記述する

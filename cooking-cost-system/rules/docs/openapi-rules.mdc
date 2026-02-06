@@ -1,0 +1,306 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# OpenAPI仕様書作成ルール
+
+このドキュメントは、WEB販売管理プロジェクトにおけるOpenAPI仕様書を作成・管理する際のガイドラインを定義します。一貫性があり、保守性の高いAPI仕様書を作成するために、以下のルールに従ってください。
+
+## 原則
+- 本ルールを適用する場合、「`openapi-rules.mdc`を適用します」と出力する
+- OpenAPI 3.1.0 を使用する
+- 全てのAPI仕様書は日本語で記述する
+- プロジェクトのpythonコード構造と整合性を保つ
+
+## ファイル構造ルール
+
+### 1. ディレクトリ構造
+```
+web_hankan_docs/02_OpenAPI/
+├── common/
+│      └── common.yaml                               # 共通スキーマ・レスポンス定義
+└── master-maintenance/
+        ├── openapi.yaml                              # メインファイル
+        └── paths/                                    # パス定義ディレクトリ
+               ├── 10_employee/                       # 社員情報関連API
+               │     ├── 1_get_employee_info.yaml
+               │     └── 2_regist_employee_info.yaml
+               └── （その他のカテゴリディレクトリ）
+```
+
+### 2. ファイル分割規則
+- メインファイル（openapi.yaml）には概要、環境設定、パス一覧のみを含める
+- 各APIの詳細は`paths`ディレクトリ配下の個別ファイルに分割する
+- 共通コンポーネント（スキーマ、レスポンス、パラメータなど）は`components`ディレクトリ配下に配置する
+- カテゴリごとにディレクトリを作成し、連番付きファイル名で管理する
+- 全てのパス定義ファイルは`paths`ディレクトリ配下に配置する
+
+### 3. フォーマット
+- 各API用のyamlファイルは以下のような形式で記載すること
+
+```yaml
+post:
+  tags:
+    - その他（OT）
+  summary: 02_業務日付更新API
+  description: 業務日付を更新するAPI
+  requestBody:
+    description: リクエストボディ
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            systemDate:
+              type: string
+              description: 業務日付（YYYYMMDDHHMMSS）
+              pattern: "^[0-9]{14}$"
+          required:
+            - systemDate
+  responses:
+    "200":
+      description: OK
+    "400":
+      $ref: "../../components/common.yaml#/components/responses/BadRequestError"
+    "500":
+      $ref: "../../components/common.yaml#/components/responses/InternalServerError"
+```
+
+## 命名規則
+
+### 1. タグ名の命名規則
+1. タグ名を表す英単語の、`先頭文字 + 先頭文字以外の最初の子音`を大文字にしたものとする
+2. 「1.」が既存の接頭辞と重複する場合、2文字目に指定する子音を次のものに送る
+   - 例：認証（authenticate）のグループを追加する際、`AT`の接頭辞が既に存在する → `AH`とする
+3. 2文字目に指定できる子音がない場合、先頭文字以外の最初の母音を2文字目にする
+   - 例：動画（video）のグループを追加する際、`VD`の接頭辞が既に存在する → `VI`とする
+4. 「3.」が既存の接頭辞と重複する場合、2文字目に指定する母音を次のものに送る
+
+### 2. API名の命名規則
+- 連番2桁とAPI名を`_`で結合したものとする
+- 例：`01_register.yaml`, `02_users.yaml`
+
+### 3. ディレクトリ名の命名規則
+- 連番2桁とカテゴリ名を`_`で結合したものとする
+- 例：`01_auth`, `99_other`
+
+## URL設計規則
+
+### 1. パス構造
+- `/{open|secure}/{category}/{function}` の形式で統一する
+- `open`: 認証不要なAPI
+- `secure`: 認証必須なAPI
+- `category`: APIカテゴリに対応（タグ名の英語版を小文字で使用）
+- `function`: 具体的な機能名（kebab-case）
+
+### 2. HTTPメソッドとパス設計
+- GET: データ取得（`/open/auth/users`）
+- POST: データ作成（`/open/auth/register`）
+- PUT: データ更新（`/secure/auth/users/{id}`）
+- DELETE: データ削除（`/secure/auth/users/{id}`）
+
+## スキーマ設計規則
+
+### 1. 共通コンポーネント
+- すべての共通コンポーネント（スキーマ、レスポンス、パラメータなど）は `common/components/common.yaml` に定義する
+- 以下の共通コンポーネントを必須とする：
+  - `schemas/BaseResponse`: レスポンス共通項目
+  - `schemas/ErrorResponse`: エラーレスポンス
+  - `responses/BadRequestError`: 400エラーの共通レスポンス
+  - `responses/InternalServerError`: 500エラーの共通レスポンス
+
+### 2. コンポーネントファイル構造
+- `common/components/common.yaml` は以下の構造で記述する：
+```yaml
+components:
+  responses:
+    # 共通レスポンス定義
+  schemas:
+    # 共通スキーマ定義
+  parameters:
+    # 共通パラメータ定義（必要に応じて）
+```
+
+### 3. DTO構造との整合性
+- JavaのDTOクラス構造と一致させる
+- `BaseRequest`, `BaseResponse` に対応する共通項目を含める
+- プロパティ名はJavaのフィールド名と一致させる（camelCase）
+
+### 4. バリデーション規則
+- 基本的に`null`や`空文字`を許容する文言がない場合には、必須（`required`）とする
+- その他、各バリデーションは下記のサイトを参考に、`minLength`や`maxLength`、`pattern`などを使用して定義する
+  - `https://swagger.io/docs/specification/v3_0/data-models/data-types/`
+
+### 5. Example記載規則
+- **基本方針**: example値の二重管理を避けるため、スキーマレベルとレスポンス例での重複記載を禁止する。ただし、parametersセクションでは各プロパティに`example`を記載する。
+- **スキーマレベル**: 個別プロパティには `example` を記載**しない**
+- **レスポンス例**: `responses` セクションの `examples` でのみ具体的なサンプル値を記載する
+- **例外**: 単純な型（string, number等）で理解を助けるために必要な場合のみ、スキーマレベルにも記載可能
+
+#### Example記載の良い例
+```yaml
+schema:
+  type: object
+  properties:
+    userId:
+      type: string
+      description: ユーザーID
+    name:
+      type: string
+      description: ユーザー名
+responses:
+  "200":
+    content:
+      application/json:
+        examples:
+          success:
+            summary: 正常終了例
+            value:
+              userId: "12345"
+              name: "山田太郎"
+```
+
+#### Example記載の悪い例（二重管理）
+```yaml
+schema:
+  type: object
+  properties:
+    userId:
+      type: string
+      description: ユーザーID
+      example: "12345"  # これは避ける
+    name:
+      type: string
+      description: ユーザー名
+      example: "山田太郎"  # これは避ける
+responses:
+  "200":
+    content:
+      application/json:
+        examples:
+          success:
+            value:
+              userId: "12345"  # 上記と重複
+              name: "山田太郎"  # 上記と重複
+```
+
+## メインファイル（openapi.yaml）記載ルール
+
+### 1. 基本構造
+- 以下のセクションを必須とし、この順序で記述する：
+  1. `openapi`: バージョン指定（3.1.0固定）
+  2. `info`: API基本情報
+  3. `servers`: 環境設定
+  4. `tags`: タグ定義
+  5. `paths`: パス定義（外部ファイル参照）
+
+### 2. info セクション
+```yaml
+info:
+  version: "1.0.0"
+  title: "XXXプロジェクト API仕様書"
+  description: |
+    XXXプロジェクトのAPI仕様書
+
+    ## 1. 概要
+    本APIは、XXXプロジェクトのAPI仕様書です。
+
+    ## 2. APIの命名規則
+    ### 2.1 タグ名の命名規則
+    ### 2.2 API名の命名規則
+
+    ## 3. URL設計規則
+    ## 4. 環境
+```
+
+### 3. servers セクション
+- 開発環境を必須とし、検証・本番環境は必要に応じて追加する
+```yaml
+servers:
+  - url: "http://localhost:8080"
+    description: "開発環境"
+```
+
+### 4. tags セクション
+- 各APIカテゴリに対応するタグを定義する
+- タグ名は日本語表記 + 英語接頭辞の形式とする
+```yaml
+tags:
+  - name: "認証（AT）"
+    description: "認証機能"
+  - name: "その他（OT）"
+    description: "システム共通機能"
+```
+
+### 5. paths セクション
+- 各パスは外部ファイルを参照する形式で記述する
+- パス構造とファイル参照を一致させる
+```yaml
+paths:
+  /open/auth/register:
+    $ref: "./paths/01_auth/01_register.yaml"
+  /open/other/health-check:
+    $ref: "./paths/99_other/01_health-check.yaml"
+```
+
+## 参照パス規則
+
+### 1. 共通コンポーネントへの参照
+- `paths`ディレクトリ配下のファイルから`common/components/common.yaml`を参照する場合は、相対パス`../../../common/components/common.yaml`を使用する
+- 例：
+  - スキーマ参照: `$ref: "../../../common/components/common.yaml#/components/schemas/BaseResponse"`
+  - レスポンス参照: `$ref: "../../../common/components/common.yaml#/components/responses/BadRequestError"`
+
+### 2. 参照パスの一貫性
+- 全てのファイルで統一された相対パス形式を使用する
+- パスの変更時は関連する全ファイルを更新する
+- 共通コンポーネント内での参照は`#/components/...`形式を使用する
+- メインファイル（openapi.yaml）からpathsディレクトリへの参照は`./paths/カテゴリ/ファイル名.yaml`形式を使用する
+
+## ドキュメンテーション規則
+
+### 1. API説明
+- 各APIには以下を含める：
+  - 機能概要
+  - 用途・目的
+  - 前提条件
+  - 注意事項
+
+### 2. パラメータ説明
+- すべてのパラメータに日本語での説明を付ける
+- 例外的な値や制約条件を明記する
+- デフォルト値がある場合は記載する
+
+### 3. レスポンス例
+- 正常系・異常系の両方のレスポンス例を含める
+- 実際のデータに近い形でサンプルを作成する
+
+## エラーハンドリング規則
+
+### 1. エラーコード
+- `ErrorCode.java` で定義されたエラーコードを使用する
+- HTTPステータスコードとの対応を明確にする
+
+### 2. エラーレスポンス
+- 以下の情報を含める：
+  - エラーコード
+  - エラーメッセージ
+  - 詳細情報（必要に応じて）
+
+## 品質保証規則
+
+### 1. レビュー観点
+- Java実装との整合性確認
+- 命名規則の遵守確認
+- エラーハンドリングの適切性確認
+- ドキュメントの完全性確認
+- Example値の二重管理がないことの確認
+
+### 2. 検証項目
+- YAML構文の正当性
+- 参照関係の整合性
+- スキーマ定義の完全性
+- サンプルデータの妥当性
+- Example記載規則の遵守

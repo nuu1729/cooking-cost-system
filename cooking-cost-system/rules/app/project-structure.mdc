@@ -1,0 +1,51 @@
+---
+description: 料理原価計算システムのプロジェクト階層構造と役割定義
+globs: 
+alwaysApply: true
+---
+
+# プロジェクト構造定義
+
+## 全体構造
+本プロジェクトはモノレポ構成を採用しており、以下の主要ディレクトリで構成されています。
+
+- `backend/`: Node.js (Express) + TypeScript によるバックエンド API
+- `frontend/`: React + TypeScript + Vite によるフロントエンド SPA
+- `docs/`: 設計書、仕様書などのドキュメント
+- `rules/`: AI アシスタントおよび開発者向けのガイドライン・ルールセット
+
+## Backend 構造 (`backend/src`)
+
+| ディレクトリ | 役割 | 備考 |
+| :--- | :--- | :--- |
+| `controllers/` | HTTP リクエストの受付、バリデーション呼び出し、Service 呼び出し、レスポンス返却 | ロジックは書かない |
+| `services/` | ビジネスロジックの実装 | トランザクション制御、計算処理など |
+| `models/` | データベースモデル定義、型定義 | MySQL テーブルとのマッピング |
+| `routes/` | API エンドポイントの定義と Controller へのルーティング | `express.Router` を使用 |
+| `middleware/` | 認証、ログ、エラーハンドリングなどの共通処理 | |
+| `utils/` | 汎用的なユーティリティ関数 | 日付操作、文字列操作など |
+| `validation/` | リクエストバリデーションロジック | `class-validator`, `joi`, または `express-validator` |
+| `database.ts` | データベース接続設定 | MySQL2 プール設定など |
+| `app.ts` | Express アプリケーション設定 | Middleware 登録など |
+| `server.ts` | サーバー起動エントリーポイント | ポートリッスン |
+
+## Frontend 構造 (`frontend/src`)
+
+| ディレクトリ | 役割 | 備考 |
+| :--- | :--- | :--- |
+| `components/` | 再利用可能な UI コンポーネント | `common/` (汎用), `domain/` (ドメイン固有) に分離推奨 |
+| `pages/` | ルーティングに対応するページコンポーネント | 画面単位の構成 |
+| `hooks/` | カスタム React Hooks | ロジックの切り出し |
+| `services/` | API クライアント関数 | バックエンドとの通信 (Axios, React Query) |
+| `types/` | TypeScript 型定義 | 共有インターフェースなど |
+| `utils/` | ユーティリティ関数 | フォーマット関数など |
+| `constants/` | 定数定義 | 設定値、Enum 的なオブジェクト |
+| `styles/` | グローバルスタイル定義 | Tailwind 設定含む |
+| `App.tsx` | ルートコンポーネント | ルーティング定義など |
+| `main.tsx` | エントリーポイント | DOM レンダリング |
+
+## ドキュメント構造 (`docs/`)
+
+- `01_画面設計書/`: 画面レイアウト、イベント定義
+- `02_設計/`: データベース設計 (ER図, DDL), API 設計
+- `00_共通/`: 共通ルール、コード定義など

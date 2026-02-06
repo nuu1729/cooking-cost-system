@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"name": "rules",
+			"path": "rules"
+		},
+		{
+			"name": "docs",
+			"path": "docs"
+		},
+		{
+			"name": "frontend",
+			"path": "frontend"
+		},
+		{
+			"name": "backend",
+			"path": "backend"
+		}
+	],
+	"settings": {
+		"terminal.integrated.env.windows": {
+			"PSExecutionPolicyPreference": "RemoteSigned"
+		}
+	}
+}

@@ -1,0 +1,510 @@
+---
+description: API結合テスト生成規約
+globs: *Test.java
+alwaysApply: false
+---
+
+# AIエージェント API結合テスト生成規約
+- 本ルールを適用する場合、「API結合テスト生成規約を適用する」と出力する
+- 本ルールを適用する場合、以下のルールも確認すること。確認したうえでこれらのファイル内容もテスト生成時に遵守すること
+以下のファイルを確認し終えたら「関連規約の把握完了」と出力する
+  - backend\.cursor\rules\java_code_generation.mdc
+  - backend\.cursor\rules\java_common.mdc
+
+## 目的
+APIの品質保証というよりは、最低限の動作確認のためのテストを必要としています。
+このドキュメントは、AIエージェントがそういった簡易的なAPI結合テスト生成時に遵守すべき規約を定めたものです。
+データベース連携を含む本格的な結合テストを安定的に生成することで、API品質の確保と開発効率の向上を図ります。
+本テストは実際のデータベースを使用した結合テストです。網羅性は求めません。正常系で1~2つ程度の最低限のケースで大丈夫です。
+
+## テストクラス構造規約
+
+### 1. 基本クラス構成
+```java
+/**
+ * {API名}の結合テスト
+ * 
+ * @author {作成者}
+ * @since 1.0.0
+ */
+@DisplayName("{API名}の結合テスト")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, classes = {モジュール}Application.class)
+public class {Controller名}Test extends BaseIntegrationTest {
+
+    /** テストデータCSVベースパス */
+    private final String CSV_BASE = "/jp/co/benesse/gnavi/{モジュール}/integration/controller/{Controller名}Test/";
+
+    @BeforeAll
+    public void setUp() {
+        super.setUp();
+        String requestJson = TestFileUtil.getFileToStr("json/request.json");
+        setUpCsrfToken();
+        setUpSession(requestJson);
+    }
+
+    // HTTPメソッドごとのNestedクラス
+}
+```
+
+### 2. 必須アノテーション
+- `@DisplayName`: 日本語でのテスト説明
+- `@SpringBootTest`: Webアプリケーションコンテキストでのテスト実行
+- `@Nested`: HTTPメソッドごとの区分
+- `@TestInstance(TestInstance.Lifecycle.PER_CLASS)`: ネストクラスでのライフサイクル制御
+- `@DbUnitConfiguration`: CSV読み込み設定
+- `@DatabaseSetup`: テストデータセットアップ
+
+### 3. クラス命名規則
+- **テストクラス名**: `{Controller名}Test`（例：`AcademicResultControllerTest`）
+- **パッケージ**: `jp.co.benesse.gnavi.{モジュール}.integration.controller`
+- **ネストクラス名**: HTTPメソッド名（`Get`, `Post`, `Put`, `Delete`）
+
+## HTTPメソッド別テスト構成
+
+### 1. GETメソッドテスト
+```java
+@Nested
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@DbUnitConfiguration(dataSetLoader = CsvDataSetLoader.class, databaseOperationLookup = MicrosoftSqlDatabaseOperationLookup.class)
+@DisplayName("{API名}")
+class Get {
+
+    @Test
+    @DisplayName("test01: 正常系：{テストケース説明}")
+    @DatabaseSetup(value = CSV_BASE + "Get/test01/input/csv/", connection = "dbUnitDatabaseConnection")
+    public void test01() {
+        // リクエストオブジェクト作成
+        String inputJson = TestFileUtil.getFileToStr("input/json/request.json");
+        {RequestDTO} request = JsonUtil.fromJson(inputJson, {RequestDTO}.class);
+
+        // API実行
+        ResponseEntity<{ResponseDTO}> response = executeRequestParam(
+                {UrlConstants}.{URL_CONSTANT}, HttpMethod.GET, request, {ResponseDTO}.class);
+
+        // レスポンス検証
+        String expectedJson = TestFileUtil.getFileToStr("expected/json/response.json");
+        assertResponse(response, HttpStatus.OK, expectedJson);
+    }
+
+    @Test
+    @DisplayName("test02: 異常系：{エラーケース説明}")
+    @DatabaseSetup(value = CSV_BASE + "Get/test02/input/csv/", connection = "dbUnitDatabaseConnection")
+    public void test02() {
+        // 異常系テスト実装
+    }
+}
+```
+
+### 2. POSTメソッドテスト
+```java
+@Nested
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@DbUnitConfiguration(dataSetLoader = CsvDataSetLoader.class, databaseOperationLookup = MicrosoftSqlDatabaseOperationLookup.class)
+@DisplayName("{API名}")
+class Post {
+
+    @Test
+    @DisplayName("test01: 正常系：{テストケース説明}")
+    @DatabaseSetup(value = CSV_BASE + "Post/test01/input/csv/", connection = "dbUnitDatabaseConnection")
+    public void test01() {
+        // POSTリクエストテスト実装
+        String inputJson = TestFileUtil.getFileToStr("input/json/request.json");
+        {RequestDTO} request = JsonUtil.fromJson(inputJson, {RequestDTO}.class);
+
+        ResponseEntity<{ResponseDTO}> response = executeRequestBody(
+                {UrlConstants}.{URL_CONSTANT}, HttpMethod.POST, request, {ResponseDTO}.class);
+
+        String expectedJson = TestFileUtil.getFileToStr("expected/json/response.json");
+        assertResponse(response, HttpStatus.OK, expectedJson);
+    }
+}
+```
+
+### 3. PUT/DELETEメソッドテスト
+- POSTメソッドと同様の構造
+- HTTPメソッドと期待ステータスコードを適切に設定
+
+## テストリソース構成規約
+
+### 1. ディレクトリ構造
+```
+src/test/resources/jp/co/benesse/gnavi/{モジュール}/integration/controller/{Controller名}Test/
+├── setUp/                           # 共通セットアップデータ
+│   └── json/
+│       └── request.json            # セッション認証用リクエスト
+├── Get/                            # GETメソッドテスト用データ
+│   ├── test01/                     # テストケース01
+│   │   ├── input/
+│   │   │   ├── csv/               # 入力テストデータ（CSV）
+│   │   │   │   ├── {テーブル名}.csv
+│   │   │   │   └── table-ordering.txt
+│   │   │   └── json/              # 入力リクエストデータ（JSON）
+│   │   │       └── request.json
+│   │   └── expected/              # 期待値データ
+│   │       ├── csv/               # 期待データベース状態（必要に応じて）
+│   │       └── json/              # 期待レスポンス
+│   │           └── response.json
+│   └── test02/                    # テストケース02（異常系）
+│       └── （同様の構造）
+├── Post/                          # POSTメソッドテスト用データ
+└── Put/                           # PUTメソッドテスト用データ
+```
+
+### 2. CSVファイル規約
+- **ファイル名**: `{テーブル名}.csv`（物理テーブル名と一致）
+- **ヘッダー**: 1行目にカラム名（物理カラム名）
+- **データ型**: 文字列は`""`で囲む、数値・日付はそのまま記述
+- **NULL値**: そのカラムを消す
+- **日付形式**: `YYYY-MM-DD HH:MM:SS`形式
+
+#### CSV例
+```csv
+delivery_id,school_cd,fiscal_year,grade_cd,test_grade_cd,times_type,exam_name,exam_time_type,survey_publication_date,publication_status,first_publication_date,publication_date,deadline_date,temp_save_screen_id,report_exist_flg,created_by,created_at,updated_by,updated_at
+"1","10012","2024","01","01","1","第1回学力テスト","1","2024-07-15 00:00:00","1","2024-07-01 00:00:00","2024-07-01 00:00:00","2024-08-31 23:59:59",,"0","1000","2024-07-01 00:00:00","1000","2024-07-01 00:00:00"
+```
+
+### 3. table-ordering.txt規約
+- **目的**: テーブル挿入順序の制御（外部キー制約対応）
+- **形式**: 1行につき1テーブル名
+- **順序**: 参照されるテーブル→参照するテーブルの順
+
+#### table-ordering.txt例
+```
+t_delivery
+t_exam_result
+t_delivery_detail
+t_result_by_subject
+t_result_by_course
+m_g_navi_field
+m_lesson
+t_result_by_g_navi_field
+t_student_assignment
+t_student_assignment_lesson
+t_g_navi_id_link_student
+```
+
+### 4. JSONファイル規約
+
+#### リクエストJSON（input/json/request.json）
+```json
+{
+    "deliveryId": "1",
+    "parameterName": "value"
+}
+```
+
+#### レスポンスJSON（expected/json/response.json）
+```json
+{
+    "courseList": [
+        {
+            "subjectCd": "1301",
+            "gtzLatest": "C3",
+            "gtzBefore": "C2",
+            "previousComparison": -1
+        }
+    ],
+    "fieldList": [
+        {
+            "fieldCd": "001",
+            "fieldName": "国語",
+            "gtzLatest": "B2"
+        }
+    ]
+}
+```
+
+#### セッション認証用JSON（setUp/json/request.json）
+```json
+{
+    "sassiId": "123456789",
+    "sastiId": "123456789",
+    "daihyoCd": "33015"
+}
+```
+
+## テストコード実装パターン
+
+### 1. 正常系テスト
+```java
+@Test
+@DisplayName("test01: 正常系：{具体的な処理内容}")
+@DatabaseSetup(value = CSV_BASE + "{HttpMethod}/test01/input/csv/", connection = "dbUnitDatabaseConnection")
+public void test01() {
+    // 1. リクエストオブジェクト作成
+    String inputJson = TestFileUtil.getFileToStr("input/json/request.json");
+    {RequestDTO} request = JsonUtil.fromJson(inputJson, {RequestDTO}.class);
+
+    // 2. API実行
+    ResponseEntity<{ResponseDTO}> response = executeRequestParam(
+            {UrlConstants}.{URL_CONSTANT}, HttpMethod.{HTTP_METHOD}, request, {ResponseDTO}.class);
+
+    // 3. レスポンス検証
+    String expectedJson = TestFileUtil.getFileToStr("expected/json/response.json");
+    assertResponse(response, HttpStatus.OK, expectedJson);
+}
+```
+
+### 2. 異常系テスト（バリデーションエラー）
+```java
+@Test
+@DisplayName("test02: 異常系：バリデーションエラー（{具体的なエラー内容}）")
+@DatabaseSetup(value = CSV_BASE + "{HttpMethod}/test02/input/csv/", connection = "dbUnitDatabaseConnection")
+public void test02() {
+    String inputJson = TestFileUtil.getFileToStr("input/json/request.json");
+    {RequestDTO} request = JsonUtil.fromJson(inputJson, {RequestDTO}.class);
+
+    ResponseEntity<{ResponseDTO}> response = executeRequestParam(
+            {UrlConstants}.{URL_CONSTANT}, HttpMethod.{HTTP_METHOD}, request, {ResponseDTO}.class);
+
+    assertValidationCheck(response);  // BAD_REQUESTの検証
+}
+```
+
+### 3. 異常系テスト（業務エラー）
+```java
+@Test
+@DisplayName("test03: 異常系：業務エラー（{具体的なエラー内容}）")
+@DatabaseSetup(value = CSV_BASE + "{HttpMethod}/test03/input/csv/", connection = "dbUnitDatabaseConnection")
+public void test03() {
+    String inputJson = TestFileUtil.getFileToStr("input/json/request.json");
+    {RequestDTO} request = JsonUtil.fromJson(inputJson, {RequestDTO}.class);
+
+    ResponseEntity<{ResponseDTO}> response = executeRequestParam(
+            {UrlConstants}.{URL_CONSTANT}, HttpMethod.{HTTP_METHOD}, request, {ResponseDTO}.class);
+
+    String expectedJson = TestFileUtil.getFileToStr("expected/json/response.json");
+    assertResponse(response, HttpStatus.INTERNAL_SERVER_ERROR, expectedJson);
+}
+```
+
+### 4. データベース状態検証テスト（CREATE/UPDATE/DELETE）
+```java
+@Test
+@DisplayName("test01: 正常系：{具体的な処理内容}")
+@DatabaseSetup(value = CSV_BASE + "{HttpMethod}/test01/input/csv/", connection = "dbUnitDatabaseConnection")
+@ExpectedDatabase(value = CSV_BASE + "{HttpMethod}/test01/expected/csv/", connection = "dbUnitDatabaseConnection", assertionMode = DatabaseAssertionMode.NON_STRICT_UNORDERED)
+public void test01() {
+    // リクエストオブジェクト作成
+    String inputJson = TestFileUtil.getFileToStr("input/json/request.json");
+    {RequestDTO} request = JsonUtil.fromJson(inputJson, {RequestDTO}.class);
+
+    // API実行
+    ResponseEntity<{ResponseDTO}> response = executeRequestParam(
+            {UrlConstants}.{URL_CONSTANT}, HttpMethod.{HTTP_METHOD}, request, {ResponseDTO}.class);
+
+    // レスポンス検証
+    assertEquals(HttpStatus.OK, response.getStatusCode(), "期待するステータスコードであること");
+}
+```
+
+## 必須インポート文
+
+### 1. JUnit関連
+```java
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+```
+
+### 2. Spring Boot Test関連
+```java
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+```
+
+### 3. DbUnit関連
+```java
+import com.github.springtestdbunit.annotation.DatabaseSetup;
+import com.github.springtestdbunit.annotation.DbUnitConfiguration;
+import com.github.springtestdbunit.annotation.ExpectedDatabase;
+import com.github.springtestdbunit.assertion.DatabaseAssertionMode;
+import com.github.springtestdbunit.operation.MicrosoftSqlDatabaseOperationLookup;
+```
+
+### 4. プロジェクト共通関連
+```java
+import jp.co.benesse.gnavi.common.CsvDataSetLoader;
+import jp.co.benesse.gnavi.common.integration.common.BaseIntegrationTest;
+import jp.co.benesse.gnavi.common.testutil.JsonUtil;
+import jp.co.benesse.gnavi.common.testutil.TestFileUtil;
+```
+
+### 5. モジュール固有関連
+```java
+import jp.co.benesse.gnavi.{モジュール}.{モジュール}Application;
+import jp.co.benesse.gnavi.{モジュール}.constants.{モジュール}UrlConstants;
+import jp.co.benesse.gnavi.{モジュール}.dto.request.{パッケージ}.{RequestDTO};
+import jp.co.benesse.gnavi.{モジュール}.dto.response.{パッケージ}.{ResponseDTO};
+```
+
+## テストデータ設計指針
+
+### 1. 基本方針
+- テスト目的に必要な最小限のデータのみ作成
+- 不要なテーブルやレコードは含めない
+- 関連データは必要最小限に制限
+
+### 2. inputデータの設計（テスト実行前のDB状態）
+
+#### 2.1. 参照系API（GET）の場合
+- 必要なマスタデータとトランザクションデータを準備
+- テスト対象のSQLで参照される全テーブルのデータを用意
+
+#### 2.2. 登録系API（POST）・更新系API（PUT）の場合
+**重要：既存データによる影響を排除するため、影響を受けるテーブルは事前にクリアする**
+
+- **クリア対象テーブル**：APIが登録・更新するテーブル
+- **クリア方法**：ヘッダー行のみの空CSVファイルを用意
+
+**例：My課題登録API（POST）の場合**
+```
+input/csv/
+├── t_student_assignment.csv          # 空（ヘッダーのみ）← クリア対象
+├── t_assignment_subjectArea.csv      # 空（ヘッダーのみ）← クリア対象
+├── t_student_assignment_lesson.csv   # 空（ヘッダーのみ）← クリア対象
+├── t_student_assignment_exercise.csv # 空（ヘッダーのみ）← クリア対象
+├── t_delivery.csv                    # データあり（参照用マスタ）
+├── m_lesson.csv                      # データあり（参照用マスタ）
+└── ...
+```
+
+**空CSVの例**：
+```csv
+g_navi_student_no,assignment_id,fiscal_year,assignment_school_cd,create_type,assignment_type,already_read_flg,created_by,updated_by
+```
+（ヘッダー行のみでデータ行なし）
+
+#### 2.3. 削除系API（DELETE）の場合
+- 削除対象のデータを準備
+- 削除されないデータ（他のレコード）も必要に応じて準備
+
+### 3. expectedデータの設計（テスト実行後のDB状態）
+
+#### 3.1. 参照系API（GET）の場合
+- **不要**：データベースに変更がないため、expectedデータは作成しない
+
+#### 3.2. 登録系API（POST）の場合
+- APIが登録したレコードを記載
+- `assignment_id`など動的に生成されるIDは除外（カラム自体を記載しない）
+- `created_at`、`updated_at`など時刻系カラムは除外（検証対象外）
+
+**例：My課題登録API（POST）の場合**
+```
+expected/csv/
+├── t_student_assignment.csv          # 登録された1件
+├── t_assignment_subjectArea.csv      # 登録された1件
+├── t_student_assignment_lesson.csv   # 登録された1件
+├── t_student_assignment_exercise.csv # 登録された1件以上
+└── table-ordering.txt
+```
+
+**expectedデータの例**：
+```csv
+g_navi_student_no,fiscal_year,assignment_school_cd,create_type,assignment_type,already_read_flg,created_by,updated_by
+"123456789","2024","10012","2","003",0,"123456789","123456789"
+```
+（注：`assignment_id`、`created_at`、`updated_at`は除外）
+
+#### 3.3. 更新系API（PUT）の場合
+- 更新後のレコード状態を記載
+- 動的に変更される値や時刻系カラムは除外
+
+#### 3.4. 削除系API（DELETE）の場合
+- 削除後の状態を記載
+- 全件削除の場合：ヘッダー行のみの空CSV
+- 一部削除の場合：削除されずに残るレコードを記載
+
+**例：My課題削除API（DELETE）の場合**
+```
+expected/csv/
+├── t_student_assignment.csv          # 空（全件削除）
+├── t_assignment_subjectArea.csv      # 空（全件削除）
+├── t_student_assignment_lesson.csv   # 空（全件削除）
+├── t_student_assignment_exercise.csv # 空（全件削除）
+└── table-ordering.txt
+```
+
+### 4. @ExpectedDatabaseアノテーションの使用
+
+**使用対象**：CREATE（POST）、UPDATE（PUT）、DELETE のAPI
+
+**アノテーション設定**：
+```java
+@ExpectedDatabase(
+    value = CSV_BASE + "{HttpMethod}/test01/expected/csv/", 
+    connection = "dbUnitDatabaseConnection", 
+    assertionMode = DatabaseAssertionMode.NON_STRICT_UNORDERED
+)
+```
+
+**assertionModeの意味**：
+- `NON_STRICT_UNORDERED`：expected CSVに記載されたレコードが存在することを検証（順序不問、他のレコードがあってもOK）
+- expected CSVに記載していないカラムは検証対象外
+
+### 5. テストケース命名規則
+```java
+@DisplayName("test{連番2桁}: {正常系|異常系}：{具体的なテスト内容}")
+```
+
+## 注意事項
+
+### 1. データベース関連
+- データは絶対にg-navi-docs\docs\02_設計\01_データベース\master_g_navi_ddl.sqlとg-navi-docs\docs\02_設計\01_データベース\transaction_g_navi_ddl.sqlで定められた条件に従うこと
+- API内で使用されているSQLは、backend\common\src\main\resources\sql\{tran or master}\{DAOクラス名}_{メソッド名}.sqlにあります。確認して、そのSQLと整合性が合うようにテストを作ってください。
+- DDLが確認できない場合は、即座に処理を中止し、ユーザーにDDLのインプットを求めてください
+- APIのFacadeにあるあらゆるDAOクラス、サービスクラス内のDAOクラスを見つけ出し、そのSQLを把握して必要な準備データを揃えてください
+
+### 2. テストデータ作成の注意事項
+- 準備データCSVの末尾に改行を不用意に入れないでください。一つだけで結構です
+- テストケース数は最小限で構いません。あくまで動作確認用です
+- GET以外では、厳密に期待レスポンスと比べる必要はありません。ステータスが200であることだけ確認してください
+
+### 3. CREATE/UPDATE APIのテストデータ作成手順
+
+**手順1：影響を受けるテーブルの特定**
+- Facadeクラスを確認し、APIが登録・更新するテーブルを全て洗い出す
+- DAOクラスの`insert`、`update`、`delete`メソッドが呼ばれるテーブルが対象
+
+**手順2：inputデータの作成**
+- 影響を受けるテーブル：ヘッダー行のみの空CSVを作成（既存データをクリア）
+- 参照のみのテーブル：必要なマスタデータを準備
+
+**手順3：expectedデータの作成**
+- 影響を受けるテーブル：API実行後に存在すべきレコードを記載
+- 動的に生成されるID（`assignment_id`等）：カラム自体を除外
+- 時刻系カラム（`created_at`、`updated_at`）：カラム自体を除外
+- `table-ordering.txt`：外部キー制約を考慮した順序で記載
+
+**手順4：アノテーションの追加**
+- `@ExpectedDatabase`アノテーションを追加
+- `assertionMode = DatabaseAssertionMode.NON_STRICT_UNORDERED`を指定
+
+### 4. DELETE APIのテストデータ作成手順
+
+**手順1：削除対象テーブルの特定**
+- Facadeクラスを確認し、APIが削除するテーブルを全て洗い出す
+
+**手順2：inputデータの作成**
+- 削除対象のレコードを準備
+- 必要に応じて削除されないレコードも準備（複数レコードのテスト）
+
+**手順3：expectedデータの作成**
+- 全件削除の場合：ヘッダー行のみの空CSV
+- 一部削除の場合：削除されずに残るレコードを記載
+
+**手順4：アノテーションの追加**
+- `@ExpectedDatabase`アノテーションを追加
+
+この規約を遵守して、安定的で保守性の高いAPI結合テストを作成してください。
+
+### 5. その他の注意事項
+
+- commonのAPIは、studentで作成してください。
+  - commonは単体で起動できず、studentやteacherの起動に付随するためです
+- リクエストボディにオブジェクトを格納しリクエストを飛ばす場合はexecuteRequestBodyを使用してください。
+- クエリパラメータを使用してリクエストを飛ばす場合はexecuteRequestParamを使用してください。

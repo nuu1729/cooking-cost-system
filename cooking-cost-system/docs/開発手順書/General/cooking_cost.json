@@ -1,0 +1,72 @@
+{
+  "version": 6,
+  "entities": [
+    {
+      "entity": {
+        "type": "Project",
+        "id": "286ad9d4-c9a3-4405-9770-6a3d7444bbbf",
+        "name": "Cooking Cost System"
+      },
+      "children": [
+        {
+          "entity": {
+            "type": "Request",
+            "method": {
+              "requestBody": false,
+              "link": "http://tools.ietf.org/html/rfc7231#section-4.3.1",
+              "name": "GET"
+            },
+            "body": {
+              "bodyType": "Text",
+              "textBody": ""
+            },
+            "uri": {
+              "query": {
+                "delimiter": "&",
+                "items": []
+              },
+              "scheme": {
+                "name": "http",
+                "version": "V11"
+              },
+              "host": "localhost:5000",
+              "path": "/health"
+            },
+            "id": "d554f71e-17e4-477e-9079-127188b7e06f",
+            "name": "health_check",
+            "headers": []
+          }
+        },
+        {
+          "entity": {
+            "type": "Request",
+            "method": {
+              "requestBody": false,
+              "link": "http://tools.ietf.org/html/rfc7231#section-4.3.1",
+              "name": "GET"
+            },
+            "body": {
+              "bodyType": "Text",
+              "textBody": ""
+            },
+            "uri": {
+              "query": {
+                "delimiter": "&",
+                "items": []
+              },
+              "scheme": {
+                "name": "http",
+                "version": "V11"
+              },
+              "host": "localhost:5000",
+              "path": "/"
+            },
+            "id": "f18715aa-ed3c-458f-8dc4-f0df42e560cd",
+            "name": "root_index",
+            "headers": []
+          }
+        }
+      ]
+    }
+  ]
+}

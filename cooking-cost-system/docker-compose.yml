@@ -9,8 +9,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: cooking_cost_system
-      MYSQL_USER: cooking_user
-      MYSQL_PASSWORD: cooking_password
+      MYSQL_USER: nuu1729
+      MYSQL_PASSWORD: 8810HayaTake
     volumes:
       - db_data:/var/lib/mysql
       - ./setup.sql:/docker-entrypoint-initdb.d/setup.sql
@@ -19,7 +19,7 @@ services:
     networks:
       - cooking-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       timeout: 20s
       retries: 10
 
@@ -34,8 +34,8 @@ services:
       NODE_ENV: development
       PORT: 3001
       DB_HOST: database
-      DB_USER: cooking_user
-      DB_PASSWORD: cooking_password
+      DB_USER: nuu1729
+      DB_PASSWORD: 8810HayaTake
       DB_NAME: cooking_cost_system
       FRONTEND_URL: http://localhost:3000
     volumes:
@@ -89,6 +89,7 @@ services:
 
 volumes:
   db_data:
+
 
 networks:
   cooking-network:

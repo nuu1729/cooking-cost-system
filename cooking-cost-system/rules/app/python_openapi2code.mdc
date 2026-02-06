@@ -1,0 +1,106 @@
+---
+alwaysApply: false
+---
+# OpenAPI仕様書からPythonコード自動生成ルール
+
+## 原則
+- 本ルールを適用する場合、「`python_openapi2code.mdc`を適用します」と出力する
+- **OpenAPI Generator**でAPIの枠組み（Controller、Model、Validator）を生成し、**生成AI**でビジネスロジック（Facade、Repository）を実装する
+- OpenAPI仕様書（openapi.yaml）の定義をもとに、Pythonのソースコードを自動生成する
+
+## 開発フロー
+
+### ステップ1: OpenAPI Generatorで枠組み生成
+
+OpenAPI仕様書から、以下のファイルを自動生成します:
+
+- **Controller**: エンドポイント定義（HTTPメソッド、パス、パラメータ受け取り）
+- **Model/DTO**: リクエスト/レスポンスの型定義
+- **Validator**: 基本的な型チェック、必須チェック
+
+```bash
+openapi-generator-cli generate \
+  -i [OASファイルのパス] \
+  -g python-flask \
+  -o ./ \
+  --additional-properties=packageName=api
+```
+
+### ステップ2: 生成AIでビジネスロジック実装
+
+OpenAPI Generatorで生成された枠組みに、以下を実装します:
+
+- **Facade層**: ビジネスロジック（業務ルール、計算処理、データ変換）
+- **Repository層**: データベースアクセス（SQL実行、CRUD操作）
+- **複雑なバリデーション**: 業務ルール固有のチェック（OpenAPI Generatorで生成されない部分）
+- **Controllerの調整**: Facade層の呼び出し、エラーハンドリングの追加
+
+
+
+### 1. Controller生成ルール
+- 生成場所: `api/controllers/`
+- ファイル名: `ha{code}_{function}.py` (snake_case)
+- クラス名: `HA{Code}{Function}` (PascalCase)
+- 継承: `flask_restful.Resource`
+
+```python
+from flask import request, jsonify
+from flask_restful import Resource
+from api.models import ApiResponse
+from log_util import Logger
+from api.validators.ha{code}_{function}_validator import ha{code}{Function}Validator
+
+logger = Logger()
+
+class HA{Code}{Function}(Resource):
+    def post(self):
+        input_data = request.json
+
+        # 1. パラメータチェック
+        errors = ha{code}{Function}Validator.validate(input_data)
+        if errors:
+            logger.error(errors)
+            return jsonify(ApiResponse(ApiResponse.VALIDATION_ERROR, None).__dict__)
+
+        # 2. ロジック実行
+        # TODO: 実装
+
+        # 3. レスポンス返却
+        return jsonify(ApiResponse(ApiResponse.SUCCESS, None).__dict__)
+```
+
+### 2. DTO/Model生成ルール
+- 生成場所: `api/models/`
+- SQLAlchemyモデルとMarshmallowスキーマを生成する
+
+### 3. Validator生成ルール
+- 生成場所: `api/validators/`
+- ファイル名: `ha{code}_{function}_validator.py`
+- クラス名: `HA{Code}{Function}Validator` (PascalCase)
+- 継承: `marshmallow.Schema`
+
+#### OpenAPI型とMarshmallowフィールドの対応
+| OpenAPI Type | Marshmallow Field | 備考 |
+| :--- | :--- | :--- |
+| string | `fields.Str` | |
+| integer | `fields.Int` | |
+| number | `fields.Float` | |
+| boolean | `fields.Bool` | |
+| array | `fields.List` | |
+| object | `fields.Nested` | |
+| string (date) | `fields.Str` | バリデーションで日付形式チェック |
+| string (date-time) | `fields.Str` | バリデーションで日時形式チェック |
+
+#### バリデーション対応
+| OpenAPI Validation | Marshmallow Validator |
+| :--- | :--- |
+| required: true | `required=True` |
+| pattern | `validate.Regexp(regex="...")` |
+| minLength / maxLength | `validate.Length(min=..., max=...)` |
+| minimum / maximum | `validate.Range(min=..., max=...)` |
+
+## 生成時の注意事項
+- 既存のプロジェクト構造に従う
+- Type Hintsを付与する
+- Docstringを付与する
+- 必要なimport文を自動で追加する

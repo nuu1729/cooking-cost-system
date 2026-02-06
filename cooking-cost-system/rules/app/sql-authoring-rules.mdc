@@ -1,0 +1,29 @@
+### 目的
+- **SQL実装の一貫性と安全性**を高め、生成後の人手リファクタを不要にする
+
+### 基本方針
+- **UpsertはMERGE**で統一（T-SQL）。INSERT/UPDATE分岐の手書きを避ける
+- **副作用の明確化**：更新件数は期待値と合致するよう`OUTPUT`やカウントで検証
+- **読みやすさ**：キーワードは大文字、テーブル別名は短く一貫性を持たせる
+
+### MERGE規約（抜粋）
+- 例の構造：
+  - `MERGE target t USING source s ON (キー一致) WHEN MATCHED THEN UPDATE SET ... WHEN NOT MATCHED THEN INSERT (...) VALUES (...);`
+- 更新カラム：`updated_by`, `updated_at`を必ず設定。作成時は`created_by`, `created_at`も
+- NOT NULL/DEFAULTはDDLに準拠。日付は`DATETIME2`を使用
+- 論理削除がある場合は条件に考慮（`log_del_flg = 0`等）
+
+### スタイル/パフォーマンス
+- `SELECT *`禁止。必要カラムの明示
+- インデックスキー/外部キーを尊重したJOIN順序
+- 不要なサブクエリ/重複JOINを回避
+- テーブルヒントは原則使用しない（要件がある場合のみ）
+
+### プレースホルダ/命名
+- 名前付きプレースホルダはJava側命名と一致させる（例：`:deliveryId`）
+- SQLファイル名は`<Dao>_<operation>*.sql`で機能が想起できること
+
+### テスト観点
+- 期待行数ゼロ/複数件ヒット/境界値データでの動作を検証
+- トランザクション整合性（コミット/ロールバック）を意識
+

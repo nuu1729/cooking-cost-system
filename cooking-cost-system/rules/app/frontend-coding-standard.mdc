@@ -1,0 +1,42 @@
+---
+description: フロントエンド (React/TypeScript) のコーディング規約とデザインガイドライン
+globs: frontend/**/*.tsx, frontend/**/*.ts
+alwaysApply: false
+---
+
+# フロントエンド コーディング規約 (React/TypeScript)
+
+## 1. コンポーネント設計原則
+
+- **Functional Components**: 全て関数コンポーネントとして実装し、Hooks を使用する。
+- **Composition over Inheritance**: コンポーネントの継承は避け、合成 (Composition) を利用する。
+- **Container / Presentational パターン (推奨)**:
+  - データ取得やロジックを持つコンポーネントと、表示のみを担当するコンポーネントを分離することを意識する。
+
+## 2. ディレクトリ構成とファイル命名
+
+- コンポーネントファイル: `PascalCase.tsx` (例: `IngredientList.tsx`)
+- 関連ファイル: コンポーネントごとにディレクトリを切る場合、`index.ts` を置いて export をまとめるパターンも可。
+- フック: `useCamelCase.ts` (例: `useIngredients.ts`)
+
+## 3. スタイリング (Tailwind CSS)
+
+- 原則として Tailwind CSS のユーティリティクラスを使用すること。
+- 複雑なスタイルや再利用するスタイルは、Tailwind の `@apply` ディレクティブや、共通コンポーネント化して解決する。
+- `style` 属性への直書きは、動的な値が必要な場合を除き避ける。
+
+## 4. 状態管理
+
+- **Local State**: `useState`
+- **Global Server State**: `React Query` (`@tanstack/react-query`) を使用して API データを管理する。
+- **Global UI State**: 必要に応じて Context API や Redux/Zustand 等を使用 (本プロジェクトでは React Query と Context で十分な場合が多い)。
+
+## 5. UI ライブラリ (MUI)
+
+- 基本コンポーネント (Button, TextField, Card 等) は `@mui/material` を積極的に利用し、開発効率を高める。
+- デザインのカスタマイズは `createTheme` や `sx` プロパティを活用する。
+
+## 6. その他規則
+
+- **TypeScript**: 厳格な型チェックを行う。`any` は極力避ける。
+- **Linter/Formatter**: ESLint と Prettier のルールに従い、自動整形を適用する。

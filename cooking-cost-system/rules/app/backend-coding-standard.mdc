@@ -1,0 +1,86 @@
+---
+description: バックエンド (Node.js/Express) のコーディング規約と実装ガイドライン
+globs: backend/**/*.ts
+alwaysApply: false
+---
+
+# バックエンド コーディング規約 (TypeScript/Express)
+
+## 目的
+一貫性のある保守性の高いコードベースを維持するため、以下のルールを遵守してください。
+
+## 1. アーキテクチャと責務分離
+
+Controller -> Service -> Model (Data Access) の 3層アーキテクチャを採用します。
+
+### Controller (`src/controllers`)
+- **役割**: HTTP リクエストのハンドリング、入力バリデーション、レスポンスの返却。
+- **禁止事項**: 複雑なビジネスロジックの記述、直接的な SQL クエリの実行。
+- **実装パターン**:
+  ```typescript
+  export const getIngredient = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const ingredient = await IngredientService.findById(Number(id));
+      if (!ingredient) throw new NotFoundError('Ingredient not found');
+      res.json({ data: ingredient });
+    } catch (error) {
+      next(error); // エラーは必ず next() でGlobal Error Handlerへ
+    }
+  };
+  ```
+
+### Service (`src/services`)
+- **役割**: ビジネスロジック、トランザクション管理、複数の Model 操作のオーケストレーション。
+- **実装パターン**:
+  - 純粋な関数またはクラスの静的メソッドとして実装することを推奨。
+  - トランザクション境界はここで定義する。
+
+### Model / Data Access (`src/models` or `src/database.ts`)
+- **役割**: データベースへのクエリ実行、データの整形。
+- **実装**: MySQL2 または ORM (TypeORM等) を使用して DB 操作をカプセル化する。
+
+## 2. 命名規則
+
+- **変数・関数**: `camelCase` (例: `getUser`, `isAvailable`)
+- **クラス・インターフェース・型**: `PascalCase` (例: `UserService`, `Ingredient`)
+- **定数**: `UPPER_SNAKE_CASE` (例: `MAX_RETRY_COUNT`)
+- **ファイル名**: `kebab-case` または `camelCase` (プロジェクトの既存統一に従うこと。現状 `snake_case` が混在している場合は徐々に統一) -> **本プロジェクトでは `camelCase` または `kebab-case` を推奨**
+
+## 3. エラーハンドリング
+
+- **原則**: `try-catch` ブロックで捕捉し、`next(error)` で Express のエラーハンドラーミドルウェアに流す。
+- **カスタムエラー**: HTTP ステータスコードを持つカスタムエラークラス (`AppError`, `NotFoundError` 等) を使用する。
+- **ログ**: エラーログにはスタックトレースを含める (`logger.error(err.stack)`).
+
+## 4. 非同期処理
+
+- **Async/Await**: Promise チェーン (`.then().catch()`) ではなく `async/await` を使用する。
+- **並列処理**: 依存関係のない複数の非同期処理は `Promise.all()` で並列化を検討する。
+
+## 5. 型安全性 (TypeScript)
+
+- **Any の禁止**: 原則として `any` 型は使用禁止。不明な型には `unknown` を使用し、型ガードを行う。
+- **インターフェース**: API のリクエスト/レスポンス、DB のモデル等は必ずインターフェースまたは Type Alias で型定義する。
+
+## 6. バリデーション
+
+- リクエストボディやクエリパラメータは、Controller 層で検証する。
+- `express-validator`, `zod`, `class-validator` などのライブラリを活用し、バリデーションロジックを宣言的に記述する。
+
+## 7. ログ (Logging)
+
+- `console.log` は使用せず、`winston` などのロガー (`src/logger.ts`) を使用する。
+- ログレベル:
+  - `error`: 予期しないエラー、システム障害
+  - `warn`: 予期されたエラー、注意が必要な操作
+  - `info`: 主要な操作の完了、状態変更
+  - `debug`: 開発中のデバッグ情報 (本番では出力しない)
+
+## 8. テスト
+
+- フレームワーク: `Jest`
+- テストファイル配置: `__tests__` ディレクトリまたは `src` 内の `*.test.ts`
+- E2E/Integration テストと Unit テストを区別する。
+
+

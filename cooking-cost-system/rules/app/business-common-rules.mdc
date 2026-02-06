@@ -1,0 +1,139 @@
+---
+description: WEB販売管理システムの業務共通仕様
+globs: *.py,*.ts,*.tsx
+alwaysApply: false
+---
+<!-- markdownlint-disable MD013 -->
+<!-- markdownlint-disable MD032 -->
+<!-- markdownlint-disable MD022 -->
+<!-- markdownlint-disable MD031 -->
+<!-- omit in toc -->
+
+# WEB販売管理システム 業務共通仕様
+
+## 原則
+
+- 本ルールを適用する場合、「`business-common-rules.mdc`を適用します」と出力する
+- 本ルールは、業務ロジックに関わる全ての実装において参照すること
+
+## 会計年度の定義
+
+### 決算月と年度の始まり
+
+- **決算月**: 6月
+- **年度の始まり**: 7月1日
+- **年度の終わり**: 翌年6月30日
+
+### 年度の表記ルール
+
+- 年度は「YYYY年度」の形式で表記する
+  - 例: 2024年7月1日～2025年6月30日 → **2024年度**
+- システム内部では、年度の開始年（7月が属する年）を年度として扱う
+- データベースに保存する場合は、整数型（INT）で年度の開始年を保存する
+  - 例: 2024年度 → `2024` として保存
+
+### 年度計算ロジック
+
+#### Pythonでの実装
+
+バックエンドでは、`api/utils/fiscal_year.py` に定義された関数を使用すること。
+
+```python
+from api.utils.fiscal_year import get_fiscal_year, get_fiscal_year_range
+
+# 現在の年度を取得
+from datetime import datetime
+current_fiscal_year = get_fiscal_year(datetime.now())
+
+# 特定年度のデータを検索
+start_date, end_date = get_fiscal_year_range(2024)
+results = db.session.query(Sales).filter(
+    Sales.sales_date >= start_date,
+    Sales.sales_date <= end_date
+).all()
+```
+
+**関数仕様:**
+
+- `get_fiscal_year(target_date: datetime) -> int`
+  - 指定された日付から会計年度を取得する
+  - 7月～12月は当年度、1月～6月は前年度として計算
+  
+- `get_fiscal_year_range(fiscal_year: int) -> tuple[datetime, datetime]`
+  - 会計年度から期間（開始日、終了日）を取得する
+  - 開始日: 指定年度の7月1日
+  - 終了日: 指定年度+1の6月30日
+
+#### TypeScript/JavaScriptでの実装
+
+フロントエンドでは、`src/utils/fiscalYear.ts` に定義された関数を使用すること。
+
+```typescript
+import { getFiscalYear, getFiscalYearRange } from '@/utils/fiscalYear';
+
+// 現在の年度を取得
+const currentFiscalYear = getFiscalYear(new Date());
+
+// 年度選択のオプション生成
+const fiscalYearOptions = Array.from({ length: 5 }, (_, i) => {
+  const year = currentFiscalYear - i;
+  return { value: year, label: `${year}年度` };
+});
+
+// 年度範囲でのフィルタリング
+const { start, end } = getFiscalYearRange(selectedFiscalYear);
+const filteredData = data.filter(item => {
+  const itemDate = new Date(item.date);
+  return itemDate >= start && itemDate <= end;
+});
+```
+
+**関数仕様:**
+
+- `getFiscalYear(targetDate: Date): number`
+  - 指定された日付から会計年度を取得する
+  - 7月～12月は当年度、1月～6月は前年度として計算
+  
+- `getFiscalYearRange(fiscalYear: number): { start: Date; end: Date }`
+  - 会計年度から期間（開始日、終了日）を取得する
+  - start: 指定年度の7月1日
+  - end: 指定年度+1の6月30日
+
+### 年度に関する実装ルール
+
+1. **年度計算は必ず共通関数を使用する**
+   - バックエンド: `api/utils/fiscal_year.py` の関数を使用
+   - フロントエンド: `src/utils/fiscalYear.ts` の関数を使用
+   - 独自に年度計算ロジックを実装しないこと
+
+2. **年度選択UIの実装**
+   - 年度選択のドロップダウンやセレクトボックスは、「YYYY年度」の形式で表示する
+   - デフォルト値は現在日付から算出した当年度とする
+   - 過去5年度程度を選択肢として表示することを推奨
+
+3. **年度範囲検索の実装**
+   - 年度を指定した検索では、7月1日～翌年6月30日の範囲で検索する
+   - `get_fiscal_year_range()` / `getFiscalYearRange()` を使用すること
+   - 日付範囲は開始日・終了日を含む（inclusive）
+
+4. **データベースでの年度管理**
+   - 年度カラムを持つ場合は、整数型（INT）で年度の開始年を保存する
+   - カラム名は `fiscal_year` を推奨
+   - インデックスを設定することを推奨
+
+## 適用シーン
+
+以下のような実装を行う際は、必ず本ルールを参照すること：
+
+- 年度選択機能の実装
+- 年度別の集計・レポート機能
+- 年度を条件とした検索機能
+- 年度の表示・入力フォーム
+- 年度に関するバリデーション
+- 年度データの保存・取得
+
+## 注意事項
+
+- 年度計算ロジックを独自に実装すると、システム全体で不整合が発生する可能性があるため、必ず共通関数を使用すること
+- 年度の開始月・終了月が変更される可能性は低いが、変更が必要な場合は共通関数のみを修正すればシステム全体に反映される
+- テストデータを作成する際も、年度の定義に従った日付を設定すること

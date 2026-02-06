@@ -1,0 +1,73 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+<!-- markdownlint-disable MD013 -->
+<!-- markdownlint-disable MD032 -->
+<!-- markdownlint-disable MD022 -->
+<!-- markdownlint-disable MD031 -->
+<!-- omit in toc -->
+
+# Pythonの共通ルール
+
+## 原則
+
+- 本ルールを適用する場合、「`python_common.mdc`を適用します」と出力する
+- 本ルールを適用する場合、以下のルールも同時に適用する
+  - `python_docstring.mdc`
+
+## 共通ルール
+- Flask + Flask-RESTful + SQLAlchemyの原則に従い、実装する
+- 循環参照を避けるため、importは必要な箇所で行うか、`TYPE_CHECKING`を使用する
+
+## データモデル・DTO作成時のルール (Lombok代替)
+- PythonではLombokの代わりに以下のライブラリ・機能を活用する
+  - **Entityクラス**: SQLAlchemyの `db.Model` を継承
+  - **DTO/Schemaクラス**: Marshmallowの `Schema` を継承
+- Getter/SetterはPythonのプロパティ(`@property`)を使用するか、直接属性にアクセスする（Pythonicな書き方を推奨）
+
+```python
+# 良い例
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80))
+
+# 悪い例 (JavaのようなGetter/Setter)
+class User:
+    def get_name(self):
+        return self._name
+    def set_name(self, name):
+        self._name = name
+```
+
+## クラス作成時のルール
+- クラス名は PascalCase を使用する
+- クラス名は名詞を使用する
+- クラスは単一責任の原則（SRP）に従う
+
+## メソッド作成時のルール
+- メソッド名は snake_case を使用する
+- メソッド名は動詞で始める
+- メソッドは単一の責任を持つ
+- プライベートメソッドは `_` (アンダースコア1つ) で始める
+
+## 例外処理ルール
+- エラーハンドリングは `ApiResponse` クラスを使用し、適切なステータスコードを返却する
+- 独自の例外クラスを作成する場合は `Exception` を継承し、`api/exceptions` (もしあれば) に配置する
+- `try-except` で捕捉した例外は、必ずログに出力する
+
+## 定数・ユーティリティ作成時のルール
+- 定数は UPPER_CASE を使用する
+- 定数やユーティリティを作成する場合、以下のファイル・ディレクトリを確認する
+  - `log_util.py`
+  - `api/constants` (存在する場合)
+- 既存のユーティリティが存在する場合、それらを参照する
+
+## コードスタイル
+- インデントは4スペースを使用
+- 1行の長さは120文字以内（目安）
+- 適切な空行を使用してコードの可読性を高める
+- 適切な変数名を使用する（snake_case）
+- マジックナンバーは定数として定義する
+- 型ヒント（Type Hints）を積極的に活用する

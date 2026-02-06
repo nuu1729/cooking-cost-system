@@ -1,0 +1,77 @@
+---
+description: API結合テスト (Integration Test) の実装ガイドライン
+globs: backend/**/*.test.ts
+alwaysApply: false
+---
+
+# API結合テスト実装ガイドライン
+
+Backend API の結合テストを実装する際のルールです。
+`Jest` と `Supertest` を使用します。
+
+## 1. テスト構造
+
+テストファイルは `backend/__tests__/integration` または `src` 内の適切な `__tests__` ディレクトリに配置します。
+
+```typescript
+import request from 'supertest';
+import app from '../../src/app'; // Express App
+import { db } from '../../src/database';
+
+describe('Integration: GET /api/ingredients', () => {
+  beforeAll(async () => {
+    // テスト用データ投入など
+    await db.query('START TRANSACTION');
+  });
+
+  afterAll(async () => {
+    // クリーンアップ
+    await db.query('ROLLBACK');
+    await db.end();
+  });
+
+  it('should return 200 and a list of ingredients', async () => {
+    const res = await request(app).get('/api/ingredients');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+});
+```
+
+## 2. データベース制御
+
+- 結合テストでは実際のデータベース (テスト用DB) を使用することを推奨します。
+- テスト間の干渉を防ぐため、以下のいずれかの方針を採用します:
+    1.  **トランザクションロールバック**: `START TRANSACTION` で開始し、テスト終了後に `ROLLBACK` する。
+    2.  **Truncate/Seed**: 各テストスイートの前にテーブルを空にし、必要なデータを Seed する。
+
+## 3. アサーション
+
+- ステータスコード (`res.status`)
+- レスポンスボディの構造 (`res.body`)
+- データベースの副作用 (登録/更新/削除が実際に反映されたか)
+
+```typescript
+it('should create a new ingredient', async () => {
+  const newItem = { name: 'Test Pork', price: 100 };
+  const res = await request(app).post('/api/ingredients').send(newItem);
+  
+  expect(res.status).toBe(201);
+  expect(res.body.data.name).toBe(newItem.name);
+
+  // DB検証
+  const [rows] = await db.query('SELECT * FROM ingredients WHERE id = ?', [res.body.data.id]);
+  expect(rows.length).toBe(1);
+});
+```
+
+## 4. 認証
+
+認証が必要なエンドポイントのテストでは、事前にログインAPIを叩いてトークンを取得するか、テスト用のバイパストークン生成ロジックを使用します。
+
+```typescript
+const token = generateTestToken({ userId: 1, role: 'admin' });
+const res = await request(app)
+  .get('/api/protected-route')
+  .set('Authorization', `Bearer ${token}`);
+```

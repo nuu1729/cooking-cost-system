@@ -1,0 +1,37 @@
+### 目的
+- **Response/Requestの統一規約**を明文化し、生成とレビューの手戻りを最小化する
+
+### Response/Request の原則
+- **ApiResponseの使用**: レスポンスは必ず `ApiResponse` クラスを使用し、`jsonify(ApiResponse(...).__dict__)` の形式で返却する
+- **Validatorの活用**: リクエストボディの構造定義とバリデーションは、`api/validators` 配下の Marshmallow Schema で行う
+- **命名**: `<UseCase><Verb><Entity><Request|Response>` の語順を基本とするが、Python側では `request.json` を直接扱うことが多いため、Validatorで構造を定義する
+
+### シリアライズ/バリデーション (Marshmallow)
+- **Marshmallow**: モデルのシリアライズには Marshmallow Schema を使用する
+- **フィールド定義**:
+    - 文字列: `fields.Str`
+    - 数値: `fields.Int`, `fields.Float`
+    - 日付: `fields.Date` (format='%Y-%m-%d')
+    - 日時: `fields.DateTime` (format='%Y-%m-%d %H:%M:%S')
+    - リスト: `fields.List`
+    - ネスト: `fields.Nested`
+- **バリデーション**: `validate` パッケージを使用する
+    - 必須チェック: `required=True`
+    - 正規表現: `validate.Regexp(regex="...")`
+    - 長さ: `validate.Length(max=...)`
+    - 数値範囲: `validate.Range(min=..., max=...)`
+- **エラーハンドリング**: バリデーションエラー時は `ApiResponse(ApiResponse.VALIDATION_ERROR, None)` を返却する
+
+### モデリング規約
+- **型**: 日時は `datetime`、日付は `date` を基本とする
+- **Null許容**: OpenAPI `nullable`/必須に準拠。非必須は `None` 許容 (`allow_none=True`)
+- **コレクション**: 返却の空集合は `[]` で返す（`None` 返却は避ける）
+
+### マッピング/変換
+- **Schema().load()**: リクエストデータのバリデーションとデシリアライズ
+- **Schema().dump()**: レスポンスデータのシリアライズ
+
+### 生成時のチェック
+- ApiResponseを使用しているか
+- バリデーションが適切に実装されているか
+- Marshmallow Schemaが適切に定義されているか

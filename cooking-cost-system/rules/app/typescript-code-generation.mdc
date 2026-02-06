@@ -1,0 +1,43 @@
+---
+description: AIによるTypeScriptコード生成時のルールとガイドライン
+globs: *.ts, *.tsx
+alwaysApply: false
+---
+
+# TypeScript コード生成ルール
+
+本プロジェクトにおいて、AI が TypeScript コードを生成する際は以下のルールを遵守すること。
+
+## 1. 基本方針
+
+- **型安全性**: `any` 型の使用を避け、適切な型定義を行う。ジェネリクスを活用し、型推論を最大限利用する。
+- **可読性**: 短く簡潔な関数、適切な命名、自己文書化コードを指す。
+- **Lint/Format**: プロジェクトの `.eslintrc`, `.prettierrc` 設定に従う。
+
+## 2. ファイル構造と命名
+
+- **ファイル名**: `kebab-case` (例: `user-profile.tsx`, `auth-service.ts`) または `PascalCase` (コンポーネント) を推奨。既存の慣習に合わせる。
+- **エクスポート**: 原則として `Named Export` を使用する (`export const ...`)。`default export` はページコンポーネントや Lazy Loading などの必要な場面に限定する。
+
+## 3. 実装詳細ルール
+
+### 3.1 非同期処理
+- `async/await` を使用する。
+- エラーハンドリングは `try-catch` または Promise の catch を適切に行う。
+
+### 3.2 Null/Undefined 処理
+- Optional Chaining (`?.`) と Nullish Coalescing (`??`) を積極的に使用する。
+- `!` (Non-null assertion) は極力避ける。
+
+### 3.3 コンポーネント (React)
+- 関数コンポーネントとして実装する。
+- Props は Interface で定義し、Destructuring して使用する。
+- `React.FC` は使用せず、通常の関数定義 (`(props: Props): JSX.Element`) を推奨 (React 18 以降のベストプラクティス)。
+
+### 3.4 バックエンド (Express)
+- Request/Response の型定義を行う。
+- Middleware は `(req, res, next)` のシグネチャを守る。
+
+## 4. コメント
+- JSDoc 形式のコメント (`/** ... */`) をパブリックな関数やクラスに記述する。
+- 複雑なロジックにはインラインコメントで「なぜそうしたか」を記述する。

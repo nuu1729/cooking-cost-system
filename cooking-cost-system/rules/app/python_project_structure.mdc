@@ -1,0 +1,75 @@
+# プロジェクト構造効率把握ルール（Python）
+
+## 原則
+- 本ルールを適用する場合、「`python_project_structure.mdc`を適用します」と出力する
+- OpenAPI仕様書からPythonコード生成時の事前構造把握を効率化する
+
+## プロジェクト構造マップ
+
+### ベース構造
+```
+web_hankan_backend/
+├── api/
+│   ├── controllers/     # コントローラー（Resource）
+│   │   ├── ha{code}_{function}.py
+│   │   └── ...
+│   ├── models/          # モデル（SQLAlchemy Entity & Marshmallow Schema）
+│   │   ├── t_{name}.py
+│   │   ├── m_{name}.py
+│   │   └── ...
+│   ├── validators/      # バリデーター
+│   │   ├── ha{code}_{function}_validator.py
+│   │   └── common_validators.py
+│   ├── database.py      # DB接続設定
+│   └── ...
+├── log_util.py          # ログユーティリティ
+└── app.py               # アプリケーションエントリーポイント
+```
+
+### 必須確認ファイル（優先順位順）
+1. `api/database.py` - DBセッション管理、Marshmallow初期化
+2. `log_util.py` - ロガー設定
+3. `api/models/api_response.py` (存在する場合) - レスポンス形式定義
+
+## 効率的な確認手順
+
+### Step 1: 関連ファイルの特定
+- 作成対象の機能ID（例: HA101）を含む既存ファイルがあるか確認
+- `api/controllers`, `api/validators` を検索
+
+### Step 2: 基本構造確認
+以下のファイルを読み込み、実装パターンを把握：
+1. `api/database.py` - DB接続方法
+2. 既存のController（例: `api/controllers/ha101_get_employee_info.py`）
+3. 既存のValidator（例: `api/validators/ha102_regist_employee_info_validator.py`）
+
+## 命名規則
+
+### ファイル命名
+- snake_caseを使用する（例: `ha101_get_employee_info.py`）
+
+### クラス命名
+- Controller: `HA{Code}{Function}` (例: `HA101GetEmployeeInfo`)
+- Model: `T{Name}`, `M{Name}` (例: `TEmployee`, `MEmployeeType`)
+- Schema: `{ModelName}Schema` (例: `TEmployeeSchema`)
+- Validator: `ha{code}_{function}_validator` (モジュール/インスタンス), クラス名は `HA{Code}{Function}Validator` (推測)
+
+### パッケージ命名
+- `api.controllers`
+- `api.models`
+- `api.validators`
+
+## エラー回避のためのチェックリスト
+
+### 1. import文の事前確認
+- 必要なクラスが存在するか確認
+- パッケージパスが正しいか確認（`from api.models import ...` など）
+- 循環参照が発生しないか確認
+
+### 2. 命名規則の一貫性
+- 既存のクラス命名規則に従っているか
+- パッケージ構造が適切か
+
+### 3. 依存関係の確認
+- Modelが先に定義されているか
+- ValidatorがControllerから参照可能か

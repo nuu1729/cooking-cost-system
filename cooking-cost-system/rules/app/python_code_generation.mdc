@@ -1,0 +1,190 @@
+---
+description: 
+globs: *.py
+alwaysApply: false
+---
+
+# GitHub Copilot コード生成規約 (Python)
+- 本ルールを適用する場合、「{ファイル名}を適用するしんよ～」と出力する
+- 本ルールを適用する場合、以下のルールも確認すること。
+  - `python_common.mdc`
+  - `python_docstring.mdc`
+
+## 目的
+このドキュメントは、GitHub CopilotがPythonコード生成時に遵守すべき規約を定めたものです。
+可読性、保守性、性能を重視したコードを生成することで、チーム開発において統一された品質のコードを提供します。
+
+## ファイル生成の規則
+### プロジェクト固有設定値
+- {ロジック実装ファイルパス}: `api/controllers`
+- {ロジックファイルの命名規則}: `ha{code}_{function}.py`
+- {テーブル定義ファイルパス}: `docs\02_設計\01_データベース`
+
+### 規則
+- Flask-RESTfulのResourceクラスとして実装する
+- `api.models` からモデルをインポートする
+- `api.database.db` を使用してDB操作を行う
+- `log_util.Logger` を使用してログ出力を行う
+
+### レスポンス定義ルール
+- **ApiResponseの使用**: 必ず `ApiResponse` を使用してレスポンスを生成する
+- **返却形式**: `jsonify(ApiResponse(...).__dict__)` の形式で返却する
+
+```python
+# 良い例
+from api.models import ApiResponse
+
+class HA101GetEmployeeInfo(Resource):
+    def post(self):
+        # ...
+        return jsonify(ApiResponse(ApiResponse.SUCCESS, result).__dict__)
+```
+
+## 基本原則
+
+### 1. リーダブルコード（可読性重視）
+他人が読むことを前提としたコードを生成してください。
+
+#### 1.1 コメント
+- Docstringを使用する（`python_docstring.mdc`参照）
+- 複雑なロジックや業務ルールに関する説明を含める
+- 無駄に多すぎるコメントは避ける
+
+```python
+# 良い例
+# 会員ステータスが有効かつ有効期限内の場合のみ処理を継続
+if member.is_active and member.is_within_expiry_date():
+    # 処理内容
+```
+
+#### 1.2 命名規則
+- 変数名、メソッド名は snake_case
+- クラス名は PascalCase
+- 定数は UPPER_CASE
+- マジックナンバーは定数化する
+
+```python
+# 良い例
+MAX_RETRY_COUNT = 3
+ACTIVE_STATUS = "1"
+
+def validate_member_status(member):
+    return member.status == ACTIVE_STATUS
+```
+
+#### 1.3 制御構造
+- ifのネストは最小限に抑える
+- 早期リターン（Early Return）を活用する
+
+```python
+# 良い例
+def process_members(members):
+    if not members:
+        return
+    
+    for member in members:
+        if not member.is_active:
+            continue
+        # 処理内容
+```
+
+### 2. メモリ効率を意識したコード
+- 大きなデータはイテレータやジェネレータを活用する
+- 不要なオブジェクト生成を避ける
+
+### 3. 例外処理
+- `try-except` ブロックを使用する
+- ログにスタックトレースを出力する (`traceback.format_exc()`)
+- システムエラー時は `ApiResponse.SYSTEM_ERROR` を返す
+
+```python
+import traceback
+
+try:
+    # 処理
+except Exception:
+    logger.error(traceback.format_exc())
+    return self.error_response(ApiResponse.SYSTEM_ERROR, "エラーメッセージ")
+```
+
+### 4. ログ出力
+- `log_util.Logger` を使用する
+- `logger.error`, `logger.info`, `logger.debug` を適切に使い分ける
+- エラー時は必ずスタックトレースを出力する
+
+## アーキテクチャ固有の規約
+
+### Controllerクラス (Resource)
+- **役割**: APIリクエスト受付、バリデーション呼び出し、ビジネスロジック実行、レスポンス返却
+- **継承**: `flask_restful.Resource` を継承
+- **メソッド**: `post` (基本はPOSTで統一されている場合が多いが、要件に従う)
+- **トランザクション制御**: 更新系処理の場合は `db.session.begin()` / `commit()` / `rollback()` を明示的に行う
+
+```python
+class HA102RegistEmployeeInfo(Resource):
+    def post(self):
+        input_data = request.json
+
+        # 1. パラメータチェック
+        errors = ha102RegistEmployeeInfoValidator.validate(input_data)
+        if errors:
+            logger.error(errors)
+            return jsonify(ApiResponse(ApiResponse.VALIDATION_ERROR, None).__dict__)
+        
+        # 2. ロジック実行
+        self.regist_employee_info(input_data)
+
+        # 3. レスポンス返却
+        return jsonify(ApiResponse(ApiResponse.SUCCESS, None).__dict__)
+
+    def regist_employee_info(self, input_data):
+        try:
+            db.session.begin()
+            # ... DB操作 ...
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.error(traceback.format_exc())
+            raise # またはエラーレスポンスを返す処理
+```
+
+### Validatorクラス
+- **役割**: 入力値のバリデーション
+- **実装**: Marshmallow Schemaを使用
+- **ファイル**: `api/validators/` 配下に配置
+- **インスタンス化**: ファイル末尾でインスタンス化し、Controllerからはそのインスタンスを使用する
+
+```python
+from marshmallow import Schema, fields, validate
+
+class Ha102RegistEmployeeInfoValidator(Schema):
+    employeeId = fields.Str(
+        required=False,
+        validate=validate.Regexp(regex="^[0-9]{1,10}$")
+    )
+    # ...
+
+ha102RegistEmployeeInfoValidator = Ha102RegistEmployeeInfoValidator()
+```
+
+### Modelクラス (SQLAlchemy)
+- **役割**: DBテーブル定義
+- **継承**: `db.Model`
+- **配置**: `api/models/`
+
+### Database操作
+- `api.database.db` を使用する
+- クエリは `Model.query.filter_by(...)` や `db.session.query(...)` を使用する
+- 更新処理は `db.session.add()`, `db.session.delete()` 後に `db.session.commit()` (または `flush()`)
+
+## 禁止事項
+1. **print文の使用禁止** - `log_util.Logger`を使用する
+2. **例外の握りつぶし禁止** - 必ずログ出力または適切なエラーハンドリングを行う
+3. **マジックナンバーの使用禁止** - 定数化する
+4. **`pass`のみのexcept節** - 必ずログ出力などを行う
+
+## コード生成時の考慮事項
+1. **設計書との整合性** - 処理順序を設計書と合わせる
+2. **保守性** - 将来の変更に対応しやすい構造にする
+3. **セキュリティ** - SQLインジェクション対策（SQLAlchemyを使用していれば基本OK）、個人情報のログ出力注意
+4. **命名規約** - `python_project_structure.mdc` の命名規約を遵守する
