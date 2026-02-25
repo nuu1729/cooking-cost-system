@@ -1,0 +1,7 @@
+Flask
+flask-cors
+SQLAlchemy
+PyMySQL
+python-dotenv
+pytest
+click
