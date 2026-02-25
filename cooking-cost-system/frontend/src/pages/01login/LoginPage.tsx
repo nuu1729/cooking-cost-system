@@ -4,6 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../../api/api';
 // import PersonIcon from '@mui/icons-material/Person';
 // import GoogleIcon from '@mui/icons-material/Google'; // Not available in all MUI versions, using text or standard icon
 // import AppleIcon from '@mui/icons-material/Apple';
@@ -49,32 +50,38 @@ const LoginPage: React.FC = () => {
     const onSubmit = async (data: FormData) => {
         setErrorMessage(null);
         try {
-            // Simulation
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
             if (mode === 'signup') {
                 // TODO: Registration Logic
                 console.log('Registering:', data);
-                // Currently allow signup to proceed as mock
-                navigate('/');
+                const response = await authApi.register({
+                    username: data.email.split('@')[0],
+                    email: data.email,
+                    password: data.password
+                });
+                if (response.success) {
+                    navigate('/login');
+                }
             } else {
-                // Default Login
+                // MSW / Backend Login
                 console.log('Logging in:', data);
-                
-                // Temporary Hardcoded Login Logic
-                if (data.email === 'minger@email.com' && data.password === 'Ming1234') {
-                    // Success
+                const response = await authApi.login({
+                    username: data.email, // identification by email
+                    password: data.password
+                });
+
+                if (response.success && response.data) {
+                    // Save Token
+                    localStorage.setItem('authToken', response.data.token);
                     navigate('/');
                 } else {
-                    // Failed
                     throw new Error('Invalid credentials');
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            setErrorMessage(mode === 'login'
+            setErrorMessage(error.message || (mode === 'login'
                 ? 'メールアドレスまたはパスワードが正しくありません。'
-                : 'アカウント作成に失敗しました。');
+                : 'アカウント作成に失敗しました。'));
         }
     };
 

@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "name": "親子丼",
+    "total_cost": 250,
+    "genre": "和食",
+    "description": "定番の親子丼です。",
+    "ingredients": [
+      {
+        "ingredient_id": 2,
+        "used_quantity": 150,
+        "used_cost": 132
+      }
+    ],
+    "created_at": "2026-02-25T00:00:00.000Z",
+    "updated_at": "2026-02-25T00:00:00.000Z"
+  }
+]

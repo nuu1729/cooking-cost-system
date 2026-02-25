@@ -9,11 +9,11 @@ import {
     CompletedFood,
     CreateCompletedFoodRequest,
     ApiResponse,
-    PaginatedResponse,
     LoginRequest,
     RegisterRequest,
     LoginResponse,
-    User
+    User,
+    CreatePrepRequest
 } from '../types';
 
 // APIベースURL設定
@@ -102,22 +102,6 @@ const getErrorMessage = (error: AxiosError): string => {
     return error.message || '不明なエラーが発生しました';
 };
 
-// 汎用API関数
-const createApiHandler = <T, P = any>(
-    endpoint: string,
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET'
-    ) => {
-    return async (data?: P): Promise<T> => {
-        const config = {
-        method,
-        url: endpoint,
-        ...(method !== 'GET' && data && { data }),
-        };
-        
-        const response = await apiClient(config);
-        return response.data;
-    };
-};
 
 // 食材API
 export const ingredientApi = {
@@ -386,45 +370,82 @@ export const uploadApi = {
 export const authApi = {
     // 認証状態チェック
     getAuthStatus: async (): Promise<ApiResponse<{ authEnabled: boolean }>> => {
-        const response = await apiClient.get('/auth/status');
+        const response = await apiClient.get('auth/status');
         return response.data;
     },
 
     // ログイン
     login: async (credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> => {
-        const response = await apiClient.post('/auth/login', credentials);
+        const response = await apiClient.post('auth/login', credentials);
         return response.data;
     },
     
     // ユーザー登録
     register: async (userData: RegisterRequest): Promise<ApiResponse<User>> => {
-        const response = await apiClient.post('/auth/register', userData);
+        const response = await apiClient.post('auth/register', userData);
         return response.data;
     },
     
     // ログアウト
     logout: async (): Promise<ApiResponse<void>> => {
-        const response = await apiClient.post('/auth/logout');
+        const response = await apiClient.post('auth/logout');
         return response.data;
     },
     
     // 現在のユーザー情報取得
     getCurrentUser: async (): Promise<ApiResponse<User>> => {
-        const response = await apiClient.get('/auth/me');
+        const response = await apiClient.get('auth/me');
         return response.data;
     },
 
     // トークンリフレッシュ
     refreshToken: async (): Promise<ApiResponse<{ token: string }>> => {
-        const response = await apiClient.post('/auth/refresh');
+        const response = await apiClient.post('auth/refresh');
         return response.data;
     },
 
     // パスワード更新
     updatePassword: async (currentPassword: string, newPassword: string): Promise<ApiResponse<void>> => {
-        const response = await apiClient.put('/auth/password', {
+        const response = await apiClient.put('auth/password', {
             currentPassword,
             newPassword,
+        });
+        return response.data;
+    },
+};
+
+// 仕込みAPI
+export const prepApi = {
+    // 仕込み一覧取得
+    getAll: async (params?: { name?: string }): Promise<ApiResponse<any[]>> => {
+        const response = await apiClient.get('/preps', { params });
+        return response.data;
+    },
+
+    // 仕込み詳細取得
+    getById: async (id: number): Promise<ApiResponse<any>> => {
+        const response = await apiClient.get(`/preps/${id}`);
+        return response.data;
+    },
+
+    // 仕込み名重複チェック
+    checkName: async (name: string): Promise<ApiResponse<{ exists: boolean }>> => {
+        const response = await apiClient.get('/preps/check-name', {
+            params: { name }
+        });
+        return response.data;
+    },
+
+    // 仕込み作成
+    create: async (data: CreatePrepRequest): Promise<ApiResponse<any>> => {
+        const response = await apiClient.post('/preps', data);
+        return response.data;
+    },
+    
+    // 商品検索（サジェスト用）
+    searchIngredients: async (query: string): Promise<ApiResponse<Ingredient[]>> => {
+        const response = await apiClient.get('/ingredients/search', {
+            params: { q: query }
         });
         return response.data;
     },

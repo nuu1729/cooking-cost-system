@@ -1,0 +1,48 @@
+[
+  {
+    "id": 101,
+    "prep_name": "ごはん中",
+    "yield_amount": 150,
+    "yield_unit": "g",
+    "total_cost": 30,
+    "items": [
+      {
+        "ingredient_id": 10,
+        "amount": 70,
+        "unit": "g",
+        "cost": 25
+      },
+      {
+        "ingredient_id": 11,
+        "amount": 80,
+        "unit": "ml",
+        "cost": 5
+      }
+    ],
+    "created_at": "2026-02-25T00:00:00.000Z",
+    "updated_at": "2026-02-25T00:00:00.000Z"
+  },
+  {
+    "id": 102,
+    "prep_name": "合わせ味噌",
+    "yield_amount": 500,
+    "yield_unit": "g",
+    "total_cost": 450,
+    "items": [
+      {
+        "ingredient_id": 12,
+        "amount": 250,
+        "unit": "g",
+        "cost": 200
+      },
+      {
+        "ingredient_id": 13,
+        "amount": 250,
+        "unit": "g",
+        "cost": 250
+      }
+    ],
+    "created_at": "2026-02-25T00:00:00.000Z",
+    "updated_at": "2026-02-25T00:00:00.000Z"
+  }
+]

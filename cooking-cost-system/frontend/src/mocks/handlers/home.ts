@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 export const homeHandlers = [
     // 02_homeAPI - Dashboard Stats
     http.get('/api/reports/dashboard', () => {
+        console.log('[MSW Handler] GET /api/reports/dashboard');
         return HttpResponse.json({
             success: true,
             data: {

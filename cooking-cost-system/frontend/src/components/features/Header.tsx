@@ -4,8 +4,9 @@ import { NavLink } from 'react-router-dom';
 const navItems = [
     { label: 'ホーム', subLabel: 'HOME', path: '/' },
     { label: '食材追加', subLabel: 'ADD', path: '/ingredients/add' },
-    { label: '食材編集', subLabel: 'EDIT', path: '/ingredients/edit' },
     { label: '食材検索', subLabel: 'SEARCH', path: '/ingredients/search' },
+    { label: '食材編集', subLabel: 'EDIT', path: '/ingredients/edit' },
+    { label: '一覧', subLabel: 'LIST', path: '/list' },
     { label: '仕込み', subLabel: 'PREP', path: '/dishes/medium' },
     { label: 'お品', subLabel: 'DISH', path: '/dishes/large' },
     { label: '販売価格計算', subLabel: 'CALCULATOR', path: '/calculator' },

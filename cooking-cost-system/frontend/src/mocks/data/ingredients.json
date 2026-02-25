@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "name": "トマト",
+    "price": 300,
+    "quantity": 3,
+    "unit": "個",
+    "unit_price": 100,
+    "store": "コスモス",
+    "genre": "vegetable",
+    "created_at": "2026-02-25T00:00:00.000Z",
+    "updated_at": "2026-02-25T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "name": "鶏もも肉",
+    "price": 880,
+    "quantity": 1000,
+    "unit": "g",
+    "unit_price": 0.88,
+    "store": "業務スーパー",
+    "genre": "meat",
+    "created_at": "2026-02-25T00:00:00.000Z",
+    "updated_at": "2026-02-25T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "name": "玉ねぎ",
+    "price": 200,
+    "quantity": 3,
+    "unit": "個",
+    "unit_price": 66.6,
+    "store": "スーパーA",
+    "genre": "vegetable",
+    "created_at": "2026-02-25T00:00:00.000Z",
+    "updated_at": "2026-02-25T00:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "name": "醤油",
+    "price": 400,
+    "quantity": 1000,
+    "unit": "ml",
+    "unit_price": 0.4,
+    "store": "コスモス",
+    "genre": "seasoning",
+    "created_at": "2026-02-25T00:00:00.000Z",
+    "updated_at": "2026-02-25T00:00:00.000Z"
+  }
+]

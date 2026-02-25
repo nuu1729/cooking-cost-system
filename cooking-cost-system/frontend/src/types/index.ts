@@ -418,11 +418,33 @@ export interface UseApiOptions<T = any> {
     onError?: (error: ApiError) => void;
 }
 
-export interface UseMutationOptions<T = any, V = any> {
+export interface UseMutationOptions<T = any> {
     onSuccess?: (data: T) => void;
     onError?: (error: ApiError) => void;
     onSettled?: () => void;
     invalidateQueries?: string[];
 }
 
-// その他の型定義は既存のものを維持...
+// 仕込み関連
+export interface PrepItem {
+    id?: string; // フロントエンドでの管理用ID（一時的）
+    ingredient_id: number;
+    amount: number;
+    unit: string;
+    cost: number;
+    ingredient?: Ingredient; // 表示用（名前、購入先など）
+}
+
+export interface CreatePrepRequest {
+    prep_name: string;
+    yield_amount: number;
+    yield_unit: string;
+    total_cost: number;
+    items: {
+        ingredient_id: number;
+        amount: number;
+        unit: string;
+        cost: number;
+    }[];
+}
+
