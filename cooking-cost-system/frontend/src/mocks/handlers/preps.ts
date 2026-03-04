@@ -118,4 +118,26 @@ export const prepHandlers = [
             timestamp: new Date().toISOString()
         });
     }),
+    
+    // 仕込みデータの削除
+    http.delete('/api/preps/:id', async ({ params }) => {
+        const { id } = params;
+        const index = MOCK_PREPS.findIndex(p => p.id === Number(id));
+        
+        if (index === -1) {
+            return HttpResponse.json({
+                success: false,
+                message: '削除対象が見つかりません',
+                timestamp: new Date().toISOString()
+            }, { status: 404 });
+        }
+        
+        MOCK_PREPS.splice(index, 1);
+        
+        return HttpResponse.json({
+            success: true,
+            message: '削除が完了しました',
+            timestamp: new Date().toISOString()
+        });
+    }),
 ];

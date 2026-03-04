@@ -92,5 +92,36 @@ export const ingredientHandlers = [
             data: MOCK_INGREDIENTS[index],
             timestamp: new Date().toISOString()
         });
+    }),
+
+    // DELETE handler for List Page testing
+    http.delete('/api/ingredients/:id', async ({ params }) => {
+        const { id } = params;
+        const index = MOCK_INGREDIENTS.findIndex((i: Ingredient) => i.id === Number(id));
+
+        if (index === -1) {
+            return HttpResponse.json({
+                success: false,
+                message: '削除対象が見つかりません',
+                timestamp: new Date().toISOString()
+            }, { status: 404 });
+        }
+
+        // Simulating "in use" error for demonstration if ID is 1
+        if (id === '1') {
+            return HttpResponse.json({
+                success: false,
+                message: 'この食材は「野菜炒め」で使用中のため削除できません。',
+                timestamp: new Date().toISOString()
+            }, { status: 400 });
+        }
+
+        MOCK_INGREDIENTS.splice(index, 1);
+
+        return HttpResponse.json({
+            success: true,
+            message: '削除しました',
+            timestamp: new Date().toISOString()
+        });
     })
 ];

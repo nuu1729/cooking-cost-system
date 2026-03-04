@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { prepApi } from '../../api/api';
 import { Ingredient, PrepItem, CreatePrepRequest } from '../../types';
 import './prep.scss';
@@ -25,9 +25,38 @@ const PrepPage: React.FC = () => {
     const [totalCost, setTotalCost] = useState(0);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [searchParams] = useSearchParams();
 
     // --- Effects ---
     
+    // IDによる初期データロード
+    useEffect(() => {
+        const id = searchParams.get('id');
+        if (id) {
+            const fetchPrep = async () => {
+                try {
+                    const res = await prepApi.getById(Number(id));
+                    if (res.success && res.data) {
+                        const data = res.data;
+                        setPrepName(data.prep_name || data.name);
+                        setYieldAmount(data.yield_amount || 0);
+                        if (data.items) {
+                            setItems(data.items.map((it: any) => ({
+                                id: Math.random().toString(36).substr(2, 9),
+                                ...it,
+                                // 必要に応じてingredient情報を補完
+                                ingredient: it.ingredient || { name: '読み込み中...', store: '-' }
+                            })));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to load prep by ID', error);
+                }
+            };
+            fetchPrep();
+        }
+    }, [searchParams]);
+
     // インクリメンタル検索
     useEffect(() => {
         const fetchSuggestions = async () => {

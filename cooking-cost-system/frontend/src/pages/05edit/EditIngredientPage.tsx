@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ingredientApi } from '../../api/api';
 import { Ingredient } from '../../types';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 // Speech Recognition Types
@@ -46,6 +47,25 @@ const EditIngredientPage: React.FC = () => {
     // Voice Input State
     const [isListening, setIsListening] = useState(false);
     const [lastTranscript, setLastTranscript] = useState('');
+    const [searchParams] = useSearchParams();
+
+    // ID Load Logic
+    useEffect(() => {
+        const id = searchParams.get('id');
+        if (id) {
+            const fetchById = async () => {
+                try {
+                    const response = await ingredientApi.getById(Number(id));
+                    if (response.success && response.data) {
+                        handleSelectIngredient(response.data);
+                    }
+                } catch (error) {
+                    console.error('Failed to load ingredient by ID', error);
+                }
+            };
+            fetchById();
+        }
+    }, [searchParams]);
 
     // Predictive Search Logic
     useEffect(() => {

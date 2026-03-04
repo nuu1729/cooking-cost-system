@@ -449,6 +449,12 @@ export const prepApi = {
         });
         return response.data;
     },
+
+    // 仕込み削除
+    delete: async (id: number): Promise<ApiResponse<void>> => {
+        const response = await apiClient.delete(`/preps/${id}`);
+        return response.data;
+    },
 };
 
 // ヘルスチェック
