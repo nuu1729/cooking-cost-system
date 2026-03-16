@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
-import { ingredientApi } from '../services/api';
+import { ingredientApi } from '@/api';
 import { useToast } from './useToast';
 import { 
   Ingredient, 
@@ -21,8 +21,7 @@ export const useIngredients = (
   searchParams?: IngredientSearchParams,
   options?: UseIngredientsOptions
 ) => {
-  const { success, error } = useToast();
-  const queryClient = useQueryClient();
+  const { error } = useToast();
 
   const query = useQuery({
     queryKey: [...QUERY_KEYS.INGREDIENTS, searchParams],
@@ -30,7 +29,7 @@ export const useIngredients = (
     enabled: options?.enabled,
     refetchInterval: options?.refetchInterval,
     onSuccess: (data) => {
-      options?.onSuccess?.(data.data);
+      options?.onSuccess?.(data.data || []);
     },
     onError: (err: any) => {
       const errorMessage = err.response?.data?.message || '食材の取得に失敗しました';
@@ -77,7 +76,7 @@ export const useCreateIngredient = () => {
 
   return useMutation({
     mutationFn: (data: CreateIngredientRequest) => ingredientApi.create(data),
-    onSuccess: (response) => {
+    onSuccess: () => {
       success('食材を追加しました');
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INGREDIENTS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD });
@@ -96,7 +95,7 @@ export const useUpdateIngredient = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: UpdateIngredientRequest }) =>
       ingredientApi.update(id, data),
-    onSuccess: (response, variables) => {
+    onSuccess: (_, variables) => {
       success('食材を更新しました');
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INGREDIENTS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INGREDIENT_DETAIL(variables.id) });

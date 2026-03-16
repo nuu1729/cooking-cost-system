@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
-import { completedFoodApi } from '../services/api';
+import { completedFoodApi } from '@/api';
 import { useToast } from './useToast';
 import { 
   CompletedFood, 
@@ -22,8 +22,7 @@ export const useCompletedFoods = (
   searchParams?: CompletedFoodSearchParams,
   options?: UseCompletedFoodsOptions
 ) => {
-  const { success, error } = useToast();
-  const queryClient = useQueryClient();
+  const { error } = useToast();
 
   const query = useQuery({
     queryKey: [...QUERY_KEYS.COMPLETED_FOODS, searchParams],
@@ -31,7 +30,7 @@ export const useCompletedFoods = (
     enabled: options?.enabled,
     refetchInterval: options?.refetchInterval,
     onSuccess: (data) => {
-      options?.onSuccess?.(data.data);
+      options?.onSuccess?.(data.data || []);
     },
     onError: (err: any) => {
       const errorMessage = err.response?.data?.message || '完成品の取得に失敗しました';
@@ -78,7 +77,7 @@ export const useCreateCompletedFood = () => {
 
   return useMutation({
     mutationFn: (data: CreateCompletedFoodRequest) => completedFoodApi.create(data),
-    onSuccess: (response) => {
+    onSuccess: () => {
       success('完成品を登録しました');
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.COMPLETED_FOODS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD });
@@ -97,7 +96,7 @@ export const useUpdateCompletedFood = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: UpdateCompletedFoodRequest }) =>
       completedFoodApi.update(id, data),
-    onSuccess: (response, variables) => {
+    onSuccess: (_, variables) => {
       success('完成品を更新しました');
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.COMPLETED_FOODS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.COMPLETED_FOOD_DETAIL(variables.id) });
@@ -150,7 +149,7 @@ export const useCompletedFoodBuilder = () => {
   const [selectedDishes, setSelectedDishes] = useState<{
     dish: Dish;
     usageQuantity: number;
-    usageUnit: 'ratio' | 'serving';
+    usageUnit: 'ml' | 'g' | '個';
     usageCost: number;
     description?: string;
   }[]>([]);
@@ -160,7 +159,7 @@ export const useCompletedFoodBuilder = () => {
   const addDish = useCallback((
     dish: Dish, 
     usageQuantity: number, 
-    usageUnit: 'ratio' | 'serving' = 'ratio',
+    usageUnit: 'ml' | 'g' | '個' = 'g',
     dishDescription?: string
   ) => {
     const usageCost = dish.total_cost * usageQuantity;
@@ -201,7 +200,7 @@ export const useCompletedFoodBuilder = () => {
   const updateDishUsage = useCallback((
     dishId: number, 
     newQuantity: number, 
-    newUnit?: 'ratio' | 'serving'
+    newUnit?: 'ml' | 'g' | '個'
   ) => {
     setSelectedDishes(prev =>
       prev.map(item =>

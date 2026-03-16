@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ingredientApi } from '../../api/api';
+import { ingredientApi } from '@/api';
 import { Ingredient } from '../../types';
 import toast from 'react-hot-toast';
 

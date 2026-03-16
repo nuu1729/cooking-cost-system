@@ -4,10 +4,9 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { signinApi } from '@/api';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
 
 // Validation Schema
 const schema = yup.object({
@@ -76,9 +75,15 @@ const SignupPage: React.FC = () => {
 
         try {
             console.log('Registering (Final):', pendingData);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setIsConfirmOpen(false);
-            navigate('/');
+            const response = await signinApi.register({
+                username: pendingData.name,
+                email: pendingData.email,
+                password: pendingData.password
+            });
+            if (response.success) {
+                setIsConfirmOpen(false);
+                navigate('/login');
+            }
         } catch (error) {
             console.error(error);
             setErrorMessage('アカウント作成に失敗しました。');

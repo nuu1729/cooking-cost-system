@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ingredientApi } from '../../api/api';
+import { ingredientApi } from '@/api';
 import { Ingredient } from '../../types';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ interface FormData {
     priceBefore: string;
     priceAfter: string;
     quantity: string;
-    unit: string;
+    unit: 'ml' | 'g' | '個';
     supplier: string;
 }
 
@@ -34,7 +34,7 @@ const EditIngredientPage: React.FC = () => {
         supplier: ''
     });
 
-    const [errors, setErrors] = useState<Partial<Record<keyof FormData, boolean>>>({});
+    const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
     const [isConfirming, setIsConfirming] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -115,30 +115,53 @@ const EditIngredientPage: React.FC = () => {
         setErrors({});
     };
 
+    // 半角数字のみ許可するバリデーション関数
+    const isHalfWidthNumber = (value: string) => /^\d+(\.\d+)?$/.test(value);
+
     const validate = () => {
-        const newErrors: Partial<Record<keyof FormData, boolean>> = {};
+        const newErrors: Partial<Record<keyof FormData, string>> = {};
         let isValid = true;
 
-        const requiredFields: Array<keyof FormData> = ['id', 'name', 'priceAfter', 'quantity', 'supplier'];
-        requiredFields.forEach(key => {
-            if (!formData[key] || formData[key]?.toString().trim() === '') {
-                newErrors[key] = true;
-                isValid = false;
-            }
-        });
-
-        setErrors(newErrors);
         if (!formData.id) {
             toast.error('編集する食材を検索して選択してください');
+            return false;
         }
+        if (!formData.name.trim()) {
+            newErrors.name = '入力してください';
+            isValid = false;
+        }
+        if (!formData.priceAfter.trim()) {
+            newErrors.priceAfter = '入力してください';
+            isValid = false;
+        } else if (!isHalfWidthNumber(formData.priceAfter)) {
+            newErrors.priceAfter = '半角数字で入力してください';
+            isValid = false;
+        }
+        if (!formData.quantity.trim()) {
+            newErrors.quantity = '入力してください';
+            isValid = false;
+        } else if (!isHalfWidthNumber(formData.quantity)) {
+            newErrors.quantity = '半角数字で入力してください';
+            isValid = false;
+        }
+        if (!formData.supplier.trim()) {
+            newErrors.supplier = '入力してください';
+            isValid = false;
+        }
+
+        setErrors(newErrors);
         return isValid;
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+        // 数値フィールドは半角数字・ドット以外の入力を拒否
+        if (name === 'priceAfter' || name === 'quantity') {
+            if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
+        }
         setFormData(prev => ({ ...prev, [name]: value }));
         if (errors[name as keyof FormData]) {
-            setErrors(prev => ({ ...prev, [name]: false }));
+            setErrors(prev => ({ ...prev, [name]: undefined }));
         }
     };
 
@@ -399,17 +422,18 @@ const EditIngredientPage: React.FC = () => {
                                 <div className="flex-1 space-y-2">
                                     <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                         <span>価格 (変更後)</span>
-                                        {errors.priceAfter && <span className="text-sm text-red-500 font-normal">入力してください</span>}
+                                        {errors.priceAfter && <span className="text-sm text-red-500 font-normal">{errors.priceAfter}</span>}
                                     </label>
                                     <div className="relative">
                                         <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-lg">¥</span>
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="decimal"
                                             name="priceAfter"
                                             value={formData.priceAfter}
                                             onChange={handleChange}
                                             placeholder="300"
-                                            className={`w-full pl-12 pr-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg ${errors.priceAfter ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}
+                                            className={`w-full pl-12 pr-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg text-right ${errors.priceAfter ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}
                                         />
                                     </div>
                                 </div>
@@ -419,18 +443,17 @@ const EditIngredientPage: React.FC = () => {
                             <div className="space-y-2">
                                 <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>量</span>
-                                    {errors.quantity && <span className="text-sm text-red-500 font-normal">入力してください</span>}
+                                    {errors.quantity && <span className="text-sm text-red-500 font-normal">{errors.quantity}</span>}
                                 </label>
                                 <div className="flex gap-4">
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="decimal"
                                         name="quantity"
-                                        min="0"
-                                        step="0.1"
                                         value={formData.quantity}
                                         onChange={handleChange}
                                         placeholder="0"
-                                        className={`flex-grow px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg ${errors.quantity ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}
+                                        className={`flex-grow px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg text-right ${errors.quantity ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}
                                     />
                                     <div className="relative min-w-[100px]">
                                         <select

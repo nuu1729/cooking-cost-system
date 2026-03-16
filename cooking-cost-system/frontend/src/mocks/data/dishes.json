@@ -1,18 +1,531 @@
 [
   {
     "id": 1,
-    "name": "親子丼",
-    "total_cost": 250,
+    "name": "こだわり親子丼セット",
+    "price": 980,
+    "total_cost": 285,
+    "profit": 695,
+    "profit_rate": 70.9,
     "genre": "和食",
-    "description": "定番の親子丼です。",
-    "ingredients": [
+    "description": "厳選した地鶏とこだわり卵を使用した極上の親子丼。味噌汁とお新香付き。",
+    "dishes": [
       {
-        "ingredient_id": 2,
-        "used_quantity": 150,
-        "used_cost": 132
+        "dish_id": 101,
+        "dish_name": "ごはん中",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 30
+      },
+      {
+        "dish_id": 201,
+        "dish_name": "親子丼の具",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 220
+      },
+      {
+        "dish_id": 102,
+        "dish_name": "合わせ味噌汁",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 35
       }
     ],
-    "created_at": "2026-02-25T00:00:00.000Z",
-    "updated_at": "2026-02-25T00:00:00.000Z"
+    "created_at": "2026-03-01T10:00:00.000Z",
+    "updated_at": "2026-03-01T10:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "name": "厚切りカツ丼",
+    "price": 1100,
+    "total_cost": 420,
+    "profit": 680,
+    "profit_rate": 61.8,
+    "genre": "和食",
+    "description": "ボリューム満点、200gの厚切り豚ロースのカツ丼です。",
+    "dishes": [
+      {
+        "dish_id": 101,
+        "dish_name": "ごはん中",
+        "usage_quantity": 1.2,
+        "usage_unit": "個",
+        "usage_cost": 36
+      },
+      {
+        "dish_id": 202,
+        "dish_name": "とんかつ単体",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 350
+      },
+      {
+        "dish_id": 203,
+        "dish_name": "丼つゆ",
+        "usage_quantity": 0.5,
+        "usage_unit": "個",
+        "usage_cost": 34
+      }
+    ],
+    "created_at": "2026-03-01T11:00:00.000Z",
+    "updated_at": "2026-03-01T11:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "name": "デミグラスハンバーグ定食",
+    "price": 1280,
+    "total_cost": 385,
+    "profit": 895,
+    "profit_rate": 69.9,
+    "genre": "洋食",
+    "description": "3日間煮込んだ特製デミグラスソースが自慢のハンバーグ。",
+    "dishes": [
+      {
+        "dish_id": 101,
+        "dish_name": "ごはん中",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 30
+      },
+      {
+        "dish_id": 204,
+        "dish_name": "手ごねハンバーグ",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 280
+      },
+      {
+        "dish_id": 205,
+        "dish_name": "デミグラスソース",
+        "usage_quantity": 200,
+        "usage_unit": "ml",
+        "usage_cost": 75
+      }
+    ],
+    "created_at": "2026-03-02T12:00:00.000Z",
+    "updated_at": "2026-03-02T12:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "name": "黄金チャーハン",
+    "price": 850,
+    "total_cost": 180,
+    "profit": 670,
+    "profit_rate": 78.8,
+    "genre": "中華",
+    "description": "パラパラの食感に仕上げた卵たっぷりチャーハン。",
+    "dishes": [
+      {
+        "dish_id": 206,
+        "dish_name": "チャーハンベース",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 150
+      },
+      {
+        "dish_id": 207,
+        "dish_name": "中華スープ",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 30
+      }
+    ],
+    "created_at": "2026-03-02T13:00:00.000Z",
+    "updated_at": "2026-03-02T13:00:00.000Z"
+  },
+  {
+    "id": 5,
+    "name": "特製ナポリタン",
+    "price": 900,
+    "total_cost": 210,
+    "profit": 690,
+    "profit_rate": 76.7,
+    "genre": "イタリアン",
+    "description": "懐かしの喫茶店風ナポリタン。モチモチのパスタが特徴。",
+    "dishes": [
+      {
+        "dish_id": 208,
+        "dish_name": "ボイル済みパスタ",
+        "usage_quantity": 250,
+        "usage_unit": "g",
+        "usage_cost": 120
+      },
+      {
+        "dish_id": 209,
+        "dish_name": "ナポリタンソース",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 90
+      }
+    ],
+    "created_at": "2026-03-03T10:00:00.000Z",
+    "updated_at": "2026-03-03T10:00:00.000Z"
+  },
+  {
+    "id": 6,
+    "name": "マルゲリータピザ",
+    "price": 1400,
+    "total_cost": 320,
+    "profit": 1080,
+    "profit_rate": 77.1,
+    "genre": "イタリアン",
+    "description": "釜焼きの本格ピザ。フレッシュバジルとモッツァレラチーズ使用。",
+    "dishes": [
+      {
+        "dish_id": 210,
+        "dish_name": "ピザ生地",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 80
+      },
+      {
+        "dish_id": 211,
+        "dish_name": "トマトソースベース",
+        "usage_quantity": 100,
+        "usage_unit": "ml",
+        "usage_cost": 40
+      }
+    ],
+    "created_at": "2026-03-03T11:00:00.000Z",
+    "updated_at": "2026-03-03T11:00:00.000Z"
+  },
+  {
+    "id": 7,
+    "name": "ビーフシチューオムライス",
+    "price": 1380,
+    "total_cost": 550,
+    "profit": 830,
+    "profit_rate": 60.1,
+    "genre": "洋食",
+    "description": "とろとろ卵のオムライスに贅沢にビーフシチューをかけました。",
+    "dishes": [
+      {
+        "dish_id": 212,
+        "dish_name": "チキンライス",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 180
+      },
+      {
+        "dish_id": 213,
+        "dish_name": "ビーフシチュールー",
+        "usage_quantity": 0.5,
+        "usage_unit": "個",
+        "usage_cost": 370
+      }
+    ],
+    "created_at": "2026-03-03T12:00:00.000Z",
+    "updated_at": "2026-03-03T12:00:00.000Z"
+  },
+  {
+    "id": 8,
+    "name": "海老のチリソース炒め",
+    "price": 1200,
+    "total_cost": 480,
+    "profit": 720,
+    "profit_rate": 60.0,
+    "genre": "中華",
+    "description": "ぷりぷりの海老をピリ辛の特製チリソースで和えました。",
+    "dishes": [
+      {
+        "dish_id": 214,
+        "dish_name": "下処理済み海老",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 350
+      },
+      {
+        "dish_id": 215,
+        "dish_name": "エビチリソース",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 130
+      }
+    ],
+    "created_at": "2026-03-03T13:00:00.000Z",
+    "updated_at": "2026-03-03T13:00:00.000Z"
+  },
+  {
+    "id": 9,
+    "name": "特選牛すき焼き定食",
+    "price": 1800,
+    "total_cost": 950,
+    "profit": 850,
+    "profit_rate": 47.2,
+    "genre": "和食",
+    "description": "高級和牛を使用した贅沢なすき焼き定食。",
+    "dishes": [
+      {
+        "dish_id": 101,
+        "dish_name": "ごはん中",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 30
+      },
+      {
+        "dish_id": 216,
+        "dish_name": "すき焼き具材セット",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 850
+      },
+      {
+        "dish_id": 217,
+        "dish_name": "生卵",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 70
+      }
+    ],
+    "created_at": "2026-03-04T10:00:00.000Z",
+    "updated_at": "2026-03-04T10:00:00.000Z"
+  },
+  {
+    "id": 10,
+    "name": "ベジタブルサンドイッチ",
+    "price": 750,
+    "total_cost": 150,
+    "profit": 600,
+    "profit_rate": 80.0,
+    "genre": "カフェ",
+    "description": "10種類の野菜をぎゅっと詰め込んだヘルシーなサンドイッチ。",
+    "dishes": [
+      {
+        "dish_id": 218,
+        "dish_name": "カット済み野菜ミックス",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 80
+      },
+      {
+        "dish_id": 219,
+        "dish_name": "全粒粉パン",
+        "usage_quantity": 2.0,
+        "usage_unit": "個",
+        "usage_cost": 70
+      }
+    ],
+    "created_at": "2026-03-04T11:00:00.000Z",
+    "updated_at": "2026-03-04T11:00:00.000Z"
+  },
+  {
+    "id": 11,
+    "name": "自家製ティラミス",
+    "price": 650,
+    "total_cost": 120,
+    "profit": 530,
+    "profit_rate": 81.5,
+    "genre": "カフェ",
+    "description": "マスカルポーネを贅沢に使用した大人の甘さのティラミス。",
+    "dishes": [
+      {
+        "dish_id": 220,
+        "dish_name": "ティラミスベース",
+        "usage_quantity": 100,
+        "usage_unit": "ml",
+        "usage_cost": 120
+      }
+    ],
+    "created_at": "2026-03-04T12:00:00.000Z",
+    "updated_at": "2026-03-04T12:00:00.000Z"
+  },
+  {
+    "id": 12,
+    "name": "ブレンドコーヒー",
+    "price": 450,
+    "total_cost": 45,
+    "profit": 405,
+    "profit_rate": 90.0,
+    "genre": "カフェ",
+    "description": "店内で丁寧に焙煎した豆を使用した香り高いブレンドコーヒー。",
+    "dishes": [
+      {
+        "dish_id": 221,
+        "dish_name": "コーヒー豆(挽き)",
+        "usage_quantity": 15,
+        "usage_unit": "g",
+        "usage_cost": 45
+      }
+    ],
+    "created_at": "2026-03-04T13:00:00.000Z",
+    "updated_at": "2026-03-04T13:00:00.000Z"
+  },
+  {
+    "id": 13,
+    "name": "生ビール (中)",
+    "price": 600,
+    "total_cost": 210,
+    "profit": 390,
+    "profit_rate": 65.0,
+    "genre": "ドリンク",
+    "description": "キンキンに冷えた一番搾り生ビール。",
+    "dishes": [],
+    "created_at": "2026-03-04T14:00:00.000Z",
+    "updated_at": "2026-03-04T14:00:00.000Z"
+  },
+  {
+    "id": 14,
+    "name": "角ハイボール",
+    "price": 500,
+    "total_cost": 120,
+    "profit": 380,
+    "profit_rate": 76.0,
+    "genre": "ドリンク",
+    "description": "キリッと冷えた炭酸とウイスキーの絶妙なバランス。",
+    "dishes": [],
+    "created_at": "2026-03-04T15:00:00.000Z",
+    "updated_at": "2026-03-04T15:00:00.000Z"
+  },
+  {
+    "id": 15,
+    "name": "シーザーサラダ",
+    "price": 780,
+    "total_cost": 180,
+    "profit": 600,
+    "profit_rate": 76.9,
+    "genre": "洋食",
+    "description": "シャキシャキのレタスと濃厚なシーザードレッシングの定番サラダ。",
+    "dishes": [
+      {
+        "dish_id": 222,
+        "dish_name": "カットレタス",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 100
+      },
+      {
+        "dish_id": 223,
+        "dish_name": "シーザードレッシング",
+        "usage_quantity": 200,
+        "usage_unit": "ml",
+        "usage_cost": 80
+      }
+    ],
+    "created_at": "2026-03-05T09:00:00.000Z",
+    "updated_at": "2026-03-05T09:00:00.000Z"
+  },
+  {
+    "id": 16,
+    "name": "春の天ぷら盛り合わせ",
+    "price": 1500,
+    "total_cost": 450,
+    "profit": 1050,
+    "profit_rate": 70.0,
+    "genre": "和食",
+    "description": "山菜や海老など、春の味覚を詰め込んだ天ぷら。",
+    "dishes": [
+      {
+        "dish_id": 224,
+        "dish_name": "天ぷら粉液",
+        "usage_quantity": 500,
+        "usage_unit": "ml",
+        "usage_cost": 50
+      },
+      {
+        "dish_id": 225,
+        "dish_name": "天ぷら具材セット",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 400
+      }
+    ],
+    "created_at": "2026-03-05T10:00:00.000Z",
+    "updated_at": "2026-03-05T10:00:00.000Z"
+  },
+  {
+    "id": 17,
+    "name": "カルボナーラ",
+    "price": 1100,
+    "total_cost": 280,
+    "profit": 820,
+    "profit_rate": 74.5,
+    "genre": "イタリアン",
+    "description": "濃厚な卵とチーズのソースにカリカリパンチェッタを添えて。",
+    "dishes": [
+      {
+        "dish_id": 208,
+        "dish_name": "ボイル済みパスタ",
+        "usage_quantity": 250,
+        "usage_unit": "g",
+        "usage_cost": 120
+      },
+      {
+        "dish_id": 226,
+        "dish_name": "カルボソース",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 160
+      }
+    ],
+    "created_at": "2026-03-05T11:00:00.000Z",
+    "updated_at": "2026-03-05T11:00:00.000Z"
+  },
+  {
+    "id": 18,
+    "name": "麻婆豆腐定食",
+    "price": 950,
+    "total_cost": 245,
+    "profit": 705,
+    "profit_rate": 74.2,
+    "genre": "中華",
+    "description": "山椒の効いた本格的な辛さの麻婆豆腐定食。",
+    "dishes": [
+      {
+        "dish_id": 101,
+        "dish_name": "ごはん中",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 30
+      },
+      {
+        "dish_id": 227,
+        "dish_name": "麻婆豆腐ベース",
+        "usage_quantity": 1.0,
+        "usage_unit": "個",
+        "usage_cost": 215
+      }
+    ],
+    "created_at": "2026-03-05T12:00:00.000Z",
+    "updated_at": "2026-03-05T12:00:00.000Z"
+  },
+  {
+    "id": 19,
+    "name": "ミックスベリーパンケーキ",
+    "price": 1100,
+    "total_cost": 220,
+    "profit": 880,
+    "profit_rate": 80.0,
+    "genre": "カフェ",
+    "description": "ふわふわのパンケーキにたっぷりのベリーをトッピング。",
+    "dishes": [
+      {
+        "dish_id": 228,
+        "dish_name": "パンケーキ生地",
+        "usage_quantity": 3.0,
+        "usage_unit": "個",
+        "usage_cost": 90
+      },
+      {
+        "dish_id": 229,
+        "dish_name": "ミックスベリーソース",
+        "usage_quantity": 200,
+        "usage_unit": "ml",
+        "usage_cost": 130
+      }
+    ],
+    "created_at": "2026-03-05T13:00:00.000Z",
+    "updated_at": "2026-03-05T13:00:00.000Z"
+  },
+  {
+    "id": 20,
+    "name": "赤ワイン (グラス)",
+    "price": 550,
+    "total_cost": 110,
+    "profit": 440,
+    "profit_rate": 80.0,
+    "genre": "ドリンク",
+    "description": "チリ産のミディアムボディ。肉料理によく合います。",
+    "dishes": [],
+    "created_at": "2026-03-05T14:00:00.000Z",
+    "updated_at": "2026-03-05T14:00:00.000Z"
   }
 ]

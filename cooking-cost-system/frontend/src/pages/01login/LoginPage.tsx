@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { signinApi } from '@/api';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../../api/api';
+import { authApi } from '@/api';
 // import PersonIcon from '@mui/icons-material/Person';
 // import GoogleIcon from '@mui/icons-material/Google'; // Not available in all MUI versions, using text or standard icon
 // import AppleIcon from '@mui/icons-material/Apple';
@@ -53,7 +54,7 @@ const LoginPage: React.FC = () => {
             if (mode === 'signup') {
                 // TODO: Registration Logic
                 console.log('Registering:', data);
-                const response = await authApi.register({
+                const response = await signinApi.register({
                     username: data.email.split('@')[0],
                     email: data.email,
                     password: data.password

@@ -17,9 +17,21 @@ export const prepHandlers = [
             filtered = filtered.filter(p => p.prep_name.includes(nameQuery));
         }
 
+        // 食材情報を結合して返す（表示用）
+        const enriched = filtered.map(prep => ({
+            ...prep,
+            items: prep.items?.map((item: any) => {
+                const ingredient = MOCK_INGREDIENTS.find(ing => ing.id === item.ingredient_id);
+                return {
+                    ...item,
+                    ingredient: ingredient ? { name: ingredient.name } : undefined
+                };
+            })
+        }));
+
         return HttpResponse.json({
             success: true,
-            data: filtered,
+            data: enriched,
             timestamp: new Date().toISOString()
         });
     }),
@@ -82,9 +94,17 @@ export const prepHandlers = [
             }, { status: 404 });
         }
 
+        const enriched = {
+            ...item,
+            items: item.items?.map((p: any) => {
+                const ing = MOCK_INGREDIENTS.find(i => i.id === p.ingredient_id);
+                return { ...p, ingredient: ing };
+            })
+        };
+
         return HttpResponse.json({
             success: true,
-            data: item,
+            data: enriched,
             timestamp: new Date().toISOString()
         });
     }),

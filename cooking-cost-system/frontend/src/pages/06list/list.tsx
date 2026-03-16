@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { ingredientApi, prepApi, dishApi } from '../../api/api';
+import { ingredientApi, prepApi, dishApi } from '@/api';
 import { Ingredient, CompletedFood } from '../../types';
 import './list.scss';
 

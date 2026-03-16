@@ -55,7 +55,7 @@ export interface Ingredient extends BaseModel {
     name: string;
     store: string;
     quantity: number;
-    unit: string;
+    unit: 'ml' | 'g' | '個';
     price: number;
     unit_price: number;
     genre: GenreType;
@@ -146,7 +146,7 @@ export interface FoodDish {
     dish_id: number;
     dish?: Dish;
     usage_quantity: number;
-    usage_unit: 'ratio' | 'serving';
+    usage_unit: 'ml' | 'g' | '個';
     usage_cost: number;
     description?: string;
     created_at?: Date | string;
@@ -159,7 +159,7 @@ export interface CreateCompletedFoodRequest {
     dishes: {
         dish_id: number;
         usage_quantity: number;
-        usage_unit: 'ratio' | 'serving';
+        usage_unit: 'ml' | 'g' | '個';
         description?: string;
     }[];
 }
@@ -361,8 +361,9 @@ export const GENRE_INFO = {
 } as const;
 
 export const USAGE_UNIT_INFO = {
-    ratio: { name: '割合', description: '料理の一部として使用', icon: '📊' },
-    serving: { name: '人前', description: '1人前として提供', icon: '🍽️' },
+    ml: { name: 'ml', description: 'ミリリットル', icon: '💧' },
+    g: { name: 'g', description: 'グラム', icon: '⚖️' },
+    個: { name: '個', description: '個数', icon: '📦' },
 } as const;
 
 export const SORT_OPTIONS = {
@@ -430,7 +431,7 @@ export interface PrepItem {
     id?: string; // フロントエンドでの管理用ID（一時的）
     ingredient_id: number;
     amount: number;
-    unit: string;
+    unit: 'ml' | 'g' | '個';
     cost: number;
     ingredient?: Ingredient; // 表示用（名前、購入先など）
 }
@@ -438,12 +439,12 @@ export interface PrepItem {
 export interface CreatePrepRequest {
     prep_name: string;
     yield_amount: number;
-    yield_unit: string;
+    yield_unit: 'ml' | 'g' | '個';
     total_cost: number;
     items: {
         ingredient_id: number;
         amount: number;
-        unit: string;
+        unit: 'ml' | 'g' | '個';
         cost: number;
     }[];
 }

@@ -2,47 +2,423 @@
   {
     "id": 101,
     "prep_name": "ごはん中",
-    "yield_amount": 150,
-    "yield_unit": "g",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
     "total_cost": 30,
     "items": [
-      {
-        "ingredient_id": 10,
-        "amount": 70,
-        "unit": "g",
-        "cost": 25
-      },
-      {
-        "ingredient_id": 11,
-        "amount": 80,
-        "unit": "ml",
-        "cost": 5
-      }
+      { "ingredient_id": 10, "amount": 60, "unit": "g", "cost": 30 }
     ],
-    "created_at": "2026-02-25T00:00:00.000Z",
-    "updated_at": "2026-02-25T00:00:00.000Z"
+    "created_at": "2026-03-01T08:00:00.000Z",
+    "updated_at": "2026-03-01T08:00:00.000Z"
   },
   {
     "id": 102,
-    "prep_name": "合わせ味噌",
-    "yield_amount": 500,
-    "yield_unit": "g",
-    "total_cost": 450,
+    "prep_name": "合わせ味噌汁",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 35,
     "items": [
-      {
-        "ingredient_id": 12,
-        "amount": 250,
-        "unit": "g",
-        "cost": 200
-      },
-      {
-        "ingredient_id": 13,
-        "amount": 250,
-        "unit": "g",
-        "cost": 250
-      }
+      { "ingredient_id": 12, "amount": 20, "unit": "g", "cost": 10 },
+      { "ingredient_id": 16, "amount": 0.5, "unit": "個", "cost": 12.5 },
+      { "ingredient_id": 4, "amount": 5, "unit": "ml", "cost": 2.5 }
     ],
-    "created_at": "2026-02-25T00:00:00.000Z",
-    "updated_at": "2026-02-25T00:00:00.000Z"
+    "created_at": "2026-03-01T08:30:00.000Z",
+    "updated_at": "2026-03-01T08:30:00.000Z"
+  },
+  {
+    "id": 201,
+    "prep_name": "親子丼の具",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 220,
+    "items": [
+      { "ingredient_id": 2, "amount": 150, "unit": "g", "cost": 132 },
+      { "ingredient_id": 16, "amount": 2, "unit": "個", "cost": 50 },
+      { "ingredient_id": 3, "amount": 0.5, "unit": "個", "cost": 33.3 },
+      { "ingredient_id": 4, "amount": 10, "unit": "ml", "cost": 4.7 }
+    ],
+    "created_at": "2026-03-01T09:00:00.000Z",
+    "updated_at": "2026-03-01T09:00:00.000Z"
+  },
+  {
+    "id": 202,
+    "prep_name": "とんかつ単体",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 350,
+    "items": [
+      { "ingredient_id": 5, "amount": 200, "unit": "g", "cost": 240 },
+      { "ingredient_id": 18, "amount": 30, "unit": "g", "cost": 90 },
+      { "ingredient_id": 19, "amount": 10, "unit": "g", "cost": 20 }
+    ],
+    "created_at": "2026-03-01T09:15:00.000Z",
+    "updated_at": "2026-03-01T09:15:00.000Z"
+  },
+  {
+    "id": 203,
+    "prep_name": "丼つゆ",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 68,
+    "items": [
+      { "ingredient_id": 4, "amount": 40, "unit": "ml", "cost": 16 },
+      { "ingredient_id": 11, "amount": 20, "unit": "g", "cost": 4 },
+      { "ingredient_id": 13, "amount": 30, "unit": "ml", "cost": 48 }
+    ],
+    "created_at": "2026-03-01T09:20:00.000Z",
+    "updated_at": "2026-03-01T09:20:00.000Z"
+  },
+  {
+    "id": 204,
+    "prep_name": "手ごねハンバーグ",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 280,
+    "items": [
+      { "ingredient_id": 7, "amount": 150, "unit": "g", "cost": 225 },
+      { "ingredient_id": 3, "amount": 0.5, "unit": "個", "cost": 33.3 },
+      { "ingredient_id": 16, "amount": 0.5, "unit": "個", "cost": 12.5 },
+      { "ingredient_id": 18, "amount": 20, "unit": "g", "cost": 9.2 }
+    ],
+    "created_at": "2026-03-01T09:30:00.000Z",
+    "updated_at": "2026-03-01T09:30:00.000Z"
+  },
+  {
+    "id": 205,
+    "prep_name": "デミグラスソース",
+    "yield_amount": 1000,
+    "yield_unit": "ml",
+    "total_cost": 750,
+    "items": [
+      { "ingredient_id": 6, "amount": 200, "unit": "g", "cost": 500 },
+      { "ingredient_id": 3, "amount": 2, "unit": "個", "cost": 133.2 },
+      { "ingredient_id": 1, "amount": 1, "unit": "個", "cost": 100 },
+      { "ingredient_id": 4, "amount": 42, "unit": "ml", "cost": 16.8 }
+    ],
+    "created_at": "2026-03-01T09:40:00.000Z",
+    "updated_at": "2026-03-01T09:40:00.000Z"
+  },
+  {
+    "id": 206,
+    "prep_name": "チャーハンベース",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 150,
+    "items": [
+      { "ingredient_id": 10, "amount": 200, "unit": "g", "cost": 100 },
+      { "ingredient_id": 16, "amount": 1, "unit": "個", "cost": 25 },
+      { "ingredient_id": 4, "amount": 62, "unit": "ml", "cost": 25 }
+    ],
+    "created_at": "2026-03-01T10:00:00.000Z",
+    "updated_at": "2026-03-01T10:00:00.000Z"
+  },
+  {
+    "id": 207,
+    "prep_name": "中華スープ",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 30,
+    "items": [
+      { "ingredient_id": 4, "amount": 10, "unit": "ml", "cost": 4 },
+      { "ingredient_id": 3, "amount": 0.2, "unit": "個", "cost": 13.3 },
+      { "ingredient_id": 16, "amount": 0.5, "unit": "個", "cost": 12.7 }
+    ],
+    "created_at": "2026-03-01T10:10:00.000Z",
+    "updated_at": "2026-03-01T10:10:00.000Z"
+  },
+  {
+    "id": 208,
+    "prep_name": "ボイル済みパスタ",
+    "yield_amount": 1000,
+    "yield_unit": "g",
+    "total_cost": 480,
+    "items": [
+      { "ingredient_id": 15, "amount": 1000, "unit": "g", "cost": 400 },
+      { "ingredient_id": 4, "amount": 200, "unit": "ml", "cost": 80 }
+    ],
+    "created_at": "2026-03-01T10:20:00.000Z",
+    "updated_at": "2026-03-01T10:20:00.000Z"
+  },
+  {
+    "id": 209,
+    "prep_name": "ナポリタンソース",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 90,
+    "items": [
+      { "ingredient_id": 1, "amount": 0.5, "unit": "個", "cost": 50 },
+      { "ingredient_id": 3, "amount": 0.3, "unit": "個", "cost": 20 },
+      { "ingredient_id": 4, "amount": 50, "unit": "ml", "cost": 20 }
+    ],
+    "created_at": "2026-03-01T10:30:00.000Z",
+    "updated_at": "2026-03-01T10:30:00.000Z"
+  },
+  {
+    "id": 210,
+    "prep_name": "ピザ生地",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 80,
+    "items": [
+      { "ingredient_id": 19, "amount": 200, "unit": "g", "cost": 40 },
+      { "ingredient_id": 11, "amount": 200, "unit": "g", "cost": 40 }
+    ],
+    "created_at": "2026-03-01T10:40:00.000Z",
+    "updated_at": "2026-03-01T10:40:00.000Z"
+  },
+  {
+    "id": 211,
+    "prep_name": "トマトソースベース",
+    "yield_amount": 1000,
+    "yield_unit": "ml",
+    "total_cost": 400,
+    "items": [
+      { "ingredient_id": 1, "amount": 2, "unit": "個", "cost": 200 },
+      { "ingredient_id": 3, "amount": 1, "unit": "個", "cost": 66.6 },
+      { "ingredient_id": 4, "amount": 334, "unit": "ml", "cost": 133.4 }
+    ],
+    "created_at": "2026-03-01T10:50:00.000Z",
+    "updated_at": "2026-03-01T10:50:00.000Z"
+  },
+  {
+    "id": 212,
+    "prep_name": "チキンライス",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 180,
+    "items": [
+      { "ingredient_id": 10, "amount": 200, "unit": "g", "cost": 100 },
+      { "ingredient_id": 2, "amount": 50, "unit": "g", "cost": 44 },
+      { "ingredient_id": 3, "amount": 0.5, "unit": "個", "cost": 36 }
+    ],
+    "created_at": "2026-03-01T11:00:00.000Z",
+    "updated_at": "2026-03-01T11:00:00.000Z"
+  },
+  {
+    "id": 213,
+    "prep_name": "ビーフシチュールー",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 370,
+    "items": [
+      { "ingredient_id": 6, "amount": 100, "unit": "g", "cost": 250 },
+      { "ingredient_id": 9, "amount": 1, "unit": "個", "cost": 50 },
+      { "ingredient_id": 3, "amount": 1, "unit": "個", "cost": 70 }
+    ],
+    "created_at": "2026-03-01T11:10:00.000Z",
+    "updated_at": "2026-03-01T11:10:00.000Z"
+  },
+  {
+    "id": 214,
+    "prep_name": "下処理済み海老",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 350,
+    "items": [
+      { "ingredient_id": 17, "amount": 4, "unit": "個", "cost": 300 },
+      { "ingredient_id": 14, "amount": 166, "unit": "ml", "cost": 50 }
+    ],
+    "created_at": "2026-03-01T11:20:00.000Z",
+    "updated_at": "2026-03-01T11:20:00.000Z"
+  },
+  {
+    "id": 215,
+    "prep_name": "エビチリソース",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 130,
+    "items": [
+      { "ingredient_id": 4, "amount": 125, "unit": "ml", "cost": 50 },
+      { "ingredient_id": 11, "amount": 250, "unit": "g", "cost": 50 },
+      { "ingredient_id": 1, "amount": 0.1, "unit": "個", "cost": 30 }
+    ],
+    "created_at": "2026-03-01T11:30:00.000Z",
+    "updated_at": "2026-03-01T11:30:00.000Z"
+  },
+  {
+    "id": 216,
+    "prep_name": "すき焼き具材セット",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 850,
+    "items": [
+      { "ingredient_id": 6, "amount": 200, "unit": "g", "cost": 500 },
+      { "ingredient_id": 3, "amount": 1, "unit": "個", "cost": 66.6 },
+      { "ingredient_id": 8, "amount": 0.2, "unit": "個", "cost": 40 },
+      { "ingredient_id": 4, "amount": 608, "unit": "ml", "cost": 243.4 }
+    ],
+    "created_at": "2026-03-02T09:00:00.000Z",
+    "updated_at": "2026-03-02T09:00:00.000Z"
+  },
+  {
+    "id": 217,
+    "prep_name": "生卵",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 70,
+    "items": [
+      { "ingredient_id": 16, "amount": 1, "unit": "個", "cost": 25 },
+      { "ingredient_id": 4, "amount": 112, "unit": "ml", "cost": 45 }
+    ],
+    "created_at": "2026-03-02T09:10:00.000Z",
+    "updated_at": "2026-03-02T09:10:00.000Z"
+  },
+  {
+    "id": 218,
+    "prep_name": "カット済み野菜ミックス",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 80,
+    "items": [
+      { "ingredient_id": 8, "amount": 0.2, "unit": "個", "cost": 40 },
+      { "ingredient_id": 9, "amount": 0.5, "unit": "本", "cost": 25 },
+      { "ingredient_id": 3, "amount": 0.2, "unit": "個", "cost": 15 }
+    ],
+    "created_at": "2026-03-02T09:20:00.000Z",
+    "updated_at": "2026-03-02T09:20:00.000Z"
+  },
+  {
+    "id": 219,
+    "prep_name": "全粒粉パン",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 70,
+    "items": [
+      { "ingredient_id": 19, "amount": 150, "unit": "g", "cost": 30 },
+      { "ingredient_id": 11, "amount": 200, "unit": "g", "cost": 40 }
+    ],
+    "created_at": "2026-03-02T09:30:00.000Z",
+    "updated_at": "2026-03-02T09:30:00.000Z"
+  },
+  {
+    "id": 220,
+    "prep_name": "ティラミスベース",
+    "yield_amount": 1000,
+    "yield_unit": "ml",
+    "total_cost": 1200,
+    "items": [
+      { "ingredient_id": 20, "amount": 500, "unit": "ml", "cost": 1000 },
+      { "ingredient_id": 11, "amount": 1000, "unit": "g", "cost": 200 }
+    ],
+    "created_at": "2026-03-02T10:00:00.000Z",
+    "updated_at": "2026-03-02T10:00:00.000Z"
+  },
+  {
+    "id": 221,
+    "prep_name": "コーヒー豆(挽き)",
+    "yield_amount": 1000,
+    "yield_unit": "g",
+    "total_cost": 3000,
+    "items": [
+      { "ingredient_id": 13, "amount": 10000, "unit": "ml", "cost": 3000 }
+    ],
+    "created_at": "2026-03-02T10:10:00.000Z",
+    "updated_at": "2026-03-02T10:10:00.000Z"
+  },
+  {
+    "id": 222,
+    "prep_name": "カットレタス",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 100,
+    "items": [
+      { "ingredient_id": 8, "amount": 0.5, "unit": "個", "cost": 100 }
+    ],
+    "created_at": "2026-03-03T09:00:00.000Z",
+    "updated_at": "2026-03-03T09:00:00.000Z"
+  },
+  {
+    "id": 223,
+    "prep_name": "シーザードレッシング",
+    "yield_amount": 1000,
+    "yield_unit": "ml",
+    "total_cost": 400,
+    "items": [
+      { "ingredient_id": 4, "amount": 250, "unit": "ml", "cost": 100 },
+      { "ingredient_id": 20, "amount": 150, "unit": "ml", "cost": 300 }
+    ],
+    "created_at": "2026-03-03T09:10:00.000Z",
+    "updated_at": "2026-03-03T09:10:00.000Z"
+  },
+  {
+    "id": 224,
+    "prep_name": "天ぷら粉液",
+    "yield_amount": 1000,
+    "yield_unit": "ml",
+    "total_cost": 100,
+    "items": [
+      { "ingredient_id": 19, "amount": 400, "unit": "g", "cost": 80 },
+      { "ingredient_id": 16, "amount": 0.8, "unit": "個", "cost": 20 }
+    ],
+    "created_at": "2026-03-03T09:20:00.000Z",
+    "updated_at": "2026-03-03T09:20:00.000Z"
+  },
+  {
+    "id": 225,
+    "prep_name": "天ぷら具材セット",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 400,
+    "items": [
+      { "ingredient_id": 17, "amount": 3, "unit": "個", "cost": 225 },
+      { "ingredient_id": 9, "amount": 2, "unit": "個", "cost": 100 },
+      { "ingredient_id": 3, "amount": 1.1, "unit": "個", "cost": 75 }
+    ],
+    "created_at": "2026-03-03T09:30:00.000Z",
+    "updated_at": "2026-03-03T09:30:00.000Z"
+  },
+  {
+    "id": 226,
+    "prep_name": "カルボソース",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 160,
+    "items": [
+      { "ingredient_id": 16, "amount": 1, "unit": "個", "cost": 25 },
+      { "ingredient_id": 20, "amount": 25, "unit": "ml", "cost": 50 },
+      { "ingredient_id": 4, "amount": 212, "unit": "ml", "cost": 85 }
+    ],
+    "created_at": "2026-03-03T09:40:00.000Z",
+    "updated_at": "2026-03-03T09:40:00.000Z"
+  },
+  {
+    "id": 227,
+    "prep_name": "麻婆豆腐ベース",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 215,
+    "items": [
+      { "ingredient_id": 7, "amount": 100, "unit": "g", "cost": 150 },
+      { "ingredient_id": 4, "amount": 162, "unit": "ml", "cost": 65 }
+    ],
+    "created_at": "2026-03-03T09:50:00.000Z",
+    "updated_at": "2026-03-03T09:50:00.000Z"
+  },
+  {
+    "id": 228,
+    "prep_name": "パンケーキ生地",
+    "yield_amount": 1.0,
+    "yield_unit": "個",
+    "total_cost": 90,
+    "items": [
+      { "ingredient_id": 19, "amount": 100, "unit": "g", "cost": 20 },
+      { "ingredient_id": 16, "amount": 1, "unit": "個", "cost": 25 },
+      { "ingredient_id": 11, "amount": 225, "unit": "g", "cost": 45 }
+    ],
+    "created_at": "2026-03-04T09:00:00.000Z",
+    "updated_at": "2026-03-04T09:00:00.000Z"
+  },
+  {
+    "id": 229,
+    "prep_name": "ミックスベリーソース",
+    "yield_amount": 1000,
+    "yield_unit": "ml",
+    "total_cost": 650,
+    "items": [
+      { "ingredient_id": 1, "amount": 3, "unit": "個", "cost": 300 },
+      { "ingredient_id": 11, "amount": 1750, "unit": "g", "cost": 350 }
+    ],
+    "created_at": "2026-03-04T09:10:00.000Z",
+    "updated_at": "2026-03-04T09:10:00.000Z"
   }
 ]
