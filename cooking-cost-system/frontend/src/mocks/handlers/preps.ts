@@ -17,9 +17,21 @@ export const prepHandlers = [
             filtered = filtered.filter(p => p.prep_name.includes(nameQuery));
         }
 
+        // 食材情報を結合して返す（表示用）
+        const enriched = filtered.map(prep => ({
+            ...prep,
+            items: prep.items?.map((item: any) => {
+                const ingredient = MOCK_INGREDIENTS.find(ing => ing.id === item.ingredient_id);
+                return {
+                    ...item,
+                    ingredient: ingredient ? { name: ingredient.name } : undefined
+                };
+            })
+        }));
+
         return HttpResponse.json({
             success: true,
-            data: filtered,
+            data: enriched,
             timestamp: new Date().toISOString()
         });
     }),
@@ -82,9 +94,17 @@ export const prepHandlers = [
             }, { status: 404 });
         }
 
+        const enriched = {
+            ...item,
+            items: item.items?.map((p: any) => {
+                const ing = MOCK_INGREDIENTS.find(i => i.id === p.ingredient_id);
+                return { ...p, ingredient: ing };
+            })
+        };
+
         return HttpResponse.json({
             success: true,
-            data: item,
+            data: enriched,
             timestamp: new Date().toISOString()
         });
     }),
@@ -115,6 +135,28 @@ export const prepHandlers = [
             success: true,
             data: newPrep,
             message: '仕込みデータを登録しました',
+            timestamp: new Date().toISOString()
+        });
+    }),
+    
+    // 仕込みデータの削除
+    http.delete('/api/preps/:id', async ({ params }) => {
+        const { id } = params;
+        const index = MOCK_PREPS.findIndex(p => p.id === Number(id));
+        
+        if (index === -1) {
+            return HttpResponse.json({
+                success: false,
+                message: '削除対象が見つかりません',
+                timestamp: new Date().toISOString()
+            }, { status: 404 });
+        }
+        
+        MOCK_PREPS.splice(index, 1);
+        
+        return HttpResponse.json({
+            success: true,
+            message: '削除が完了しました',
             timestamp: new Date().toISOString()
         });
     }),

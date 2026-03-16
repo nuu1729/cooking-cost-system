@@ -198,19 +198,19 @@ GET /api/ingredients/popular?limit=10
 
 ---
 
-## 料理管理 API
+## 仕込み管理 API
 
-### 料理一覧取得
+### 仕込み一覧取得
 
 ```http
-GET /api/dishes
+GET /api/preps
 ```
 
 #### クエリパラメータ
 
 | パラメータ | 型 | 説明 |
 |-----------|----|----|
-| name | string | 料理名での検索 |
+| name | string | 仕込み名での検索 |
 | genre | string | ジャンルでの絞り込み |
 | minCost | number | 最低原価 |
 | maxCost | number | 最高原価 |
@@ -219,10 +219,10 @@ GET /api/dishes
 | limit | number | 取得件数 |
 | offset | number | オフセット |
 
-### 料理詳細取得
+### 仕込み詳細取得
 
 ```http
-GET /api/dishes/{id}
+GET /api/preps/{id}
 ```
 
 食材情報も含めて取得します。
@@ -234,18 +234,18 @@ GET /api/dishes/{id}
   "success": true,
   "data": {
     "id": 1,
-    "name": "豚の生姜焼き",
+    "name": "合わせ味噌",
     "total_cost": 238.00,
-    "genre": "main",
-    "description": "ご飯が進む定番の豚の生姜焼き",
+    "genre": "seasoning",
+    "description": "自家製合わせ味噌",
     "ingredients": [
       {
         "ingredient_id": 1,
         "used_quantity": 200.00,
         "used_cost": 180.00,
-        "ingredient_name": "豚バラ肉",
+        "ingredient_name": "赤味噌",
         "ingredient_unit": "g",
-        "ingredient_genre": "meat"
+        "ingredient_genre": "seasoning"
       }
     ],
     "created_at": "2025-01-01T00:00:00.000Z",
@@ -255,19 +255,19 @@ GET /api/dishes/{id}
 }
 ```
 
-### 料理作成
+### 仕込み作成
 
 ```http
-POST /api/dishes
+POST /api/preps
 ```
 
 #### リクエストボディ
 
 ```json
 {
-  "name": "豚の生姜焼き",
-  "genre": "main",
-  "description": "ご飯が進む定番の豚の生姜焼き",
+  "name": "合わせ味噌",
+  "genre": "seasoning",
+  "description": "自家製合わせ味噌",
   "ingredients": [
     {
       "ingredient_id": 1,
@@ -292,48 +292,48 @@ POST /api/dishes
 | ingredients[].ingredient_id | ✓ | number | 正の整数 |
 | ingredients[].used_quantity | ✓ | number | 正の数値 |
 
-### 料理更新
+### 仕込み更新
 
 ```http
-PUT /api/dishes/{id}
+PUT /api/preps/{id}
 ```
 
-### 料理削除
+### 仕込み削除
 
 ```http
-DELETE /api/dishes/{id}
+DELETE /api/preps/{id}
 ```
 
-### 料理統計取得
+### 仕込み統計取得
 
 ```http
-GET /api/dishes/stats/genre
+GET /api/preps/stats/genre
 ```
 
 ---
 
-## 完成品管理 API
+## お品管理 API
 
-### 完成品一覧取得
+### お品一覧取得
 
 ```http
-GET /api/foods
+GET /api/dishes
 ```
 
 #### クエリパラメータ
 
 | パラメータ | 型 | 説明 |
 |-----------|----|----|
-| name | string | 完成品名での検索 |
+| name | string | お品名での検索 |
 | minPrice | number | 最低販売価格 |
 | maxPrice | number | 最高販売価格 |
 | minCost | number | 最低原価 |
 | maxCost | number | 最高原価 |
 
-### 完成品詳細取得
+### お品詳細取得
 
 ```http
-GET /api/foods/{id}
+GET /api/dishes/{id}
 ```
 
 #### レスポンス例
@@ -349,16 +349,16 @@ GET /api/foods/{id}
     "profit": 566.65,
     "profit_rate": 66.68,
     "description": "豚の生姜焼き、味噌汁、サラダのセット",
-    "dishes": [
+    "preps": [
       {
-        "dish_id": 1,
+        "prep_id": 1,
         "usage_quantity": 1.0000,
         "usage_unit": "serving",
         "usage_cost": 238.00,
         "description": "豚の生姜焼き 1人前",
-        "dish_name": "豚の生姜焼き",
-        "dish_genre": "main",
-        "dish_total_cost": 238.00
+        "prep_name": "豚の生姜焼き",
+        "prep_genre": "main",
+        "prep_total_cost": 238.00
       }
     ],
     "created_at": "2025-01-01T00:00:00.000Z",
@@ -368,10 +368,10 @@ GET /api/foods/{id}
 }
 ```
 
-### 完成品作成
+### お品作成
 
 ```http
-POST /api/foods
+POST /api/dishes
 ```
 
 #### リクエストボディ
@@ -381,15 +381,15 @@ POST /api/foods
   "name": "定食A（生姜焼き定食）",
   "price": 850.00,
   "description": "豚の生姜焼き、味噌汁、サラダのセット",
-  "dishes": [
+  "preps": [
     {
-      "dish_id": 1,
+      "prep_id": 1,
       "usage_quantity": 1.0000,
       "usage_unit": "serving",
       "description": "豚の生姜焼き 1人前"
     },
     {
-      "dish_id": 4,
+      "prep_id": 4,
       "usage_quantity": 1.0000,
       "usage_unit": "serving",
       "description": "味噌汁 1杯"
@@ -402,22 +402,22 @@ POST /api/foods
 - `serving` - 人前単位
 - `ratio` - 割合単位（0.5 = 半分）
 
-### 完成品更新
+### お品更新
 
 ```http
-PUT /api/foods/{id}
+PUT /api/dishes/{id}
 ```
 
-### 完成品削除
+### お品削除
 
 ```http
-DELETE /api/foods/{id}
+DELETE /api/dishes/{id}
 ```
 
 ### 利益率ランキング
 
 ```http
-GET /api/foods/stats/profit?limit=10
+GET /api/dishes/stats/profit?limit=10
 ```
 
 ---
@@ -438,8 +438,8 @@ GET /api/reports/dashboard
   "data": {
     "summary": {
       "totalIngredients": 30,
-      "totalDishes": 8,
-      "totalCompletedFoods": 4,
+      "totalPreps": 8,
+      "totalDishes": 4,
       "avgProfitRate": "66.68",
       "totalRevenue": 3380.00,
       "totalCost": 1133.40,
@@ -487,7 +487,7 @@ GET /api/reports/export?format=json&type=summary
 | パラメータ | 型 | 説明 | 例 |
 |-----------|----|----|-----|
 | format | string | エクスポート形式 | `json`, `csv` |
-| type | string | エクスポート種類 | `ingredients`, `dishes`, `foods`, `summary` |
+| type | string | エクスポート種類 | `ingredients`, `preps`, `dishes`, `summary` |
 
 ---
 
@@ -667,8 +667,8 @@ GET /metrics
 
 ## 注意事項
 
-1. **データの整合性**: 食材を削除する際、その食材を使用している料理がある場合はエラーになります。
-2. **原価計算**: 料理や完成品の原価は、使用している食材や料理の現在の価格に基づいて自動計算されます。
+1. **データの整合性**: 食材を削除する際、その食材を使用している「仕込み」や「お品」がある場合はエラーになります。
+2. **原価計算**: 仕込みやお品の原価は、使用している食材や仕込みの現在の価格に基づいて自動計算されます。
 3. **利益率計算**: 利益率は `((販売価格 - 原価) / 販売価格) × 100` で計算されます。
 4. **セキュリティ**: 本番環境では適切な認証・認可の実装が必要です。
 5. **パフォーマンス**: 大量のデータを扱う際は、適切なページネーションの使用を推奨します。

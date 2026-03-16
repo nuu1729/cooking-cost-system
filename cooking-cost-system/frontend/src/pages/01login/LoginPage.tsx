@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
+import { signinApi } from '@/api';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../../api/api';
+import { authApi } from '@/api';
 // import PersonIcon from '@mui/icons-material/Person';
 // import GoogleIcon from '@mui/icons-material/Google'; // Not available in all MUI versions, using text or standard icon
 // import AppleIcon from '@mui/icons-material/Apple';
@@ -53,7 +54,7 @@ const LoginPage: React.FC = () => {
             if (mode === 'signup') {
                 // TODO: Registration Logic
                 console.log('Registering:', data);
-                const response = await authApi.register({
+                const response = await signinApi.register({
                     username: data.email.split('@')[0],
                     email: data.email,
                     password: data.password
@@ -86,7 +87,7 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-white flex flex-col font-sans text-gray-800">
+        <div className="h-screen w-full bg-white flex flex-col font-sans text-gray-800 overflow-hidden">
             {/* Simple Header matching Figma */}
             <header className="h-[80px] bg-[#d9d9d9] flex items-center px-8 border-b border-gray-300">
                 <h2 className="text-xl font-bold text-black tracking-tight">
@@ -94,7 +95,7 @@ const LoginPage: React.FC = () => {
                 </h2>
             </header>
 
-            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-10">
+            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-2 md:py-10">
 
                 {/* Left Side: Text */}
                 <div className="w-full md:w-1/2 flex items-center justify-center md:justify-start pl-0 md:pl-5 mb-10 md:mb-0">
@@ -114,13 +115,13 @@ const LoginPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="bg-[#D9D9D9] p-8 md:p-10 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
+                        className="bg-[#D9D9D9] p-6 md:p-8 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
                     >
                         {/* Icon */}
                         {/* <div className="bg-blue-100 rounded-2xl p-4 mb-4 border-2 border-white shadow-sm">
                             <PersonIcon style={{ fontSize: 40, color: '#3B82F6' }} />
                         </div> */}
-                        <div className="mb-6">
+                        <div className="mb-3">
                             <img src="/icons/Authentication_icon.png" alt="Auth Icon" className="w-20 h-20 object-contain" />
                         </div>
 
@@ -128,12 +129,12 @@ const LoginPage: React.FC = () => {
                         <h2 className="text-3xl font-bold text-black mb-1 font-sans">
                             {mode === 'login' ? 'Log In' : 'Sign Up'}
                         </h2>
-                        <p className="text-gray-500 text-xs mb-8 tracking-wider">
+                        <p className="text-gray-500 text-xs mb-4 tracking-wider">
                             セキュアなJWT認証システム
                         </p>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-5">
+                        <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-3">
 
                             {/* Email */}
                             <div className="space-y-1">
@@ -194,7 +195,7 @@ const LoginPage: React.FC = () => {
                             </button>
 
                             {/* Create Account Link */}
-                            <div className="text-center pt-4">
+                            <div className="text-center pt-2">
                                 <button
                                     type="button"
                                     onClick={() => navigate('/signup')}
@@ -227,7 +228,7 @@ const LoginPage: React.FC = () => {
                         </form>
 
                         {/* Footer Note */}
-                        <div className="mt-8 pt-4 border-t border-gray-400 border-opacity-30 w-full text-center">
+                        <div className="mt-4 pt-4 border-t border-gray-400 border-opacity-30 w-full text-center">
                             <p className="text-[10px] text-gray-500">
                                 JWT（JSON Web Token）による安全な認証
                             </p>

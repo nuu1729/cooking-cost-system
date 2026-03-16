@@ -4,10 +4,9 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { signinApi } from '@/api';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
 
 // Validation Schema
 const schema = yup.object({
@@ -76,9 +75,15 @@ const SignupPage: React.FC = () => {
 
         try {
             console.log('Registering (Final):', pendingData);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setIsConfirmOpen(false);
-            navigate('/');
+            const response = await signinApi.register({
+                username: pendingData.name,
+                email: pendingData.email,
+                password: pendingData.password
+            });
+            if (response.success) {
+                setIsConfirmOpen(false);
+                navigate('/login');
+            }
         } catch (error) {
             console.error(error);
             setErrorMessage('アカウント作成に失敗しました。');
@@ -87,7 +92,7 @@ const SignupPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-white flex flex-col font-sans text-gray-800">
+        <div className="h-screen w-full bg-white flex flex-col font-sans text-gray-800 overflow-hidden">
             {/* Header */}
             <header className="h-[80px] bg-[#d9d9d9] flex items-center px-8 border-b border-gray-300">
                 <h2 className="text-xl font-bold text-black tracking-tight">
@@ -95,7 +100,7 @@ const SignupPage: React.FC = () => {
                 </h2>
             </header>
 
-            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-10">
+            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-2 md:py-10">
 
                 {/* Left Side: Text */}
                 <div className="w-full md:w-1/2 flex items-center justify-center md:justify-start pl-0 md:pl-5 mb-10 md:mb-0">
@@ -115,10 +120,10 @@ const SignupPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="bg-[#D9D9D9] p-8 md:p-10 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
+                        className="bg-[#D9D9D9] p-6 md:p-8 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
                     >
                         {/* Icon */}
-                        <div className="mb-6">
+                        <div className="mb-3">
                             <img src="/icons/Authentication_icon.png" alt="Auth Icon" className="w-20 h-20 object-contain" />
                         </div>
 
@@ -126,12 +131,12 @@ const SignupPage: React.FC = () => {
                         <h2 className="text-3xl font-bold text-black mb-1 font-sans">
                             Sign Up
                         </h2>
-                        <p className="text-gray-500 text-xs mb-8 tracking-wider">
+                        <p className="text-gray-500 text-xs mb-3 tracking-wider">
                             新規アカウントを作成して利用を開始
                         </p>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit(onFormSubmit)} className="w-full space-y-5">
+                        <form onSubmit={handleSubmit(onFormSubmit)} className="w-full space-y-2">
 
                             {/* Name */}
                             <div className="space-y-1">
@@ -271,7 +276,7 @@ const SignupPage: React.FC = () => {
                             </button>
 
                             {/* Back to Login Link */}
-                            <div className="text-center pt-4">
+                            <div className="text-center pt-2">
                                 <span className="text-gray-500 text-sm">すでにアカウントをお持ちですか？ </span>
                                 <button
                                     type="button"

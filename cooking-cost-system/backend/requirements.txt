@@ -1,6 +1,7 @@
 Flask
 flask-cors
 SQLAlchemy
+Flask-SQLAlchemy
 PyMySQL
 python-dotenv
 pytest

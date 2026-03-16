@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
-import { dishApi } from '../services/api';
+import { dishApi } from '@/api';
 import { useToast } from './useToast';
 import { 
   Dish, 
@@ -30,7 +30,7 @@ export const useDishes = (
     enabled: options?.enabled,
     refetchInterval: options?.refetchInterval,
     onSuccess: (data) => {
-      options?.onSuccess?.(data.data);
+      options?.onSuccess?.(data.data || []);
     },
     onError: (err: any) => {
       const errorMessage = err.response?.data?.message || '料理の取得に失敗しました';
