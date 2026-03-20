@@ -13,6 +13,7 @@ import SignupPage from './pages/00signup/SignupPage';
 import LoginPage from './pages/01login/LoginPage';
 
 import ListPage from './pages/06list/list';
+import AccountPage from './pages/08account/AccountPage';
 
 const App: React.FC = () => {
     return (
@@ -36,6 +37,7 @@ const App: React.FC = () => {
                                 <Route path="/dishes/medium" element={<Navigate to="/dishes/prep" replace />} />
                                 <Route path="/dishes/large" element={<Placeholder title="お品" />} />
                                 <Route path="/calculator" element={<Placeholder title="販売価格計算" />} />
+                                <Route path="/account" element={<AccountPage />} />
 
                                 {/* 404 - Inside Layout */}
                                 <Route path="*" element={<Navigate to="/" replace />} />

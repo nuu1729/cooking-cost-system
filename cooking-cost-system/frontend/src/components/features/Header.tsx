@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import AccountIcon from './AccountIcon';
 
 const navItems = [
     { label: 'ホーム', subLabel: 'HOME', path: '/' },
@@ -13,27 +14,36 @@ const navItems = [
 ];
 
 const Header: React.FC = () => {
+    const navigate = useNavigate();
+
     return (
         <header className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50 overflow-visible border-b border-gray-300">
-            {/* Logo Area */}
+            {/* Account Icon Area */}
             <div className="flex items-center h-full relative" style={{ minWidth: '150px' }}>
-                <div className="absolute top-0 left-0 z-50">
-                    <NavLink to="/">
-                        <img
-                            src="/images/ming_10th_icon.png"
-                            alt="Mingering Diner Logo"
-                            className="w-auto object-contain bg-white shadow-xl cursor-pointer"
-                            style={{
-                                height: '140px',
-                                display: 'block',
-                                position: 'relative',
-                                top: '0px'
-                            }}
-                        />
-                    </NavLink>
+                <div className="absolute top-0 left-0 z-50 flex items-center justify-center" style={{ height: '80px', width: '80px' }}>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/account')}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: '0',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            transition: 'box-shadow 0.2s',
+                        }}
+                        className="account-icon-btn"
+                        title="アカウント情報"
+                        aria-label="アカウント情報を表示"
+                    >
+                        <AccountIcon size={40} />
+                    </button>
                 </div>
 
-                <div className="w-[1px] h-8 bg-[#888] mx-6 ml-40" />
+                <div className="w-[1px] h-8 bg-[#888] mx-6 ml-20" />
 
                 <h2 className="text-xl font-bold text-black tracking-tight self-center whitespace-nowrap">
                     料理原価計算システム
@@ -58,6 +68,12 @@ const Header: React.FC = () => {
                     </NavLink>
                 ))}
             </nav>
+
+            <style>{`
+                .account-icon-btn:hover .account-icon-wrapper {
+                    box-shadow: 0 0 0 3px rgba(0,0,0,0.18);
+                }
+            `}</style>
         </header>
     );
 };
