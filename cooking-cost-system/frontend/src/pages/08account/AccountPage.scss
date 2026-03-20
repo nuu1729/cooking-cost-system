@@ -268,3 +268,42 @@
         margin: 0;
     }
 }
+
+// ─── モーダル ──────────────────────────────────────────────────────
+.account-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: pointer; // 画面のどこをタップしても動作することを明示
+}
+
+.account-modal {
+    background: #fff;
+    padding: 40px 64px;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.2s ease-out;
+    cursor: default; // 文字部分はデフォルト
+
+    &__text {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #333;
+        margin: 0;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

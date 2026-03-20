@@ -13,6 +13,7 @@ const AccountPage: React.FC = () => {
     const [previewUrl, setPreviewUrl] = useState<string | null>(account.iconDataUrl);
     const [isDragging, setIsDragging] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+    const [showSaveModal, setShowSaveModal] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ストアの変更を反映
@@ -124,9 +125,20 @@ const AccountPage: React.FC = () => {
             homeBgDataUrl: bgPreviewUrl,
         });
         setAccount(updated);
-        // 保存完了後にホーム画面へ遷移（画面設計書仕様）
-        navigate('/');
+        // 保存完了後、モーダルを表示
+        setShowSaveModal(true);
     };
+
+    // モーダル表示後、一定時間で自動的にホーム画面へ遷移
+    useEffect(() => {
+        if (!showSaveModal) return;
+
+        const timer = setTimeout(() => {
+            navigate('/');
+        }, 2000); // 2秒後に遷移
+
+        return () => clearTimeout(timer);
+    }, [showSaveModal, navigate]);
 
     return (
         <div className="account-page">
@@ -280,6 +292,15 @@ const AccountPage: React.FC = () => {
 
                 </div>{/* ／account-body */}
             </div>
+
+            {/* 保存完了モーダル */}
+            {showSaveModal && (
+                <div className="account-modal-overlay" onClick={() => navigate('/')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/')}>
+                    <div className="account-modal">
+                        <p className="account-modal__text">保存しました。</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
