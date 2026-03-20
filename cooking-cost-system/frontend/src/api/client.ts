@@ -2,7 +2,9 @@ import axios, { AxiosResponse, AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 // APIベースURL設定
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_ENABLE_MOCK === 'true' 
+    ? '/api' // Mock有効時は相対パスにしつつ /api サフィックスをつける
+    : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 // Axiosインスタンス作成
 const apiClient = axios.create({

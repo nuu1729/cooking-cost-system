@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ingredientApi } from '@/api';
 import { Ingredient } from '../../types';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 // Speech Recognition Types
@@ -24,6 +24,7 @@ interface FormData {
 }
 
 const EditIngredientPage: React.FC = () => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState<FormData>({
         id: null,
         name: '',
@@ -190,6 +191,8 @@ const EditIngredientPage: React.FC = () => {
                 setFormData({ id: null, name: '', priceBefore: '0', priceAfter: '', quantity: '', unit: 'g', supplier: '' });
                 setSearchQuery('');
                 setErrors({});
+                setIsConfirming(false);
+                navigate('/list', { state: { tab: 'ingredients' } });
             } else {
                 toast.error(response.message || '更新に失敗しました');
             }
@@ -516,9 +519,9 @@ const EditIngredientPage: React.FC = () => {
                         >
                             <div className="flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                 </svg>
-                                <span className="text-[24px] font-bold font-['Outfit']">食材を登録</span>
+                                <span className="text-[24px] font-bold font-['Outfit']">変更を確定</span>
                             </div>
                         </motion.button>
                     </div>

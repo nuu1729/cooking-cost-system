@@ -166,7 +166,7 @@ const PrepPage: React.FC = () => {
             if (res.success) {
                 toast.success('仕込みを登録しました');
                 setShowConfirmModal(false);
-                navigate('/');
+                navigate('/list', { state: { tab: 'preps' } });
             }
         } catch (e) {
             console.error('Failed to create prep', e);
@@ -242,10 +242,7 @@ const PrepPage: React.FC = () => {
                                 placeholder="0"
                             />
                             <div className="unit-pill">
-                                <span>{selectedIngredient?.unit || 'g'}</span>
-                                <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                                    <path d="M1 1L5 5L9 1" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/>
-                                </svg>
+                                <span>{selectedIngredient?.unit || ''}</span>
                             </div>
                         </div>
                         {amountError && <p className="form-err">{amountError}</p>}
@@ -350,18 +347,7 @@ const PrepPage: React.FC = () => {
                                         placeholder="0"
                                     />
                                     <div className="unit-pill">
-                                        <select
-                                            value={yieldUnit}
-                                            onChange={(e) => setYieldUnit(e.target.value as any)}
-                                            className="unit-select"
-                                        >
-                                            <option value="g">g</option>
-                                            <option value="ml">ml</option>
-                                            <option value="個">個</option>
-                                        </select>
-                                        <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                                            <path d="M1 1L5 5L9 1" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/>
-                                        </svg>
+                                        <span>g</span>
                                     </div>
                                 </div>
                                 {yieldAmountError && <p className="form-err">{yieldAmountError}</p>}

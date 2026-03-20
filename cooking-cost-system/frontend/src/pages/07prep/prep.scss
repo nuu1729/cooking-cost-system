@@ -13,10 +13,10 @@ $c-green-mid   : #d0f0e4;
 $c-bg-input    : #efefef;
 $c-border      : #d0d0d0;
 $c-text        : #2d2d2d;
-$c-sub         : #888;
+$c-sub         : #666;
 $c-danger      : #e87c6a;
-$c-card-bg     : #e8e8e8;
-$c-card-border : #cccccc;
+$c-card-bg     : #f8f9fa;
+$c-card-border : #e2e8f0;
 
 /* ──────────────────────────────────────────── */
 /*  ページ全体: ヘッダー下の残り高さを使い切る。
@@ -112,19 +112,20 @@ $c-card-border : #cccccc;
     width: 100%;
     height: 100%;
     object-fit: contain;
+    transform: scale(1.3);
   }
 }
 
 .prep-title {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
   font-weight: 800;
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   color: $c-text;
   letter-spacing: -0.02em;
 }
 
 .prep-desc {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   color: $c-sub;
   margin: 0;
   line-height: 1.5;
@@ -139,9 +140,9 @@ $c-card-border : #cccccc;
 }
 
 .form-label {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: $c-sub;
+  color: $c-text;
   letter-spacing: 0.01em;
 }
 
@@ -155,11 +156,11 @@ $c-card-border : #cccccc;
 /* ── 入力欄（共通） ──────────── */
 .p-input {
   width: 100%;
-  padding: 0.7rem 0.9rem;
+  padding: 0.75rem 1rem;
   background: $c-bg-input;
   border: 2px solid transparent;
   border-radius: 9px;
-  font-size: 1rem;
+  font-size: 1.05rem;
   color: $c-text;
   font-family: inherit;
   box-sizing: border-box;
@@ -194,7 +195,7 @@ $c-card-border : #cccccc;
   padding: 0 0.75rem;
   background: $c-bg-input;
   border-radius: 9px;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: $c-sub;
   white-space: nowrap;
@@ -206,7 +207,7 @@ $c-card-border : #cccccc;
   background: transparent;
   border: none;
   outline: none;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: $c-sub;
   font-family: inherit;
@@ -226,10 +227,10 @@ $c-card-border : #cccccc;
     top: 50%;
     transform: translateY(-50%);
     color: $c-sub;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     pointer-events: none;
   }
-  .p-input { padding-left: 1.7rem; }
+  .p-input { padding-left: 2rem; }
 }
 
 /* ── サジェスト ──────────────── */
@@ -262,11 +263,11 @@ $c-card-border : #cccccc;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  font-size: 0.93rem;
+  font-size: 1rem;
   transition: background 0.1s;
   &:hover { background: $c-green-light; }
   .si-name { font-weight: 700; color: $c-text; }
-  .si-meta { font-size: 0.78rem; color: $c-sub; }
+  .si-meta { font-size: 0.85rem; color: $c-sub; }
 }
 
 /* ── リスト追加ボタン ─────────── */
@@ -276,7 +277,7 @@ $c-card-border : #cccccc;
   background: $c-green;
   border: none;
   border-radius: 11px;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: #fff;
   cursor: pointer;
@@ -394,26 +395,26 @@ $c-card-border : #cccccc;
 .ic-body { flex: 1; min-width: 0; }
 
 .ic-name {
-  font-size: 0.97rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: $c-text;
-  margin: 0 0 3px;
+  margin: 0 0 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .ic-meta {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   color: $c-sub;
-  margin: 0 0 3px;
+  margin: 0 0 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .ic-cost {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-weight: 800;
   color: $c-green-dark;
   margin: 0;
@@ -481,7 +482,7 @@ $c-card-border : #cccccc;
 }
 
 .total-text {
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: $c-text;
   margin: 0;
@@ -489,7 +490,7 @@ $c-card-border : #cccccc;
 
   span {
     color: $c-green-dark;
-    font-size: 1.1rem;
+    font-size: 1.35rem;
   }
 }
 
@@ -498,7 +499,7 @@ $c-card-border : #cccccc;
   background: $c-text;
   border: none;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: #fff;
   cursor: pointer;

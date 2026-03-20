@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { ingredientApi, prepApi, dishApi } from '@/api';
@@ -11,8 +11,10 @@ type TabType = 'ingredients' | 'preps' | 'dishes';
 const ListPage: React.FC = () => {
     const navigate = useNavigate();
     
+    const location = useLocation();
+    
     // Tab State
-    const [activeTab, setActiveTab] = useState<TabType>('ingredients');
+    const [activeTab, setActiveTab] = useState<TabType>(location.state?.tab || 'ingredients');
     
     // Search State
     const [searchTerms, setSearchTerms] = useState({
