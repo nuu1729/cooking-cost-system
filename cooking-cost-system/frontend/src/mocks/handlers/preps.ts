@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { CreatePrepRequest } from '../../types';
-import { MOCK_PREPS, MOCK_INGREDIENTS } from './db';
+import { MOCK_PREPS, MOCK_INGREDIENTS, MOCK_ITEMS } from './db';
 
 /**
  * 06_prepAPI - 仕込み関連のモックハンドラー
@@ -58,25 +58,14 @@ export const prepHandlers = [
         const url = new URL(request.url);
         const query = url.searchParams.get('q') || '';
 
-        // 食材からの検索
-        const ingResults = MOCK_INGREDIENTS.filter(i => i.name.includes(query));
-        
-        // 仕込みからの検索（※簡易的に食材と同じ形式に変換）
-        const prepResults = MOCK_PREPS
-            .filter(p => p.prep_name.includes(query))
-            .map(p => ({
-                id: p.id,
-                name: p.prep_name,
-                price: p.total_cost,
-                quantity: p.yield_amount,
-                unit: p.yield_unit,
-                store: '自家製',
-                genre: 'sauce' // 便宜上のジャンル
-            }));
+        // 統合アイテムマスタから 食材（item_type === 1）のみを抽出して検索
+        const results = MOCK_ITEMS
+            .filter(i => i.item_type === 1)
+            .filter(i => i.name.includes(query));
 
         return HttpResponse.json({
             success: true,
-            data: [...ingResults, ...prepResults],
+            data: results,
             timestamp: new Date().toISOString()
         });
     }),

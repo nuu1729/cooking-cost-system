@@ -449,3 +449,28 @@ export interface CreatePrepRequest {
     }[];
 }
 
+// ==========================================
+// 統合DB設計用モデル（BOMモデル）
+// ==========================================
+export interface UnifiedItem extends BaseModel {
+    id: number;
+    name: string;
+    item_type: 1 | 2 | 3;  // 1: 食材, 2: 仕込み品, 3: お品
+    store: string;         // 購入先 (自家製など)
+    price: number;         // 価格 / 総コスト
+    quantity: number;      // 購入量 / 仕上がり量
+    unit: string;          // 単位
+    unit_price: number;    // 単価
+    genre: string;         // ジャンル
+}
+
+export interface UnifiedRecipeItem extends BaseModel {
+    id: number;
+    parent_item_id: number;
+    child_item_id: number;
+    amount: number;
+    cost: number;
+    child_item?: UnifiedItem; // 表示用
+}
+
+
