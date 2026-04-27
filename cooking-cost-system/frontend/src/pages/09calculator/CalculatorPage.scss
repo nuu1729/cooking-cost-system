@@ -1,0 +1,613 @@
+/* ================================================
+   販売価格シミュレーターページ
+   ================================================ */
+
+$c-green       : #4ecb9e;
+$c-green-dark  : #3aad87;
+$c-green-light : #e8f8f2;
+$c-bg-input    : #efefef;
+$c-border      : #d0d0d0;
+$c-text        : #2d2d2d;
+$c-sub         : #666;
+$c-danger      : #e87c6a;
+$c-warning     : #f5a623;
+$c-info        : #4a9eff;
+$c-card-border : #e2e8f0;
+
+/* ── 判定カラー ── */
+$j-excellent-color : #3aad87;
+$j-excellent-bg    : #e8f8f2;
+$j-good-color      : #4a9eff;
+$j-good-bg         : #e8f2ff;
+$j-warning-color   : #f5a623;
+$j-warning-bg      : #fff8e1;
+$j-danger-color    : #e87c6a;
+$j-danger-bg       : #fff0ee;
+
+.calc-page {
+  height: 100%;
+  overflow-y: auto;
+  background: #f4f4f4;
+  padding: 40px 2rem;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  color: $c-text;
+  box-sizing: border-box;
+
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: #bbb; border-radius: 6px; }
+
+  @media (max-width: 768px) { padding: 1rem; }
+}
+
+.calc-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 2rem;
+  max-width: 1300px;
+  margin: 0 auto;
+  padding-left: 110px;
+  box-sizing: border-box;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    padding-left: 0;
+  }
+}
+
+/* ================================================
+   左カラム
+   ================================================ */
+.calc-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  position: sticky;
+  top: 1rem;
+
+  @media (max-width: 900px) {
+    position: static;
+  }
+}
+
+.calc-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.2rem;
+}
+
+.calc-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: $c-green;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  svg { width: 26px; height: 26px; color: #fff; }
+}
+
+.calc-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin: 0 0 3px;
+  color: $c-text;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+
+.calc-desc {
+  font-size: 0.85rem;
+  color: $c-sub;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── フォームブロック ── */
+.calc-form-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calc-form-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: $c-text;
+}
+
+.c-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: $c-bg-input;
+  border: 2px solid transparent;
+  border-radius: 9px;
+  font-size: 1.05rem;
+  color: $c-text;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    outline: none;
+    background: #fff;
+    border-color: $c-green;
+    box-shadow: 0 0 0 4px rgba(78, 203, 158, 0.14);
+  }
+  &::placeholder { color: #c4c4c4; }
+  &--readonly { cursor: default; color: $c-sub; }
+  &--err { border-color: $c-danger !important; background: #fff6f5; }
+  &--num { text-align: right; }
+}
+
+.c-select {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: $c-bg-input;
+  border: 2px solid transparent;
+  border-radius: 9px;
+  font-size: 1rem;
+  color: $c-text;
+  font-family: inherit;
+  box-sizing: border-box;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  padding-right: 2.2rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: $c-green;
+    box-shadow: 0 0 0 4px rgba(78, 203, 158, 0.14);
+    background-color: #fff;
+  }
+}
+
+.c-price-row {
+  position: relative;
+  .c-yen {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $c-sub;
+    font-size: 1.05rem;
+    pointer-events: none;
+  }
+  .c-input { padding-left: 2rem; }
+}
+
+/* ── スライダー ── */
+.calc-slider-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.calc-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.calc-slider-label { font-size: 0.9rem; font-weight: 700; color: $c-text; }
+.calc-slider-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: $c-green-dark;
+  min-width: 40px;
+  text-align: right;
+}
+
+input[type="range"].calc-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, $c-green 0%, $c-green var(--pct), #ddd var(--pct), #ddd 100%);
+  outline: none;
+  cursor: pointer;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: $c-green;
+    box-shadow: 0 2px 6px rgba(78, 203, 158, 0.5);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    &:active { transform: scale(1.15); box-shadow: 0 3px 10px rgba(78, 203, 158, 0.6); }
+  }
+}
+
+.calc-slider-hint {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #bbb;
+}
+
+/* ── 推奨価格表示 ── */
+.recommended-box {
+  background: $c-green-light;
+  border: 2px solid rgba(78, 203, 158, 0.3);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .rec-label { font-size: 0.85rem; font-weight: 600; color: $c-green-dark; }
+  .rec-value { font-size: 1.25rem; font-weight: 800; color: $c-green-dark; }
+}
+
+/* ================================================
+   右カラム
+   ================================================ */
+.calc-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── 空白プレースホルダー ── */
+.calc-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  background: #fff;
+  border-radius: 14px;
+  border: 2px dashed $c-card-border;
+  font-size: 0.95rem;
+  color: #bbb;
+  font-style: italic;
+}
+
+/* ── 判定バッジ ── */
+.judgment-card {
+  border-radius: 14px;
+  padding: 1.2rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+
+  &--excellent { background: $j-excellent-bg; border-color: rgba(58,173,135,0.3); }
+  &--good      { background: $j-good-bg;      border-color: rgba(74,158,255,0.3); }
+  &--warning   { background: $j-warning-bg;   border-color: rgba(245,166,35,0.3); }
+  &--danger    { background: $j-danger-bg;    border-color: rgba(232,124,106,0.3); }
+}
+
+.judgment-mark {
+  font-size: 2.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.judgment-text { flex: 1; }
+
+.judgment-name {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin: 0 0 2px;
+  line-height: 1.2;
+
+  .judgment-card--excellent & { color: $j-excellent-color; }
+  .judgment-card--good      & { color: $j-good-color; }
+  .judgment-card--warning   & { color: $j-warning-color; }
+  .judgment-card--danger    & { color: $j-danger-color; }
+}
+
+.judgment-desc {
+  font-size: 0.88rem;
+  color: $c-sub;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.judgment-ratio {
+  text-align: right;
+  flex-shrink: 0;
+
+  .jr-label { font-size: 0.78rem; color: $c-sub; margin: 0 0 2px; }
+  .jr-value { font-size: 2rem; font-weight: 900; margin: 0; line-height: 1;
+
+    .judgment-card--excellent & { color: $j-excellent-color; }
+    .judgment-card--good      & { color: $j-good-color; }
+    .judgment-card--warning   & { color: $j-warning-color; }
+    .judgment-card--danger    & { color: $j-danger-color; }
+  }
+}
+
+/* ── 主要指標カード群 ── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+
+  @media (max-width: 1100px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 540px)  { grid-template-columns: 1fr 1fr; }
+}
+
+.metric-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  border: 2px solid $c-card-border;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: $c-sub;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.metric-value {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: $c-text;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.metric-sub {
+  font-size: 0.8rem;
+  color: $c-sub;
+  margin: 0;
+}
+
+/* ── 三分法内訳 ── */
+.sanbu-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 2px solid $c-card-border;
+  padding: 1.1rem 1.3rem;
+}
+
+.sanbu-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #bbb;
+  margin: 0 0 0.85rem;
+}
+
+.sanbu-rows { display: flex; flex-direction: column; gap: 0.55rem; }
+
+.sanbu-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sanbu-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: $c-sub;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.sanbu-bar-wrap {
+  flex: 1;
+  height: 10px;
+  background: #f0f0f0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.sanbu-bar {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease;
+
+  &--food    { background: $c-green; }
+  &--labor   { background: $c-info; }
+  &--expense { background: $c-warning; }
+  &--profit  { background: #2d2d2d; }
+}
+
+.sanbu-pct {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: $c-sub;
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sanbu-yen {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: $c-text;
+  width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sanbu-est {
+  font-size: 0.72rem;
+  color: #bbb;
+  flex-shrink: 0;
+}
+
+/* ── 価格帯シミュレーション ── */
+.sim-table-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 2px solid $c-card-border;
+  overflow: hidden;
+}
+
+.sim-table-head {
+  padding: 0.85rem 1.3rem;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #bbb;
+  margin: 0;
+}
+
+.sim-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  th {
+    padding: 0.55rem 1rem;
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: $c-sub;
+    background: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
+    &:first-child { text-align: left; }
+  }
+
+  td {
+    padding: 0.55rem 1rem;
+    text-align: right;
+    border-bottom: 1px solid #f8f8f8;
+    color: $c-text;
+    font-weight: 600;
+    &:first-child { text-align: left; }
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr.sim-current {
+    background: #f0faf6;
+    td { font-weight: 800; }
+    td:first-child::before {
+      content: '▶ ';
+      color: $c-green-dark;
+    }
+  }
+}
+
+.sim-judgment {
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+
+  &--excellent { color: $j-excellent-color; background: $j-excellent-bg; }
+  &--good      { color: $j-good-color;      background: $j-good-bg; }
+  &--warning   { color: $j-warning-color;   background: $j-warning-bg; }
+  &--danger    { color: $j-danger-color;    background: $j-danger-bg; }
+}
+
+/* ── コスト上昇シミュレーション ── */
+.cost-sim-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 2px solid $c-card-border;
+  overflow: hidden;
+}
+
+.cost-sim-head {
+  padding: 0.85rem 1.3rem 0.5rem;
+  p:first-child {
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #bbb;
+    margin: 0 0 2px;
+  }
+  p:last-child {
+    font-size: 0.82rem;
+    color: $c-sub;
+    margin: 0;
+  }
+}
+
+.cost-sim-rows { padding: 0 1.3rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.cost-sim-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: background 0.1s;
+
+  &:hover { background: #f4f4f4; }
+}
+
+.csr-pct {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: $c-danger;
+  width: 55px;
+  flex-shrink: 0;
+}
+
+.csr-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+
+  .csr-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+    background: linear-gradient(to right, $c-green, $c-warning);
+    &--over50 { background: linear-gradient(to right, $c-warning, $c-danger); }
+  }
+}
+
+.csr-cost {
+  font-size: 0.82rem;
+  color: $c-sub;
+  width: 64px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.csr-ratio {
+  font-size: 0.88rem;
+  font-weight: 700;
+  width: 48px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.csr-badge {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+
+  &--excellent { color: $j-excellent-color; background: $j-excellent-bg; }
+  &--good      { color: $j-good-color;      background: $j-good-bg; }
+  &--warning   { color: $j-warning-color;   background: $j-warning-bg; }
+  &--danger    { color: $j-danger-color;    background: $j-danger-bg; }
+}

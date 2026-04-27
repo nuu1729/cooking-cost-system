@@ -9,11 +9,13 @@ import AddIngredientPage from './pages/03add/AddIngredientPage';
 import EditIngredientPage from './pages/05edit/EditIngredientPage';
 import SearchIngredientPage from './pages/04search/SearchIngredientPage';
 import PrepPage from './pages/07prep/prep';
+import DishPage from './pages/08dish/dish';
+import CalculatorPage from './pages/09calculator/CalculatorPage';
 import SignupPage from './pages/00signup/SignupPage';
 import LoginPage from './pages/01login/LoginPage';
 
 import ListPage from './pages/06list/list';
-import AccountPage from './pages/08account/AccountPage';
+import AccountPage from './pages/10account/AccountPage';
 
 const App: React.FC = () => {
     return (
@@ -35,8 +37,8 @@ const App: React.FC = () => {
                                 <Route path="/list" element={<ListPage />} />
                                 <Route path="/dishes/prep" element={<PrepPage />} />
                                 <Route path="/dishes/medium" element={<Navigate to="/dishes/prep" replace />} />
-                                <Route path="/dishes/large" element={<Placeholder title="お品" />} />
-                                <Route path="/calculator" element={<Placeholder title="販売価格計算" />} />
+                                <Route path="/dishes/large" element={<DishPage />} />
+                                <Route path="/calculator" element={<CalculatorPage />} />
                                 <Route path="/account" element={<AccountPage />} />
 
                                 {/* 404 - Inside Layout */}

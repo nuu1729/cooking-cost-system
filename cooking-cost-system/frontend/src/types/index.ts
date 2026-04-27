@@ -436,6 +436,28 @@ export interface PrepItem {
     ingredient?: Ingredient; // 表示用（名前、購入先など）
 }
 
+// お品関連
+export interface OhiItem {
+    id?: string; // フロントエンドでの管理用ID（一時的）
+    prep_id: number;
+    amount: number;
+    unit: string;
+    cost: number;
+    prep?: UnifiedItem; // 表示用
+}
+
+export interface CreateOhiRequest {
+    name: string;
+    total_cost: number;
+    items: {
+        prep_id: number;
+        prep_name?: string;
+        amount: number;
+        unit: string;
+        cost: number;
+    }[];
+}
+
 export interface CreatePrepRequest {
     prep_name: string;
     yield_amount: number;

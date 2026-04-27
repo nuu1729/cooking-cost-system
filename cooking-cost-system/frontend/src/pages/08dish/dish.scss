@@ -1,0 +1,591 @@
+/* ================================================
+   お品ページ
+   ・仕込みページと同一レイアウト・デザイン
+   ・pages/07prep/prep.scss をベースに dish- プレフィックスで統一
+   ================================================ */
+
+/* ── カラー変数 ─────────────────── */
+$c-green       : #4ecb9e;
+$c-green-dark  : #3aad87;
+$c-green-light : #e8f8f2;
+$c-green-mid   : #d0f0e4;
+$c-bg-input    : #efefef;
+$c-border      : #d0d0d0;
+$c-text        : #2d2d2d;
+$c-sub         : #666;
+$c-danger      : #e87c6a;
+$c-card-bg     : #f8f9fa;
+$c-card-border : #e2e8f0;
+
+/* ──────────────────────────────────────────── */
+/*  ページ全体                                  */
+/* ──────────────────────────────────────────── */
+.dish-page {
+  height: 100%;
+  overflow: hidden;
+  background: #f4f4f4;
+  padding: 40px 2rem 40px;
+  font-family: 'Inter', 'Noto Sans JP', sans-serif;
+  color: $c-text;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    overflow-y: auto;
+    padding: 1rem;
+    height: auto;
+    min-height: 100%;
+  }
+}
+
+/* ──────────────────────────────────────────── */
+/*  メインコンテナ: 2カラムグリッド            */
+/* ──────────────────────────────────────────── */
+.dish-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1300px;
+  height: 100%;
+  max-height: calc(100% - 0.5rem);
+  flex-shrink: 0;
+  margin: 0 auto;
+  padding-left: 110px;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    padding-left: 0;
+    height: auto;
+    max-height: none;
+    gap: 1.5rem;
+    padding-bottom: 2rem;
+  }
+}
+
+/* ================================================
+   左カラム
+   ================================================ */
+.dish-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  height: 100%;
+  overflow: hidden;
+  padding-top: 65px;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding-top: 0;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* ── ヘッダー ──────────────────── */
+.dish-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-shrink: 0;
+  margin-bottom: 0.3rem;
+}
+
+.dish-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: $c-green;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 28px;
+    height: 28px;
+    color: #fff;
+  }
+}
+
+.dish-title {
+  font-size: 1.7rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+  color: $c-text;
+  letter-spacing: -0.02em;
+}
+
+.dish-desc {
+  font-size: 0.95rem;
+  color: $c-sub;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── 共通フォームブロック ─────── */
+.dish-form-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.dish-form-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: $c-text;
+  letter-spacing: 0.01em;
+}
+
+.dish-form-err {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $c-danger;
+}
+
+/* ── 入力欄（共通） ──────────── */
+.d-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: $c-bg-input;
+  border: 2px solid transparent;
+  border-radius: 9px;
+  font-size: 1.05rem;
+  color: $c-text;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    outline: none;
+    background: #fff;
+    border-color: $c-green;
+    box-shadow: 0 0 0 4px rgba(78, 203, 158, 0.14);
+  }
+
+  &::placeholder { color: #c4c4c4; font-size: 0.95rem; }
+
+  &--num      { text-align: right; }
+  &--err      { border-color: $c-danger !important; background: #fff6f5; }
+  &--readonly { cursor: default; color: $c-sub; }
+}
+
+/* ── 量行（入力 + 単位ピル） ─── */
+.dish-amount-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  .d-input { flex: 1; min-width: 0; }
+}
+
+.dish-unit-pill {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  background: $c-bg-input;
+  border-radius: 9px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: $c-sub;
+  white-space: nowrap;
+  min-width: 56px;
+  flex-shrink: 0;
+}
+
+/* ── 値段行 ─────────────────── */
+.dish-price-row {
+  position: relative;
+  .dish-yen {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $c-sub;
+    font-size: 1.05rem;
+    pointer-events: none;
+  }
+  .d-input { padding-left: 2rem; }
+}
+
+/* ── サジェスト ──────────────── */
+.dish-input-wrap { position: relative; }
+
+.dish-suggest-list {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 2px solid $c-border;
+  border-radius: 10px;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.13);
+  list-style: none;
+  margin: 0;
+  padding: 5px 0;
+  z-index: 200;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  &::-webkit-scrollbar { width: 5px; }
+  &::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+}
+
+.dish-suggest-item {
+  padding: 0.55rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.1s;
+  &:hover { background: $c-green-light; }
+  .dsi-name { font-weight: 700; color: $c-text; }
+  .dsi-meta { font-size: 0.85rem; color: $c-sub; }
+}
+
+/* ── リスト追加ボタン ─────────── */
+.dish-add-btn {
+  width: 100%;
+  padding: 1rem 1rem;
+  background: $c-green;
+  border: none;
+  border-radius: 11px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  white-space: pre-line;
+  text-align: center;
+  line-height: 1.5;
+  transition: background 0.16s, transform 0.14s, box-shadow 0.16s;
+  margin-top: 0.2rem;
+  font-family: inherit;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(78, 203, 158, 0.38);
+  letter-spacing: 0.01em;
+
+  &:hover:not(:disabled) {
+    background: $c-green-dark;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(78, 203, 158, 0.45);
+  }
+  &:active:not(:disabled) { transform: none; box-shadow: none; }
+  &:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+}
+
+.dish-cancel-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: $c-sub;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.2rem;
+  text-align: center;
+  font-family: inherit;
+  flex-shrink: 0;
+  &:hover { color: $c-text; }
+}
+
+/* ================================================
+   右カラム
+   ================================================ */
+.dish-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    height: auto;
+    overflow: visible;
+    .dish-cards-area { min-height: 260px; }
+  }
+}
+
+/* ── カードグリッドエリア ─────── */
+.dish-cards-area {
+  flex: 1;
+  min-height: 0;
+  background: $c-card-bg;
+  border-radius: 13px;
+  padding: 1rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  border: 2px solid $c-card-border;
+
+  &::-webkit-scrollbar       { width: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #bbb; border-radius: 6px; }
+}
+
+.dish-cards-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 100px;
+  font-size: 0.9rem;
+  color: #bbb;
+  font-style: italic;
+}
+
+/* ── カードグリッド ────────────── */
+.dish-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
+  gap: 0.65rem;
+  align-content: start;
+}
+
+/* ── 仕込み品カード ──────────────── */
+.dish-item-card {
+  background: #fff;
+  border: 2px solid #d4d4d4;
+  border-radius: 10px;
+  padding: 0.8rem 0.85rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  transition: box-shadow 0.14s, border-color 0.14s, transform 0.12s;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+  }
+  &--active {
+    border-color: $c-green;
+    box-shadow: 0 0 0 3px rgba(78,203,158,0.22);
+    background: $c-green-light;
+  }
+}
+
+.dic-body { flex: 1; min-width: 0; }
+
+.dic-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: $c-text;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dic-meta {
+  font-size: 0.9rem;
+  color: $c-sub;
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dic-cost {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: $c-green-dark;
+  margin: 0;
+}
+
+.dic-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.dic-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s, transform 0.1s;
+
+  &--edit { background: #d4efdf; &:hover { background: #aedfc5; transform: scale(1.05); } }
+  &--del  { background: #fde0da; &:hover { background: #f9c0b0; transform: scale(1.05); } }
+}
+
+/* ── 下部バー ────────────────── */
+.dish-bottom-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.25rem;
+  padding: 0 0 1.25rem 0;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  @media (max-width: 540px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.dish-bottom-fields {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+
+  .dish-form-block { min-width: 120px; flex: 1; }
+}
+
+.dish-bottom-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.dish-total-text {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: $c-text;
+  margin: 0;
+  white-space: nowrap;
+
+  span {
+    color: $c-green-dark;
+    font-size: 1.35rem;
+  }
+}
+
+.dish-confirm-btn {
+  padding: 0.7rem 1.75rem;
+  background: $c-text;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.14s, transform 0.13s, box-shadow 0.14s;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.22);
+  letter-spacing: 0.01em;
+
+  &:hover:not(:disabled) {
+    background: #111;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(0,0,0,0.28);
+  }
+  &:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+}
+
+/* ================================================
+   確認モーダル
+   ================================================ */
+.dish-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.32);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.dish-modal {
+  background: #fff;
+  width: 100%;
+  max-width: 460px;
+  border-radius: 18px;
+  box-shadow: 0 18px 56px rgba(0,0,0,0.18);
+  overflow: hidden;
+}
+
+.dish-modal-head {
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h2 { margin: 0; font-size: 1.05rem; font-weight: 800; color: $c-text; }
+}
+
+.dish-modal-x {
+  background: none; border: none;
+  font-size: 1.4rem; color: #bbb; cursor: pointer; line-height: 1; padding: 0;
+  transition: color 0.12s;
+  &:hover { color: $c-text; }
+}
+
+.dish-modal-body {
+  padding: 1.1rem 1.5rem;
+  display: flex; flex-direction: column; gap: 0.8rem;
+}
+
+.dish-modal-row {
+  display: flex; justify-content: space-between; align-items: center; font-size: 0.93rem;
+}
+
+.dml { font-weight: 600; color: $c-sub; }
+.dmv {
+  font-weight: 700; color: $c-text;
+  &--green { color: $c-green-dark; font-size: 1rem; font-weight: 800; }
+  &--bold  { font-size: 1.1rem; font-weight: 900; }
+}
+
+.dish-modal-items { margin-top: 0.2rem; }
+
+.dish-modal-items-ttl {
+  font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #ccc; margin: 0 0 0.4rem;
+}
+
+.dish-modal-items-list {
+  background: #f7f7f7; border-radius: 9px; padding: 0.65rem 0.85rem;
+  max-height: 130px; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+
+.dish-modal-item { display: flex; justify-content: space-between; font-size: 0.86rem; }
+.dmi-name   { font-weight: 600; color: $c-text; }
+.dmi-detail { color: $c-sub; }
+
+.dish-modal-foot {
+  padding: 0.9rem 1.5rem 1.1rem;
+  display: flex; gap: 0.6rem;
+}
+
+.dish-modal-cancel {
+  flex: 1; padding: 0.8rem; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+  background: #fff; border: 2px solid #ddd; color: $c-sub;
+  cursor: pointer; font-family: inherit; transition: background 0.12s;
+  &:hover { background: #f4f4f4; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.dish-modal-submit {
+  flex: 1.5; padding: 0.8rem; border-radius: 10px; font-weight: 800; font-size: 0.95rem;
+  background: $c-green; border: none; color: #fff;
+  cursor: pointer; font-family: inherit; transition: background 0.14s, transform 0.12s;
+  box-shadow: 0 3px 10px rgba(78,203,158,0.4);
+  &:hover:not(:disabled) { background: $c-green-dark; transform: translateY(-1px); }
+  &:disabled { background: #c0c0c0; cursor: not-allowed; transform: none; box-shadow: none; }
+}

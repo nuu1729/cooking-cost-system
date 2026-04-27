@@ -1,7 +1,19 @@
 import apiClient from '../client';
-import { ApiResponse, Dish, CreateDishRequest } from '../../types';
+import { ApiResponse, Dish, CreateDishRequest, CreateOhiRequest, UnifiedItem } from '../../types';
 
 export const dishApi = {
+    // 仕込み品検索（お品画面用サジェスト）
+    searchPreps: async (query: string): Promise<ApiResponse<UnifiedItem[]>> => {
+        const response = await apiClient.get('/preps/search', { params: { q: query } });
+        return response.data;
+    },
+
+    // お品作成
+    createOhi: async (data: CreateOhiRequest): Promise<ApiResponse<any>> => {
+        const response = await apiClient.post('/dishes', data);
+        return response.data;
+    },
+
     // 料理一覧取得
     getAll: async (params?: {
         name?: string;

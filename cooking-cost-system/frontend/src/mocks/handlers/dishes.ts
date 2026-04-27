@@ -113,6 +113,47 @@ export const dishHandlers = [
         });
     }),
 
+    // お品データの登録 (POST /api/dishes)
+    http.post('/api/dishes', async ({ request }) => {
+        const body = await request.json() as any;
+
+        if (!body.name || !body.items || body.items.length === 0) {
+            return HttpResponse.json({
+                success: false,
+                message: '入力内容が不足しています（お品名と構成リストは必須です）',
+                timestamp: new Date().toISOString()
+            }, { status: 400 });
+        }
+
+        const newDish = {
+            id: 100 + MOCK_DISHES.length + 1,
+            name: body.name,
+            total_cost: body.total_cost,
+            price: 0,
+            profit: 0,
+            profit_rate: 0,
+            genre: '',
+            dishes: body.items.map((item: any) => ({
+                dish_id: item.prep_id,
+                dish_name: item.prep_name || '',
+                usage_quantity: item.amount,
+                usage_unit: item.unit,
+                usage_cost: item.cost
+            })),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        MOCK_DISHES.push(newDish);
+
+        return HttpResponse.json({
+            success: true,
+            data: newDish,
+            message: 'お品を登録しました',
+            timestamp: new Date().toISOString()
+        });
+    }),
+
     // お品データの削除
     http.delete('/api/dishes/:id', async ({ params }) => {
         const { id } = params;

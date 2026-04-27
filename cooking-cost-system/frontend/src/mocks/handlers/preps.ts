@@ -70,6 +70,23 @@ export const prepHandlers = [
         });
     }),
 
+    // 仕込み品検索（お品画面用サジェスト）
+    // ※ /api/preps/:id より前に定義する必要がある
+    http.get('/api/preps/search', async ({ request }) => {
+        const url = new URL(request.url);
+        const query = url.searchParams.get('q') || '';
+
+        const results = MOCK_ITEMS
+            .filter(i => i.item_type === 2)
+            .filter(i => i.name.includes(query));
+
+        return HttpResponse.json({
+            success: true,
+            data: results,
+            timestamp: new Date().toISOString()
+        });
+    }),
+
     // 特定の仕込み詳細取得
     http.get('/api/preps/:id', async ({ params }) => {
         const { id } = params;
