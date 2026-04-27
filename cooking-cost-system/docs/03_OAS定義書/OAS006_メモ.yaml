@@ -1,0 +1,248 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - メモ API
+  description: |
+    メモの作成・一覧・詳細・更新・削除を扱う API。
+    自由記述のメモを管理する。
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: memo
+    description: メモ管理
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Memo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        content:
+          type: string
+          example: 今月の目標：食材ロス率を5%以下に抑える
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-27T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-27T10:00:00Z"
+
+    MemoRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          example: 今月の目標：食材ロス率を5%以下に抑える
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  parameters:
+    MemoId:
+      name: id
+      in: path
+      required: true
+      description: メモID
+      schema:
+        type: integer
+        example: 1
+
+  responses:
+    NotFound:
+      description: メモが見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /memo:
+    get:
+      tags: [memo]
+      summary: メモ一覧取得
+      responses:
+        '200':
+          description: メモ一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Memo'
+                  count:
+                    type: integer
+                    example: 3
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [memo]
+      summary: メモ作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoRequest'
+      responses:
+        '201':
+          description: メモ作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Memo'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー（content 空）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /memo/{id}:
+    get:
+      tags: [memo]
+      summary: メモ詳細取得
+      parameters:
+        - $ref: '#/components/parameters/MemoId'
+      responses:
+        '200':
+          description: メモ詳細取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Memo'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [memo]
+      summary: メモ更新
+      parameters:
+        - $ref: '#/components/parameters/MemoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoRequest'
+      responses:
+        '200':
+          description: メモ更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Memo'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [memo]
+      summary: メモ削除
+      parameters:
+        - $ref: '#/components/parameters/MemoId'
+      responses:
+        '200':
+          description: メモ削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: メモを削除しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'

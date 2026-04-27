@@ -1,0 +1,497 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - 認証 API
+  description: |
+    アカウント作成・ログイン・ログアウト・プロフィール編集・パスワード変更を扱う認証 API。
+    対応テーブル定義: T000 アカウント作成 / T001 ログイン / T010 アカウント編集
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: auth
+    description: 認証・アカウント管理
+
+security: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        ログイン成功時に取得した JWT トークンを Authorization ヘッダーに付与する。
+        例: `Authorization: Bearer eyJhbGci...`
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          nullable: true
+          maxLength: 50
+          example: 山田 太郎
+        email:
+          type: string
+          format: email
+          example: taro@example.com
+        role:
+          type: string
+          enum: [user, admin]
+          example: user
+        is_active:
+          type: boolean
+          example: true
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-04-27T10:00:00Z"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-27T10:00:00Z"
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: taro@example.com
+        password:
+          type: string
+          minLength: 8
+          description: 8文字以上、大文字・小文字・数字をすべて含むこと
+          example: Pass1234
+        username:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: 山田 太郎
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: taro@example.com
+        password:
+          type: string
+          example: Pass1234
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          description: JWT アクセストークン
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2026-04-28T10:00:00Z"
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: 山田 花子
+        email:
+          type: string
+          format: email
+          example: hanako@example.com
+
+    UpdatePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          example: OldPass123
+        newPassword:
+          type: string
+          minLength: 8
+          description: 8文字以上、大文字・小文字・数字をすべて含むこと
+          example: NewPass456
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: 処理が完了しました
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-04-27T10:00:00Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: 入力値が正しくありません
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    Unauthorized:
+      description: 認証エラー（トークン未設定・無効・期限切れ）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: UNAUTHORIZED
+            message: 認証が必要です
+            timestamp: "2026-04-27T10:00:00Z"
+
+    BadRequest:
+      description: バリデーションエラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: リソースの競合（メールアドレス重複など）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: CONFLICT
+            message: このメールアドレスはすでに使用されています
+            timestamp: "2026-04-27T10:00:00Z"
+
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: アカウント作成
+      description: |
+        新規ユーザーを登録し、JWT トークンを返す。
+        成功後はそのままログイン済み状態となる。
+        対応画面: アカウント作成（`/register`）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: アカウント作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LoginResponse'
+                  message:
+                    type: string
+                    example: アカウントを作成しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: ログイン
+      description: |
+        メールアドレスとパスワードで認証し、JWT トークンを返す。
+        認証成功時に `users.last_login` を現在日時に更新する。
+        セキュリティ: ユーザー不在・パスワード誤り・アカウント無効はすべて同一の 401 を返す。
+        対応画面: ログイン画面（`/login`）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/LoginResponse'
+                  message:
+                    type: string
+                    example: ログインしました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー（メール形式不正）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: VALIDATION_ERROR
+                message: 有効なメールアドレスを入力してください
+        '401':
+          description: 認証失敗（ユーザー不在・パスワード誤り・アカウント無効を統一）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: UNAUTHORIZED
+                message: メールアドレスまたはパスワードが正しくありません
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: ログアウト
+      description: セッションを終了する。フロントエンドは localStorage の authToken を削除する。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ログアウト成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: 現在のユーザー情報取得
+      description: |
+        JWT トークンで認証されたユーザーの情報を返す。
+        対応画面: アカウント編集（`/account`）の初期表示に使用。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: ユーザー情報取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/status:
+    get:
+      tags: [auth]
+      summary: 認証状態チェック
+      description: サーバー側の認証機能が有効かどうかを返す。
+      responses:
+        '200':
+          description: 認証状態
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      authEnabled:
+                        type: boolean
+                        example: true
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: トークンリフレッシュ
+      description: 有効期限が近い JWT トークンを更新する。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: トークン更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: eyJhbGci...
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/profile:
+    put:
+      tags: [auth]
+      summary: プロフィール更新
+      description: |
+        ログイン中ユーザーのアカウント名・メールアドレスを更新する。
+        対応画面: アカウント編集（`/account`）セクション②。
+        対応テーブル: `users.username` / `users.email`
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: プロフィール更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      username:
+                        type: string
+                        example: 山田 花子
+                      email:
+                        type: string
+                        example: hanako@example.com
+                  message:
+                    type: string
+                    example: プロフィールを更新しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/password:
+    put:
+      tags: [auth]
+      summary: パスワード変更
+      description: |
+        現在のパスワードを確認してから新しいパスワードに変更する。
+        対応画面: アカウント編集（`/account`）セクション③。
+        対応テーブル: `users.password_hash`（bcrypt、コストファクター 12）
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePasswordRequest'
+      responses:
+        '200':
+          description: パスワード変更成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                message: パスワードを更新しました
+                timestamp: "2026-04-27T10:00:00Z"
+        '400':
+          description: パスワード複雑性不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: VALIDATION_ERROR
+                message: パスワードは8文字以上、大文字・小文字・数字を含む必要があります
+        '401':
+          description: 現在のパスワード誤り
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: UNAUTHORIZED
+                message: 現在のパスワードが正しくありません

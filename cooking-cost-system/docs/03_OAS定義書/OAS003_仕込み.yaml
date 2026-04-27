@@ -1,0 +1,439 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - 仕込み API
+  description: |
+    仕込み品（半製品）の作成・一覧・詳細・削除を扱う API。
+    DB上は `items` テーブルの `item_type = 2`、構成材料は `item_relations` テーブルで管理。
+    対応テーブル定義: T007 仕込み / T006 一覧（仕込みタブ）
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: preps
+    description: 仕込み品管理（items.item_type = 2）
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    PrepIngredient:
+      type: object
+      description: 仕込み品を構成する1つの食材（item_relations の1行に対応）
+      required: [ingredient_id, amount]
+      properties:
+        ingredient_id:
+          type: integer
+          description: 使用する食材の items.id
+          example: 1
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: 使用量（単位は食材登録時の unit に従う）
+          example: 250.00
+        unit:
+          type: string
+          description: 食材の単位（読み取り専用。サーバーが食材マスタから自動付与）
+          readOnly: true
+          example: g
+        cost:
+          type: number
+          format: double
+          description: ingredient.unit_price × amount で算出（サーバーが自動計算）
+          readOnly: true
+          example: 225.00
+
+    PrepIngredientDetail:
+      type: object
+      description: 仕込み詳細取得時に含まれる食材情報
+      properties:
+        ingredient_id:
+          type: integer
+          example: 1
+        ingredient_name:
+          type: string
+          example: 赤味噌
+        ingredient_unit:
+          type: string
+          example: g
+        ingredient_genre:
+          type: string
+          example: seasoning
+        amount:
+          type: number
+          format: double
+          example: 200.00
+        cost:
+          type: number
+          format: double
+          example: 180.00
+
+    Prep:
+      type: object
+      description: 仕込み品（items テーブルの item_type=2 レコード）
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 合わせ味噌
+        item_type:
+          type: integer
+          enum: [2]
+          example: 2
+        store:
+          type: string
+          description: 仕込み品は常に「自家製」
+          example: 自家製
+        price:
+          type: number
+          format: double
+          description: 全構成食材のコスト合計（total_cost）
+          example: 360.00
+        quantity:
+          type: number
+          format: double
+          description: 仕込みの仕上がり量
+          example: 500.00
+        unit:
+          type: string
+          example: g
+        unit_price:
+          type: number
+          format: double
+          description: price ÷ quantity（1gあたりのコスト）
+          example: 0.7200
+        genre:
+          type: string
+          nullable: true
+          example: seasoning
+        description:
+          type: string
+          nullable: true
+          example: 自家製合わせ味噌
+        ingredients:
+          type: array
+          description: 詳細取得時のみ含まれる構成食材リスト
+          items:
+            $ref: '#/components/schemas/PrepIngredientDetail'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreatePrepRequest:
+      type: object
+      required: [name, quantity, unit, items]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: 仕込み名
+          example: 合わせ味噌
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: 仕上がり量
+          example: 500.00
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example: g
+        genre:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: seasoning
+        description:
+          type: string
+          nullable: true
+          example: 自家製合わせ味噌
+        items:
+          type: array
+          minItems: 1
+          description: 構成食材リスト（1件以上必須）
+          items:
+            $ref: '#/components/schemas/PrepIngredient'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  parameters:
+    PrepId:
+      name: id
+      in: path
+      required: true
+      description: 仕込みID（items.id）
+      schema:
+        type: integer
+        example: 1
+
+  responses:
+    NotFound:
+      description: 仕込み品が見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: 削除不可（お品で使用中）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: CONFLICT
+            message: この仕込み品は「唐揚げ定食」で使用中のため削除できません
+
+paths:
+  /preps:
+    get:
+      tags: [preps]
+      summary: 仕込み一覧取得
+      description: |
+        登録済みの仕込み品一覧を返す。
+        対応画面: 一覧（仕込みタブ）
+      parameters:
+        - name: name
+          in: query
+          description: 仕込み名（部分一致）
+          schema:
+            type: string
+            example: 味噌
+        - name: genre
+          in: query
+          description: ジャンル絞り込み
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [name, price, created_at]
+            default: name
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 仕込み一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Prep'
+                  count:
+                    type: integer
+                    example: 3
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [preps]
+      summary: 仕込み作成（確定）
+      description: |
+        食材を組み合わせて新しい仕込み品を登録する。
+        - `items[].cost` はサーバー側で `ingredient.unit_price × amount` を自動計算して保存する
+        - 仕込み品全体の `price`（総コスト）は各 `cost` の合計をサーバーが算出する
+        - 登録後、この仕込み品は食材検索サジェストから選択可能になる
+        対応画面: 仕込み（`/preps`）の「仕込み確定」ボタン
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePrepRequest'
+            example:
+              name: 合わせ味噌
+              quantity: 500
+              unit: g
+              genre: seasoning
+              description: 自家製合わせ味噌
+              items:
+                - ingredient_id: 1
+                  amount: 250
+                - ingredient_id: 2
+                  amount: 150
+      responses:
+        '201':
+          description: 仕込み作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Prep'
+                  message:
+                    type: string
+                    example: 仕込みを登録しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー（仕込み名未入力・食材未選択等）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /preps/check-name:
+    get:
+      tags: [preps]
+      summary: 仕込み名重複チェック
+      description: 指定した仕込み名が既に登録済みかどうかを確認する。
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: 確認する仕込み名
+          schema:
+            type: string
+            example: 合わせ味噌
+      responses:
+        '200':
+          description: 重複チェック結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      exists:
+                        type: boolean
+                        description: true の場合は同名の仕込みが存在する
+                        example: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /preps/{id}:
+    get:
+      tags: [preps]
+      summary: 仕込み詳細取得
+      description: 指定 ID の仕込み品と、その構成食材リストを返す。
+      parameters:
+        - $ref: '#/components/parameters/PrepId'
+      responses:
+        '200':
+          description: 仕込み詳細取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Prep'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [preps]
+      summary: 仕込み削除
+      description: |
+        指定 ID の仕込み品を削除する。
+        お品の材料として使用中の場合は 409 を返す（削除不可）。
+        削除時、この仕込みを構成する `item_relations` 行は CASCADE で自動削除される。
+        対応画面: 一覧（仕込みタブ）の削除アイコン
+      parameters:
+        - $ref: '#/components/parameters/PrepId'
+      responses:
+        '200':
+          description: 仕込み削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 仕込みを削除しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
