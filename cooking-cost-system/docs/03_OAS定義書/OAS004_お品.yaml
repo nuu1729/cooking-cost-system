@@ -1,0 +1,501 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - お品 API
+  description: |
+    お品（完成品・メニュー）の作成・一覧・詳細・更新・削除を扱う API。
+    DB上は `items` テーブルの `item_type = 3`、構成仕込み品は `item_relations` テーブルで管理。
+    販売価格シミュレーターもこの API のデータを参照する。
+    対応テーブル定義: T008 お品 / T009 販売価格シミュレーター / T006 一覧（お品タブ）
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: foods
+    description: お品（完成品）管理（items.item_type = 3）
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    FoodPrep:
+      type: object
+      description: お品を構成する1つの仕込み品（item_relations の1行に対応）
+      required: [prep_id, amount]
+      properties:
+        prep_id:
+          type: integer
+          description: 使用する仕込み品の items.id
+          example: 1
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: 使用量
+          example: 1.00
+        unit:
+          type: string
+          description: 仕込み品の単位（読み取り専用）
+          readOnly: true
+          example: serving
+        cost:
+          type: number
+          format: double
+          description: prep.unit_price × amount（サーバーが自動計算）
+          readOnly: true
+          example: 360.00
+        description:
+          type: string
+          nullable: true
+          example: 合わせ味噌 1人前
+
+    FoodPrepDetail:
+      type: object
+      description: お品詳細取得時に含まれる仕込み品情報
+      properties:
+        prep_id:
+          type: integer
+          example: 1
+        prep_name:
+          type: string
+          example: 合わせ味噌
+        prep_genre:
+          type: string
+          nullable: true
+          example: seasoning
+        prep_unit_price:
+          type: number
+          format: double
+          example: 0.7200
+        amount:
+          type: number
+          format: double
+          example: 1.00
+        cost:
+          type: number
+          format: double
+          example: 360.00
+        description:
+          type: string
+          nullable: true
+          example: 合わせ味噌 1人前
+
+    Food:
+      type: object
+      description: お品（items テーブルの item_type=3 レコード）
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 味噌定食
+        item_type:
+          type: integer
+          enum: [3]
+          example: 3
+        store:
+          type: string
+          description: お品は常に「自家製」
+          example: 自家製
+        price:
+          type: number
+          format: double
+          description: 全構成仕込み品のコスト合計（食材原価）
+          example: 285.00
+        quantity:
+          type: number
+          format: double
+          description: 提供数量（通常は 1.0）
+          example: 1.00
+        unit:
+          type: string
+          example: 人前
+        unit_price:
+          type: number
+          format: double
+          description: price ÷ quantity
+          example: 285.00
+        genre:
+          type: string
+          nullable: true
+          example: japanese
+        description:
+          type: string
+          nullable: true
+          example: 味噌汁・ごはん・漬物付き
+        preps:
+          type: array
+          description: 詳細取得時のみ含まれる構成仕込み品リスト
+          items:
+            $ref: '#/components/schemas/FoodPrepDetail'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateFoodRequest:
+      type: object
+      required: [name, quantity, unit, items]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: 味噌定食
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: 提供数量（通常 1.0）
+          example: 1.00
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example: 人前
+        genre:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: japanese
+        description:
+          type: string
+          nullable: true
+          example: 味噌汁・ごはん・漬物付き
+        items:
+          type: array
+          minItems: 1
+          description: 構成仕込み品リスト（1件以上必須）
+          items:
+            $ref: '#/components/schemas/FoodPrep'
+
+    UpdateFoodRequest:
+      type: object
+      description: 変更するフィールドのみ送信可
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: 味噌定食（特盛）
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        unit:
+          type: string
+          maxLength: 20
+        genre:
+          type: string
+          maxLength: 50
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/FoodPrep'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  parameters:
+    FoodId:
+      name: id
+      in: path
+      required: true
+      description: お品ID（items.id）
+      schema:
+        type: integer
+        example: 1
+
+  responses:
+    NotFound:
+      description: お品が見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /foods:
+    get:
+      tags: [foods]
+      summary: お品一覧取得
+      description: |
+        登録済みのお品（完成品）一覧を返す。
+        販売価格シミュレーターのセレクトボックス生成にも使用。
+        対応画面: 一覧（お品タブ）/ 販売価格シミュレーター
+      parameters:
+        - name: name
+          in: query
+          description: お品名（部分一致）
+          schema:
+            type: string
+            example: 定食
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [name, price, created_at]
+            default: name
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: お品一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Food'
+                  count:
+                    type: integer
+                    example: 4
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [foods]
+      summary: お品作成（確定）
+      description: |
+        仕込み品を組み合わせて新しいお品を登録する。
+        - `items[].cost` はサーバーが `prep.unit_price × amount` で自動計算する
+        - お品全体の `price`（食材原価）は各 `cost` の合計をサーバーが算出する
+        対応画面: お品（`/foods`）の「確定」ボタン
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFoodRequest'
+            example:
+              name: 味噌定食
+              quantity: 1
+              unit: 人前
+              genre: japanese
+              description: 味噌汁・ごはん・漬物付き
+              items:
+                - prep_id: 1
+                  amount: 1
+                  description: 合わせ味噌 1人前
+                - prep_id: 2
+                  amount: 1
+                  description: ごはん（中）1杯
+      responses:
+        '201':
+          description: お品作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Food'
+                  message:
+                    type: string
+                    example: お品を登録しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /foods/stats/profit:
+    get:
+      tags: [foods]
+      summary: 利益率順お品取得
+      description: |
+        販売価格と食材原価から算出した利益率の高い順にお品を返す。
+        注: 現フェーズでは items.price が食材原価のみのため、
+        利益率計算には別途販売価格が必要。
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: 利益率ランキング
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Food'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /foods/{id}:
+    get:
+      tags: [foods]
+      summary: お品詳細取得
+      description: |
+        指定 ID のお品と、その構成仕込み品リストを返す。
+        販売価格シミュレーターはこのエンドポイントで食材原価（`price`）を取得する。
+      parameters:
+        - $ref: '#/components/parameters/FoodId'
+      responses:
+        '200':
+          description: お品詳細取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Food'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [foods]
+      summary: お品更新
+      description: 指定 ID のお品を更新する。構成仕込み品を変更した場合は `price` も再計算される。
+      parameters:
+        - $ref: '#/components/parameters/FoodId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFoodRequest'
+      responses:
+        '200':
+          description: お品更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Food'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [foods]
+      summary: お品削除
+      description: |
+        指定 ID のお品を削除する。
+        削除時、この お品を構成する `item_relations` 行は CASCADE で自動削除される。
+        対応画面: 一覧（お品タブ）の削除アイコン
+      parameters:
+        - $ref: '#/components/parameters/FoodId'
+      responses:
+        '200':
+          description: お品削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: お品を削除しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'

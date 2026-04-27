@@ -1,0 +1,301 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - レポート API
+  description: |
+    ダッシュボード統計・ジャンル別集計・コスト推移・人気アイテム・データエクスポートを扱う API。
+    対応画面: ホーム画面（ダッシュボード）
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: reports
+    description: レポート・統計情報
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DashboardSummary:
+      type: object
+      properties:
+        totalIngredients:
+          type: integer
+          description: 登録食材数
+          example: 30
+        totalPreps:
+          type: integer
+          description: 登録仕込み品数
+          example: 8
+        totalFoods:
+          type: integer
+          description: 登録お品数
+          example: 4
+        avgCostRate:
+          type: number
+          format: double
+          description: 全お品の平均原価率（%）
+          example: 31.5
+
+    RecentActivity:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        type:
+          type: string
+          enum: [ingredient, prep, food]
+          example: food
+        message:
+          type: string
+          example: お品「味噌定食」を登録
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-04-27T10:00:00Z"
+
+    GenreStat:
+      type: object
+      properties:
+        genre:
+          type: string
+          example: meat
+        count:
+          type: integer
+          example: 5
+        avg_unit_price:
+          type: number
+          format: double
+          example: 1.2500
+
+    CostTrend:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-04-01"
+        avg_cost:
+          type: number
+          format: double
+          example: 280.00
+        item_count:
+          type: integer
+          example: 12
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /reports/dashboard:
+    get:
+      tags: [reports]
+      summary: ダッシュボード統計取得
+      description: |
+        ホーム画面に表示するサマリー統計と最近のアクティビティを返す。
+        対応画面: ホーム画面（`/`）
+      responses:
+        '200':
+          description: ダッシュボード統計取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      summary:
+                        $ref: '#/components/schemas/DashboardSummary'
+                      recentActivity:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RecentActivity'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/genre-stats:
+    get:
+      tags: [reports]
+      summary: ジャンル別統計取得
+      description: 食材・仕込み品・お品をジャンルごとに集計した統計を返す。
+      responses:
+        '200':
+          description: ジャンル別統計取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GenreStat'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/cost-trends:
+    get:
+      tags: [reports]
+      summary: コスト推移取得
+      description: 指定期間内の日別平均コスト推移を返す。
+      parameters:
+        - name: days
+          in: query
+          description: 取得日数（過去N日分）
+          schema:
+            type: integer
+            default: 30
+            minimum: 7
+            maximum: 365
+      responses:
+        '200':
+          description: コスト推移取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CostTrend'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/popular-items:
+    get:
+      tags: [reports]
+      summary: 人気アイテム取得
+      description: 使用頻度が高い食材・仕込み品のランキングを返す。
+      responses:
+        '200':
+          description: 人気アイテム取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: 豚バラ肉
+                        item_type:
+                          type: integer
+                          example: 1
+                        usage_count:
+                          type: integer
+                          example: 8
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports/export:
+    get:
+      tags: [reports]
+      summary: レポートエクスポート
+      description: |
+        指定した種類のデータをJSON またはCSV形式でエクスポートする。
+        CSVの場合はレスポンスの Content-Type が `text/csv` になる。
+      parameters:
+        - name: type
+          in: query
+          required: true
+          description: エクスポート対象
+          schema:
+            type: string
+            enum: [ingredients, preps, foods, summary]
+            example: ingredients
+        - name: format
+          in: query
+          description: エクスポート形式
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+      responses:
+        '200':
+          description: エクスポート成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+            text/csv:
+              schema:
+                type: string
+                example: "id,name,store,price,quantity,unit,unit_price\n1,豚バラ肉,コストコ,450,500,g,0.9"
+        '400':
+          description: 不正なパラメータ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'

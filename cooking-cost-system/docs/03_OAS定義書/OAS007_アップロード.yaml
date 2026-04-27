@@ -1,0 +1,316 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - ファイルアップロード API
+  description: |
+    ファイルのアップロード・一覧取得・削除を扱う API。
+    対応ファイル形式: jpeg / jpg / png / gif / pdf / xlsx / csv / json
+    最大ファイルサイズ: 10MB（単体）、複数アップロード時は最大5ファイルまで
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: upload
+    description: ファイルアップロード管理
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UploadedFile:
+      type: object
+      properties:
+        filename:
+          type: string
+          description: サーバー上のファイル名（UUIDプレフィックス付き）
+          example: a1b2c3d4-豚バラ価格表.csv
+        original_name:
+          type: string
+          description: アップロード時の元ファイル名
+          example: 豚バラ価格表.csv
+        size:
+          type: integer
+          description: ファイルサイズ（バイト）
+          example: 2048
+        mime_type:
+          type: string
+          description: MIMEタイプ
+          example: text/csv
+        url:
+          type: string
+          description: ファイルアクセスURL
+          example: /uploads/a1b2c3d4-豚バラ価格表.csv
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2026-04-27T10:00:00Z"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  parameters:
+    Filename:
+      name: filename
+      in: path
+      required: true
+      description: 削除対象のファイル名（サーバー上のファイル名）
+      schema:
+        type: string
+        example: a1b2c3d4-豚バラ価格表.csv
+
+  responses:
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: ファイルが見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /upload/single:
+    post:
+      tags: [upload]
+      summary: 単一ファイルアップロード
+      description: |
+        1ファイルをサーバーにアップロードする。
+        - フォームフィールド名: `file`
+        - 最大サイズ: 10MB
+        - 許可形式: jpeg / jpg / png / gif / pdf / xlsx / csv / json
+        - レート制限: 10回/1時間
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: アップロードするファイル（最大10MB）
+      responses:
+        '200':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/UploadedFile'
+                  message:
+                    type: string
+                    example: ファイルをアップロードしました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー（ファイル未指定・形式不正・サイズ超過）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                no_file:
+                  summary: ファイル未指定
+                  value:
+                    success: false
+                    error: VALIDATION_ERROR
+                    message: ファイルが選択されていません
+                    timestamp: "2026-04-27T10:00:00Z"
+                invalid_type:
+                  summary: 形式不正
+                  value:
+                    success: false
+                    error: VALIDATION_ERROR
+                    message: 許可されていないファイル形式です（許可: jpeg, jpg, png, gif, pdf, xlsx, csv, json）
+                    timestamp: "2026-04-27T10:00:00Z"
+                size_exceeded:
+                  summary: サイズ超過
+                  value:
+                    success: false
+                    error: VALIDATION_ERROR
+                    message: ファイルサイズが上限（10MB）を超えています
+                    timestamp: "2026-04-27T10:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: レート制限超過（10回/1時間）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload/multiple:
+    post:
+      tags: [upload]
+      summary: 複数ファイルアップロード
+      description: |
+        複数ファイルを一括でサーバーにアップロードする。
+        - フォームフィールド名: `files`（複数）
+        - 最大ファイル数: 5件
+        - 1ファイルあたりの最大サイズ: 10MB
+        - 許可形式: jpeg / jpg / png / gif / pdf / xlsx / csv / json
+        - レート制限: 10回/1時間
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [files]
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 5
+                  description: アップロードするファイルの配列（最大5ファイル、各10MB以内）
+      responses:
+        '200':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UploadedFile'
+                  count:
+                    type: integer
+                    description: アップロード成功ファイル数
+                    example: 3
+                  message:
+                    type: string
+                    example: 3件のファイルをアップロードしました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '400':
+          description: バリデーションエラー（ファイル未指定・件数超過・形式不正・サイズ超過）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: VALIDATION_ERROR
+                message: アップロードできるファイルは最大5件です
+                timestamp: "2026-04-27T10:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: レート制限超過（10回/1時間）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /upload/list:
+    get:
+      tags: [upload]
+      summary: アップロード済みファイル一覧取得
+      description: 認証ユーザーがアップロードしたファイルの一覧を返す。
+      responses:
+        '200':
+          description: ファイル一覧取得成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UploadedFile'
+                  count:
+                    type: integer
+                    example: 2
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /upload/{filename}:
+    delete:
+      tags: [upload]
+      summary: ファイル削除
+      description: |
+        指定したファイルをサーバーから削除する。
+        他ユーザーのファイルは削除不可（403 を返す）。
+      parameters:
+        - $ref: '#/components/parameters/Filename'
+      responses:
+        '200':
+          description: ファイル削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: ファイルを削除しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: 他ユーザーのファイルへのアクセス禁止
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: FORBIDDEN
+                message: このファイルを削除する権限がありません
+                timestamp: "2026-04-27T10:00:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'

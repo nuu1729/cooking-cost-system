@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - ヘルスチェック API
+  description: |
+    サーバー稼働状況の確認・詳細診断・Prometheus メトリクス取得を扱う API。
+    これらのエンドポイントは `/api` プレフィックスを持たず、ルートパスに直接配置される。
+    認証不要（モニタリングシステムからの疎通確認を想定）。
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:5000
+    description: ローカル開発環境（Flaskバックエンド直接）
+  - url: https://api.cooking-cost.example.com
+    description: 本番環境
+
+tags:
+  - name: health
+    description: ヘルスチェック・稼働監視
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: 基本ヘルスチェック
+      description: |
+        サーバーが起動しているかどうかを確認する最小限のエンドポイント。
+        ロードバランサーや死活監視ツールからの定期ポーリングを想定。
+        認証不要。
+      security: []
+      responses:
+        '200':
+          description: サーバー正常稼働中
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                    example: healthy
+                  message:
+                    type: string
+                    example: Backend is running!
+              example:
+                status: healthy
+                message: Backend is running!
+        '503':
+          description: サービス利用不可
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [unhealthy]
+                    example: unhealthy
+                  message:
+                    type: string
+                    example: Service unavailable
+
+  /health/detailed:
+    get:
+      tags: [health]
+      summary: 詳細ヘルスチェック
+      description: |
+        データベース接続・外部依存サービスの状態を含む詳細な診断情報を返す。
+        各コンポーネントの `status` が `ok` でない場合、全体ステータスも `degraded` または `unhealthy` になる。
+        認証不要。
+      security: []
+      responses:
+        '200':
+          description: 詳細診断取得成功（一部コンポーネントが degraded の場合も 200 を返す）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                    description: 全体ステータス
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2026-04-27T10:00:00Z"
+                  uptime:
+                    type: number
+                    description: サーバー起動からの経過秒数
+                    example: 86400
+                  components:
+                    type: object
+                    properties:
+                      database:
+                        $ref: '#/components/schemas/ComponentStatus'
+                      storage:
+                        $ref: '#/components/schemas/ComponentStatus'
+              example:
+                status: healthy
+                timestamp: "2026-04-27T10:00:00Z"
+                uptime: 86400
+                components:
+                  database:
+                    status: ok
+                    response_time_ms: 3
+                  storage:
+                    status: ok
+                    free_bytes: 10737418240
+        '503':
+          description: サービス利用不可（unhealthy）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [unhealthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  components:
+                    type: object
+
+  /metrics:
+    get:
+      tags: [health]
+      summary: Prometheusメトリクス取得
+      description: |
+        Prometheus スクレイピング形式でアプリケーションメトリクスを返す。
+        Content-Type は `text/plain; version=0.0.4` （Prometheus exposition format）。
+        Prometheus や Grafana Agent からの定期収集を想定。
+        認証不要（内部ネットワーク限定での公開を推奨）。
+      security: []
+      responses:
+        '200':
+          description: メトリクス取得成功
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP http_requests_total HTTPリクエスト総数
+                # TYPE http_requests_total counter
+                http_requests_total{method="GET",endpoint="/api/ingredients",status="200"} 1042
+                http_requests_total{method="POST",endpoint="/api/ingredients",status="201"} 38
+                # HELP http_request_duration_seconds HTTPリクエスト処理時間（秒）
+                # TYPE http_request_duration_seconds histogram
+                http_request_duration_seconds_bucket{le="0.05"} 980
+                http_request_duration_seconds_bucket{le="0.1"} 1020
+                http_request_duration_seconds_bucket{le="+Inf"} 1042
+                http_request_duration_seconds_sum 52.3
+                http_request_duration_seconds_count 1042
+                # HELP db_connections_active アクティブなDB接続数
+                # TYPE db_connections_active gauge
+                db_connections_active 3
+                # HELP process_uptime_seconds プロセス起動からの経過秒数
+                # TYPE process_uptime_seconds gauge
+                process_uptime_seconds 86400
+        '503':
+          description: メトリクス収集不可
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    ComponentStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded, error]
+          example: ok
+        response_time_ms:
+          type: number
+          description: 応答時間（ミリ秒）。データベース接続確認などに使用。
+          example: 3
+        message:
+          type: string
+          description: エラー時の詳細メッセージ
+          nullable: true
+          example: null
