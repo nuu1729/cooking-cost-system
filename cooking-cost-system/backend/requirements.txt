@@ -6,3 +6,5 @@ PyMySQL
 python-dotenv
 pytest
 click
+PyJWT>=2.8.0
+bcrypt>=4.1.0
