@@ -5,6 +5,7 @@ class Item(db.Model):
     __tablename__ = 'items'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=True, index=True)
     name = db.Column(db.String(255), nullable=False, index=True)
     item_type = db.Column(db.SmallInteger, nullable=False, index=True) # 1: 食材, 2: 仕込み品, 3: お品
     store = db.Column(db.String(100), nullable=False, index=True)
@@ -36,6 +37,7 @@ class Item(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'user_id': self.user_id,
             'name': self.name,
             'item_type': self.item_type,
             'store': self.store,

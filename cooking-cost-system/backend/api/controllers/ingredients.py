@@ -1,9 +1,10 @@
-from flask import Blueprint, request
-from sqlalchemy import func
+from flask import Blueprint, request, g
+from sqlalchemy import func, or_
 from api.database import db
 from api.models.item import Item, ItemRelation
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.utils.japanese import kana_variants
 
 ingredients_bp = Blueprint('ingredients', __name__)
 
@@ -35,9 +36,10 @@ def list_ingredients():
     if sort_order not in ('ASC', 'DESC'):
         sort_order = 'ASC'
 
-    q = Item.query.filter_by(item_type=ITEM_TYPE)
+    q = Item.query.filter_by(item_type=ITEM_TYPE, user_id=g.user_id)
     if name:
-        q = q.filter(Item.name.like(f'%{_escape_like(name)}%'))
+        variants = kana_variants(name)
+        q = q.filter(or_(*[Item.name.like(f'%{_escape_like(v)}%') for v in variants]))
     if store:
         q = q.filter(Item.store.like(f'%{_escape_like(store)}%'))
     if genre:
@@ -79,7 +81,8 @@ def create_ingredient():
     item = Item(
         name=name, item_type=ITEM_TYPE, store=store,
         price=price, quantity=quantity, unit=unit,
-        unit_price=unit_price, genre=genre, description=description
+        unit_price=unit_price, genre=genre, description=description,
+        user_id=g.user_id
     )
     db.session.add(item)
     db.session.commit()
@@ -93,9 +96,11 @@ def search_ingredients():
     q_str = request.args.get('q', '').strip()
     if not q_str:
         return error('VALIDATION_ERROR', 'q パラメータは必須です')
+    variants = kana_variants(q_str)
     items = Item.query.filter(
         Item.item_type == ITEM_TYPE,
-        Item.name.like(f'%{_escape_like(q_str)}%')
+        Item.user_id == g.user_id,
+        or_(*[Item.name.like(f'%{_escape_like(v)}%') for v in variants])
     ).order_by(Item.name.asc()).limit(20).all()
     return success([i.to_dict() for i in items], count=len(items))
 
@@ -108,7 +113,7 @@ def genre_stats():
         func.coalesce(Item.genre, 'other').label('genre'),
         func.count(Item.id).label('count'),
         func.round(func.avg(Item.unit_price), 4).label('avg_unit_price')
-    ).filter(Item.item_type == ITEM_TYPE).group_by(
+    ).filter(Item.item_type == ITEM_TYPE, Item.user_id == g.user_id).group_by(
         func.coalesce(Item.genre, 'other')
     ).order_by(func.count(Item.id).desc()).all()
 
@@ -125,7 +130,7 @@ def popular_ingredients():
         Item,
         func.count(ItemRelation.id).label('usage_count')
     ).join(ItemRelation, Item.id == ItemRelation.child_item_id
-    ).filter(Item.item_type == ITEM_TYPE
+    ).filter(Item.item_type == ITEM_TYPE, Item.user_id == g.user_id
     ).group_by(Item.id
     ).order_by(func.count(ItemRelation.id).desc()
     ).limit(limit).all()
@@ -138,7 +143,7 @@ def popular_ingredients():
 @ingredients_bp.route('/<int:item_id>', methods=['GET'])
 @require_auth
 def get_ingredient(item_id):
-    item = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    item = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not item:
         return error('NOT_FOUND', '食材が見つかりません', 404)
     return success(item.to_dict())
@@ -148,7 +153,7 @@ def get_ingredient(item_id):
 @ingredients_bp.route('/<int:item_id>', methods=['PUT'])
 @require_auth
 def update_ingredient(item_id):
-    item = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    item = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not item:
         return error('NOT_FOUND', '食材が見つかりません', 404)
 
@@ -191,7 +196,7 @@ def update_ingredient(item_id):
 @ingredients_bp.route('/<int:item_id>', methods=['DELETE'])
 @require_auth
 def delete_ingredient(item_id):
-    item = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    item = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not item:
         return error('NOT_FOUND', '食材が見つかりません', 404)
 

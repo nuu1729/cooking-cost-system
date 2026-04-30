@@ -23,53 +23,6 @@ services:
       timeout: 20s
       retries: 10
 
-  # バックエンド API
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
-    container_name: cooking-cost-backend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: development
-      PORT: 3001
-      DB_HOST: database
-      DB_USER: nuu1729
-      DB_PASSWORD: 8810HayaTake
-      DB_NAME: cooking_cost_system
-      FRONTEND_URL: http://localhost:3000
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-    ports:
-      - "3001:3001"
-    networks:
-      - cooking-network
-    depends_on:
-      database:
-        condition: service_healthy
-    command: npm run dev
-
-  # フロントエンド React
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-    container_name: cooking-cost-frontend
-    restart: unless-stopped
-    environment:
-      VITE_API_URL: http://localhost:3001/api
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
-    networks:
-      - cooking-network
-    depends_on:
-      - backend
-    command: npm run dev
-
   # phpMyAdmin (データベース管理)
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
@@ -89,7 +42,6 @@ services:
 
 volumes:
   db_data:
-
 
 networks:
   cooking-network:

@@ -101,19 +101,21 @@ const SearchIngredientPage: React.FC = () => {
     );
 
     // Helper to calculate unit price for display/sorting
+    // g/ml の場合: ¥/g（1g=1mlなので同値）
+    // 個 + isNormalizePiece ON: ¥/g（個→g変換）
+    // 個 + isNormalizePiece OFF: ¥/個
     const getUnitPrice = (item: Ingredient) => {
         let price = item.price;
         let quantity = item.quantity;
 
-        // If normalize piece is ON and item is '個'
         if (filters.isNormalizePiece && item.unit === '個') {
             const weight = parseFloat(filters.pieceToGram) || 0;
             if (weight > 0) {
-                quantity = quantity * weight; // total grams
-                // we treat it as grams now
+                quantity = quantity * weight; // 個数 × g/個 = 総グラム数
             }
         }
 
+        if (!quantity || quantity === 0) return 0;
         return price / quantity;
     };
 
@@ -151,45 +153,89 @@ const SearchIngredientPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Search Criteria Panel - Premium Card */}
-                    <div className="w-full md:w-auto bg-[#e0e0e0] rounded-[2.5rem] p-8 shadow-inner flex flex-col md:flex-row gap-8 items-center border border-white/20">
-                        <div className="space-y-3">
-                            <h3 className="text-gray-700 font-black text-lg mb-4 font-['Outfit']">検索条件</h3>
-                            <div className="space-y-4">
-                                <Switch
-                                    label="最安値"
-                                    active={filters.isLowestPrice}
-                                    onClick={() => handleFilterChange('isLowestPrice', !filters.isLowestPrice)}
-                                />
-                                <Switch
-                                    label="量を揃える"
-                                    active={filters.isNormalizeQuantity}
-                                    onClick={() => handleFilterChange('isNormalizeQuantity', !filters.isNormalizeQuantity)}
-                                />
+                    {/* Search Criteria Panel */}
+                    <div className="w-full md:w-auto bg-[#e0e0e0] rounded-[2.5rem] p-8 shadow-inner border border-white/20 min-w-[280px]">
+                        <h3 className="text-gray-700 font-black text-lg mb-5 font-['Outfit']">検索条件</h3>
+                        <div className="space-y-4">
+
+                            {/* 最安値 */}
+                            <Switch
+                                label="最安値"
+                                active={filters.isLowestPrice}
+                                onClick={() => handleFilterChange('isLowestPrice', !filters.isLowestPrice)}
+                            />
+
+                            {/* 量を揃える */}
+                            <Switch
+                                label="量を揃える"
+                                active={filters.isNormalizeQuantity}
+                                onClick={() => {
+                                    const next = !filters.isNormalizeQuantity;
+                                    setFilters(prev => ({
+                                        ...prev,
+                                        isNormalizeQuantity: next,
+                                        // OFFにしたら子オプションも連動してOFF
+                                        isNormalizePiece: next ? prev.isNormalizePiece : false,
+                                    }));
+                                }}
+                            />
+
+                            {/* 子オプション：量を揃えるに依存 */}
+                            <div className={`ml-5 pl-4 border-l-2 rounded-bl-lg transition-all duration-200
+                                ${filters.isNormalizeQuantity
+                                    ? 'border-emerald-400 opacity-100'
+                                    : 'border-gray-300 opacity-35 pointer-events-none select-none'
+                                }`}
+                            >
+                                {/* ラベル */}
+                                {!filters.isNormalizeQuantity && (
+                                    <p className="text-[10px] text-gray-400 font-bold mb-1">「量を揃える」をONにすると使えます</p>
+                                )}
+
+                                {/* 1個を別の単位に揃える */}
                                 <Switch
                                     label="1個を別の単位に揃える"
                                     active={filters.isNormalizePiece}
-                                    onClick={() => handleFilterChange('isNormalizePiece', !filters.isNormalizePiece)}
+                                    onClick={() => {
+                                        if (!filters.isNormalizeQuantity) return;
+                                        handleFilterChange('isNormalizePiece', !filters.isNormalizePiece);
+                                    }}
                                 />
-                            </div>
-                        </div>
 
-                        {/* Unit Conversion Inputs */}
-                        <div className="flex items-center gap-4 bg-white/40 p-4 rounded-3xl self-end">
-                            <div className="flex items-center gap-2">
-                                <span className="text-2xl font-black text-gray-700">1</span>
-                                <span className="font-bold text-gray-500">個</span>
+                                {/* pieceToGram 入力（isNormalizePiece ONの時のみ表示） */}
+                                {filters.isNormalizePiece && (
+                                    <div className="mt-3 ml-2">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-gray-500 whitespace-nowrap">1個 =</span>
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={filters.pieceToGram}
+                                                onChange={(e) => {
+                                                    const v = e.target.value;
+                                                    if (v === '' || /^\d*\.?\d*$/.test(v)) {
+                                                        handleFilterChange('pieceToGram', v);
+                                                    }
+                                                }}
+                                                placeholder="例: 200"
+                                                className={`w-24 bg-white border-2 rounded-xl px-2 py-1 text-center font-bold text-gray-700 outline-none transition-all
+                                                    ${(!filters.pieceToGram || parseFloat(filters.pieceToGram) <= 0)
+                                                        ? 'border-red-400 focus:border-red-500'
+                                                        : 'border-transparent focus:border-emerald-500'
+                                                    }`}
+                                            />
+                                            <span className="text-sm font-bold text-gray-500">g</span>
+                                        </div>
+                                        {(!filters.pieceToGram || parseFloat(filters.pieceToGram) <= 0) && (
+                                            <p className="text-red-500 text-xs font-bold mt-1.5 ml-1 flex items-center gap-1">
+                                                <span>⚠</span>
+                                                <span>グラム数を入力してください</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                            <div className="w-8 h-[2px] bg-gray-400"></div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    value={filters.pieceToGram}
-                                    onChange={(e) => handleFilterChange('pieceToGram', e.target.value)}
-                                    className="w-20 bg-white border-2 border-transparent focus:border-emerald-500 rounded-xl px-2 py-1 text-center font-bold text-gray-700 outline-none"
-                                />
-                                <span className="font-bold text-gray-500">g</span>
-                            </div>
+
                         </div>
                     </div>
 
@@ -246,6 +292,7 @@ const SearchIngredientPage: React.FC = () => {
                             index={index + 1}
                             isOptimal={item.id === lowestPriceId}
                             normalize={filters.isNormalizeQuantity}
+                            normalizePiece={filters.isNormalizePiece}
                             getUnitPrice={getUnitPrice}
                         />
                     ))}
@@ -276,9 +323,28 @@ const CandidateCard: React.FC<{
     index: number;
     isOptimal: boolean;
     normalize: boolean;
+    normalizePiece: boolean;
     getUnitPrice: (item: Ingredient) => number;
-}> = ({ item, index, isOptimal, normalize, getUnitPrice }) => {
+}> = ({ item, index, isOptimal, normalize, normalizePiece, getUnitPrice }) => {
     const unitPrice = getUnitPrice(item);
+
+    // 緑色単価の表示内容を決定
+    // ・g / ml → ¥X / 100g（1g=1ml なので g に統一）
+    // ・個 + 変換あり → ¥X / 100g（個→g換算済み）
+    // ・個 + 変換なし → ¥X / 個
+    const unitPriceDisplay = (() => {
+        const isPiece = item.unit === '個';
+        if (isPiece && !normalizePiece) {
+            // 1個あたりの値段
+            const pricePerPiece = item.quantity > 0
+                ? Math.round((item.price / item.quantity) * 10) / 10
+                : 0;
+            return { value: pricePerPiece.toLocaleString(), label: '/ 個' };
+        }
+        // g / ml（または個→g変換済み）→ 100g あたり
+        const per100 = Math.round(unitPrice * 100);
+        return { value: per100.toLocaleString(), label: '/ 100g' };
+    })();
 
     return (
         <motion.div
@@ -314,7 +380,7 @@ const CandidateCard: React.FC<{
                     {normalize && (
                         <div className="mt-2 text-right">
                             <span className="text-emerald-600 font-bold text-sm">
-                                (¥{Math.round(unitPrice * 100).toLocaleString()} / 100{item.unit === '個' ? '単位' : item.unit})
+                                (¥{unitPriceDisplay.value} {unitPriceDisplay.label})
                             </span>
                         </div>
                     )}

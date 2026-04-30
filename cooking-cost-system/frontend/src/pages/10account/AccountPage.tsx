@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { accountStore, AccountInfo } from '../../stores/accountStore';
 import AccountIcon from '../../components/features/AccountIcon';
 import { authApi } from '../../api';
+import { toBackendUrl } from '../../utils/url';
 import './AccountPage.scss';
 
 const MAX_FILE_SIZE_MB = 5;
@@ -153,7 +154,7 @@ const AccountPage: React.FC = () => {
             try {
                 const res = await authApi.uploadIcon(iconFile);
                 if (res.success && res.data) {
-                    accountStore.updateIconUrl(res.data.icon_url);
+                    accountStore.updateIconUrl(toBackendUrl(res.data.icon_url));
                 }
             } catch {
                 setErrorMsg('アイコン画像のアップロードに失敗しました。');
@@ -170,7 +171,7 @@ const AccountPage: React.FC = () => {
             try {
                 const res = await authApi.uploadHomeBg(bgFile);
                 if (res.success && res.data) {
-                    accountStore.updateHomeBgUrl(res.data.home_bg_url);
+                    accountStore.updateHomeBgUrl(toBackendUrl(res.data.home_bg_url));
                 }
             } catch {
                 setErrorMsg('背景画像のアップロードに失敗しました。');
@@ -344,10 +345,13 @@ const AccountPage: React.FC = () => {
                         </section>
                     </div>{/* ／右列 */}
 
-                    {/* ── フッター：ログアウト（左）/ 保存（右） ── */}
+                    {/* ── フッター：ログアウト（左）/ 戻る（中央）/ 保存（右） ── */}
                     <div className="account-body__footer">
                         <button className="account-btn account-btn--logout" onClick={handleLogout} type="button">
                             ログアウト
+                        </button>
+                        <button className="account-btn account-btn--back" onClick={() => navigate(-1)} type="button">
+                            戻る
                         </button>
                         <button className="account-btn account-btn--primary" onClick={handleSave} type="button">
                             保存する

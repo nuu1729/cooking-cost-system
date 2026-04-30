@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import Layout from './components/common/Layout';
 import { authApi } from './api';
 import { accountStore } from './stores/accountStore';
+import { toBackendUrl } from './utils/url';
 
 // Pages
 // Pages
@@ -29,7 +30,13 @@ const App: React.FC = () => {
         authApi.me().then(res => {
             if (res.success && res.data) {
                 const u = res.data as any;
-                accountStore.initForUser(u.id, u.username, u.email, u.icon_url ?? null, u.home_bg_url ?? null);
+                accountStore.initForUser(
+                    u.id,
+                    u.username,
+                    u.email,
+                    toBackendUrl(u.icon_url),
+                    toBackendUrl(u.home_bg_url),
+                );
             }
         }).catch((err: any) => {
             const status = err?.response?.status;

@@ -1,8 +1,10 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, g
+from sqlalchemy import or_
 from api.database import db
 from api.models.item import Item, ItemRelation
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.utils.japanese import kana_variants
 
 preps_bp = Blueprint('preps', __name__)
 
@@ -30,9 +32,10 @@ def list_preps():
     if sort_order not in ('ASC', 'DESC'):
         sort_order = 'ASC'
 
-    q = Item.query.filter_by(item_type=ITEM_TYPE)
+    q = Item.query.filter_by(item_type=ITEM_TYPE, user_id=g.user_id)
     if name:
-        q = q.filter(Item.name.like(f'%{_escape_like(name)}%'))
+        variants = kana_variants(name)
+        q = q.filter(or_(*[Item.name.like(f'%{_escape_like(v)}%') for v in variants]))
     if genre:
         q = q.filter(Item.genre == genre)
 
@@ -65,7 +68,7 @@ def create_prep():
     ingredient_ids = [i.get('ingredient_id') for i in items_list]
     ingredients = {
         ing.id: ing for ing in
-        Item.query.filter(Item.id.in_(ingredient_ids), Item.item_type == 1).all()
+        Item.query.filter(Item.id.in_(ingredient_ids), Item.item_type == 1, Item.user_id == g.user_id).all()
     }
     for ing_id in ingredient_ids:
         if ing_id not in ingredients:
@@ -88,7 +91,8 @@ def create_prep():
     prep = Item(
         name=name, item_type=ITEM_TYPE, store='自家製',
         price=total_cost, quantity=quantity, unit=unit,
-        unit_price=unit_price, genre=genre, description=description
+        unit_price=unit_price, genre=genre, description=description,
+        user_id=g.user_id
     )
     db.session.add(prep)
     db.session.flush()
@@ -111,7 +115,7 @@ def check_name():
     name = request.args.get('name', '').strip()
     if not name:
         return error('VALIDATION_ERROR', 'name パラメータは必須です')
-    exists = Item.query.filter_by(item_type=ITEM_TYPE, name=name).first() is not None
+    exists = Item.query.filter_by(item_type=ITEM_TYPE, name=name, user_id=g.user_id).first() is not None
     return success({'exists': exists})
 
 
@@ -121,9 +125,10 @@ def check_name():
 def search_preps():
     q = request.args.get('q', '').strip()
     limit = min(request.args.get('limit', 10, type=int), 50)
-    query = Item.query.filter_by(item_type=ITEM_TYPE)
+    query = Item.query.filter_by(item_type=ITEM_TYPE, user_id=g.user_id)
     if q:
-        query = query.filter(Item.name.like(f'%{_escape_like(q)}%'))
+        variants = kana_variants(q)
+        query = query.filter(or_(*[Item.name.like(f'%{_escape_like(v)}%') for v in variants]))
     items = query.order_by(Item.name).limit(limit).all()
     return success([i.to_dict() for i in items])
 
@@ -132,7 +137,7 @@ def search_preps():
 @preps_bp.route('/<int:item_id>', methods=['GET'])
 @require_auth
 def get_prep(item_id):
-    prep = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    prep = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not prep:
         return error('NOT_FOUND', '仕込み品が見つかりません', 404)
 
@@ -158,7 +163,7 @@ def get_prep(item_id):
 @preps_bp.route('/<int:item_id>', methods=['DELETE'])
 @require_auth
 def delete_prep(item_id):
-    prep = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    prep = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not prep:
         return error('NOT_FOUND', '仕込み品が見つかりません', 404)
 

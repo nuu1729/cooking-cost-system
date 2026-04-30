@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, g
 from api.database import db
 from api.models.item import Item, ItemRelation
 from api.utils.response import success, error
@@ -29,7 +29,7 @@ def list_foods():
     if sort_order not in ('ASC', 'DESC'):
         sort_order = 'ASC'
 
-    q = Item.query.filter_by(item_type=ITEM_TYPE)
+    q = Item.query.filter_by(item_type=ITEM_TYPE, user_id=g.user_id)
     if name:
         q = q.filter(Item.name.like(f'%{_escape_like(name)}%'))
 
@@ -62,7 +62,7 @@ def create_food():
     prep_ids = [i.get('prep_id') for i in items_list]
     preps = {
         p.id: p for p in
-        Item.query.filter(Item.id.in_(prep_ids), Item.item_type == 2).all()
+        Item.query.filter(Item.id.in_(prep_ids), Item.item_type == 2, Item.user_id == g.user_id).all()
     }
     for prep_id in prep_ids:
         if prep_id not in preps:
@@ -86,7 +86,8 @@ def create_food():
     food = Item(
         name=name, item_type=ITEM_TYPE, store='自家製',
         price=total_cost, quantity=quantity, unit=unit,
-        unit_price=unit_price, genre=genre, description=description
+        unit_price=unit_price, genre=genre, description=description,
+        user_id=g.user_id
     )
     db.session.add(food)
     db.session.flush()
@@ -115,7 +116,7 @@ def profit_stats():
 @foods_bp.route('/<int:item_id>', methods=['GET'])
 @require_auth
 def get_food(item_id):
-    food = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    food = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not food:
         return error('NOT_FOUND', 'お品が見つかりません', 404)
 
@@ -126,6 +127,7 @@ def get_food(item_id):
     preps = [{
         'prep_id': rel.child_item_id,
         'prep_name': prep.name,
+        'prep_unit': prep.unit,
         'prep_genre': prep.genre,
         'prep_unit_price': float(prep.unit_price),
         'amount': float(rel.amount),
@@ -142,7 +144,7 @@ def get_food(item_id):
 @foods_bp.route('/<int:item_id>', methods=['PUT'])
 @require_auth
 def update_food(item_id):
-    food = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    food = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not food:
         return error('NOT_FOUND', 'お品が見つかりません', 404)
 
@@ -170,7 +172,7 @@ def update_food(item_id):
         prep_ids = [i.get('prep_id') for i in items_list]
         preps = {
             p.id: p for p in
-            Item.query.filter(Item.id.in_(prep_ids), Item.item_type == 2).all()
+            Item.query.filter(Item.id.in_(prep_ids), Item.item_type == 2, Item.user_id == g.user_id).all()
         }
         for prep_id in prep_ids:
             if prep_id not in preps:
@@ -204,7 +206,7 @@ def update_food(item_id):
 @foods_bp.route('/<int:item_id>', methods=['DELETE'])
 @require_auth
 def delete_food(item_id):
-    food = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE).first()
+    food = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
     if not food:
         return error('NOT_FOUND', 'お品が見つかりません', 404)
 

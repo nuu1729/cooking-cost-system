@@ -39,16 +39,33 @@ const PrepPage: React.FC = () => {
                     const res = await prepApi.getById(Number(id));
                     if (res.success && res.data) {
                         const data = res.data;
-                        setPrepName(data.prep_name || data.name);
-                        setYieldAmount(String(data.yield_amount || 0));
-                        if (data.yield_unit) setYieldUnit(data.yield_unit as any);
-                        if (data.items) {
-                            setItems(data.items.map((it: any) => ({
-                                id: Math.random().toString(36).substr(2, 9),
-                                ...it,
-                                ingredient: it.ingredient || { name: '読み込み中...', store: '-' }
-                            })));
-                        }
+
+                        // バックエンドは name / quantity / unit で返す
+                        // フロントの state名 (prep_name / yield_amount / yield_unit) と異なるため両方に対応
+                        setPrepName(data.prep_name || data.name || '');
+                        setYieldAmount(String(data.yield_amount ?? data.quantity ?? 0));
+                        const unitVal = data.yield_unit || data.unit;
+                        if (unitVal) setYieldUnit(unitVal as any);
+
+                        // バックエンドは "ingredients" キーで返す
+                        // (get_prep が ingredients リストを返す構造)
+                        const ingredientsList: any[] = data.items || data.ingredients || [];
+                        setItems(ingredientsList.map((it: any) => ({
+                            id: Math.random().toString(36).substr(2, 9),
+                            ingredient_id: it.ingredient_id,
+                            amount: Number(it.amount),
+                            unit: it.unit || it.ingredient_unit || '',
+                            cost: Number(it.cost),
+                            ingredient: it.ingredient || {
+                                id: it.ingredient_id,
+                                name: it.ingredient_name || '(不明)',
+                                store: it.store || '-',
+                                unit: it.ingredient_unit || '',
+                                price: 0,
+                                quantity: 1,
+                                unit_price: 0,
+                            }
+                        })));
                     }
                 } catch (e) {
                     console.error('Failed to load prep by ID', e);
@@ -307,10 +324,18 @@ const PrepPage: React.FC = () => {
                                             </div>
                                             <div className="ic-actions">
                                                 <button className="ic-btn ic-btn--edit" onClick={() => handleEditItem(item)} title="編集">
-                                                    <img src="/icons/edit_icon.png" alt="編集" width={16} />
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width={14}>
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                    </svg>
                                                 </button>
                                                 <button className="ic-btn ic-btn--del" onClick={() => handleDeleteItem(item.id!)} title="削除">
-                                                    <img src="/icons/delete_icon.png" alt="削除" width={16} />
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" width={14}>
+                                                        <polyline points="3 6 5 6 21 6" />
+                                                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                                        <path d="M10 11v6M14 11v6" />
+                                                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                                    </svg>
                                                 </button>
                                             </div>
                                         </motion.div>

@@ -24,7 +24,18 @@ export const prepApi = {
 
     // 仕込み作成
     create: async (data: CreatePrepRequest): Promise<ApiResponse<any>> => {
-        const response = await apiClient.post('/preps', data);
+        // バックエンドの期待するフィールド名に変換:
+        //   prep_name  → name
+        //   yield_amount → quantity
+        //   yield_unit   → unit
+        const payload = {
+            name: data.prep_name,
+            quantity: data.yield_amount,
+            unit: data.yield_unit,
+            total_cost: data.total_cost,
+            items: data.items,
+        };
+        const response = await apiClient.post('/preps', payload);
         return response.data;
     },
 
