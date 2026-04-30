@@ -30,7 +30,7 @@ export const authApi = {
         const form = new FormData();
         form.append('file', file);
         const response = await apiClient.post('auth/upload-icon', form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+            headers: { 'Content-Type': undefined },
         });
         return response.data;
     },
@@ -39,7 +39,7 @@ export const authApi = {
         const form = new FormData();
         form.append('file', file);
         const response = await apiClient.post('auth/upload-home-bg', form, {
-            headers: { 'Content-Type': 'multipart/form-data' },
+            headers: { 'Content-Type': undefined },
         });
         return response.data;
     },

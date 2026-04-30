@@ -41,7 +41,7 @@ auth_bp = Blueprint('auth', __name__)
 def _generate_token(user_id: int, secret: str) -> tuple[str, str]:
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     token = jwt.encode(
-        {'sub': user_id, 'exp': expires_at},
+        {'sub': str(user_id), 'exp': expires_at},
         secret,
         algorithm='HS256'
     )

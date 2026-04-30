@@ -115,6 +115,19 @@ def check_name():
     return success({'exists': exists})
 
 
+# GET /api/preps/search
+@preps_bp.route('/search', methods=['GET'])
+@require_auth
+def search_preps():
+    q = request.args.get('q', '').strip()
+    limit = min(request.args.get('limit', 10, type=int), 50)
+    query = Item.query.filter_by(item_type=ITEM_TYPE)
+    if q:
+        query = query.filter(Item.name.like(f'%{_escape_like(q)}%'))
+    items = query.order_by(Item.name).limit(limit).all()
+    return success([i.to_dict() for i in items])
+
+
 # GET /api/preps/<id>
 @preps_bp.route('/<int:item_id>', methods=['GET'])
 @require_auth

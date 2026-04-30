@@ -46,14 +46,14 @@ def list_foods():
 def create_food():
     body = request.get_json(silent=True) or {}
     name = (body.get('name') or '').strip()
-    quantity = body.get('quantity')
-    unit = (body.get('unit') or '').strip()
+    quantity = body.get('quantity', 1)
+    unit = (body.get('unit') or '食分').strip()
     genre = body.get('genre')
     description = body.get('description')
     items_list = body.get('items') or []
 
-    if not name or quantity is None or not unit:
-        return error('VALIDATION_ERROR', 'name・quantity・unit は必須です')
+    if not name:
+        return error('VALIDATION_ERROR', 'name は必須です')
     if float(quantity) <= 0:
         return error('VALIDATION_ERROR', 'quantity は 0 より大きい値で入力してください')
     if not items_list:
