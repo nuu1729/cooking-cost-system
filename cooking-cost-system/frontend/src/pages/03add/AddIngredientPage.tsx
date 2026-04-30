@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ingredientApi } from '@/api';
 import toast from 'react-hot-toast';
+import BarcodeScanner from '@/components/features/BarcodeScanner';
 
 // Speech Recognition Types (for TypeScript)
 declare global {
@@ -35,6 +36,9 @@ const AddIngredientPage: React.FC = () => {
     // Voice Input State
     const [isListening, setIsListening] = useState(false);
     const [lastTranscript, setLastTranscript] = useState('');
+
+    // Barcode Scanner State
+    const [showScanner, setShowScanner] = useState(false);
 
     // 半角数字のみ許可するバリデーション関数
     const isHalfWidthNumber = (value: string) => /^\d+(\.\d+)?$/.test(value);
@@ -213,6 +217,14 @@ const AddIngredientPage: React.FC = () => {
         recognition.start();
     };
 
+    // Barcode detected callback
+    const handleBarcodeDetected = useCallback((productName: string, _barcode: string) => {
+        setShowScanner(false);
+        setFormData(prev => ({ ...prev, name: productName }));
+        setErrors(prev => ({ ...prev, name: undefined }));
+        toast.success(`「${productName}」を商品名に入力しました`);
+    }, []);
+
     // Keyboard support for Modal
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -389,6 +401,18 @@ const AddIngredientPage: React.FC = () => {
                         </motion.button>
 
                         <motion.button
+                            onClick={() => setShowScanner(true)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="w-full py-8 rounded-[2rem] bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white flex flex-col items-center justify-center gap-3 shadow-xl shadow-orange-200 hover:shadow-orange-300 transition-all duration-300"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 3.5V16M4 8h4m8-4h4M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z" />
+                            </svg>
+                            <span className="text-xl font-bold font-['Outfit']">バーコードで入力</span>
+                        </motion.button>
+
+                        <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={handlePreSubmit}
@@ -414,6 +438,14 @@ const AddIngredientPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Barcode Scanner Modal */}
+            {showScanner && (
+                <BarcodeScanner
+                    onDetected={handleBarcodeDetected}
+                    onClose={() => setShowScanner(false)}
+                />
+            )}
 
             {/* Confirmation Modal */}
             <AnimatePresence>

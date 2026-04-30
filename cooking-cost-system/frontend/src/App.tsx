@@ -1,6 +1,8 @@
-import React, { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/common/Layout';
+import { authApi } from './api';
+import { accountStore } from './stores/accountStore';
 
 // Pages
 // Pages
@@ -18,6 +20,31 @@ import ListPage from './pages/06list/list';
 import AccountPage from './pages/10account/AccountPage';
 
 const App: React.FC = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        const token = localStorage.getItem('authToken');
+        if (!token) return;
+        authApi.me().then(res => {
+            if (res.success && res.data) {
+                const u = res.data as any;
+                accountStore.initForUser(u.id, u.username, u.email, u.icon_url ?? null, u.home_bg_url ?? null);
+            }
+        }).catch((err: any) => {
+            const status = err?.response?.status;
+            const code = err?.response?.data?.error;
+            if (status === 401 && code === 'UNAUTHORIZED') {
+                localStorage.removeItem('authToken');
+                // ログイン・サインアップ以外のページにいる場合はログインへ遷移
+                const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+                if (!isAuthPage) {
+                    navigate('/login');
+                }
+            }
+        });
+    }, []);
+
     return (
         <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">読み込み中...</div>}>
             <Routes>

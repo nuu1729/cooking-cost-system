@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from api.database import db
 from api.error import register_error_handlers
@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 def create_app():
     app = Flask(__name__)
 
-    CORS(app, resources={r'/api/*': {'origins': '*'}})
+    CORS(app, resources={r'/api/*': {'origins': '*'}, r'/uploads/*': {'origins': '*'}})
 
     env = os.environ.get('FLASK_ENV', 'development')
     if env == 'production':
@@ -52,6 +52,11 @@ def create_app():
                 'database': {'status': 'ok' if db_ok else 'error', 'response_time_ms': db_ms}
             }
         ), 200 if db_ok else 503
+
+    @app.route('/uploads/<path:filename>', methods=['GET'])
+    def serve_upload(filename):
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        return send_from_directory(upload_dir, filename)
 
     @app.route('/', methods=['GET'])
     def index():

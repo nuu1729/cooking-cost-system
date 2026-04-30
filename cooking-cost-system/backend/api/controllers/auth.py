@@ -1,11 +1,39 @@
 from flask import Blueprint, request, g, current_app
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 import jwt
 import bcrypt
+import os
+import uuid
 from api.database import db
 from api.models.user import User
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+
+def _allowed_file(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def _upload_dir() -> str:
+    base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(base, 'uploads')
+
+def _save_file(file, subfolder: str) -> str:
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    save_dir = os.path.join(_upload_dir(), subfolder)
+    os.makedirs(save_dir, exist_ok=True)
+    file.save(os.path.join(save_dir, filename))
+    return f"/uploads/{subfolder}/{filename}"
+
+def _delete_old_file(url: Optional[str]):
+    if not url:
+        return
+    rel = url.lstrip('/')
+    abs_path = os.path.join(_upload_dir(), *rel.split('/')[1:])
+    if os.path.exists(abs_path):
+        os.remove(abs_path)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -53,15 +81,19 @@ def register():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     body = request.get_json(silent=True) or {}
-    username = (body.get('username') or '').strip()
+    identifier = (body.get('username') or body.get('email') or '').strip()
     password = body.get('password') or ''
 
-    if not username or not password:
-        return error('VALIDATION_ERROR', 'username と password は必須です')
+    if not identifier or not password:
+        return error('VALIDATION_ERROR', 'メールアドレスとパスワードは必須です')
 
-    user = User.query.filter_by(username=username).first()
-    if not user or not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
-        return error('UNAUTHORIZED', 'ユーザー名またはパスワードが正しくありません', 401)
+    user = User.query.filter(
+        (User.email == identifier) | (User.username == identifier)
+    ).first()
+    if not user:
+        return error('USER_NOT_FOUND', 'このアカウントは登録されていません', 404)
+    if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+        return error('WRONG_PASSWORD', 'パスワードが正しくありません', 401)
     if not user.is_active:
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
 
@@ -164,3 +196,75 @@ def update_password():
     user.password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
     db.session.commit()
     return success(message='パスワードを変更しました')
+
+
+# POST /api/auth/upload-icon
+@auth_bp.route('/upload-icon', methods=['POST'])
+@require_auth
+def upload_icon():
+    if 'file' not in request.files:
+        return error('VALIDATION_ERROR', 'file フィールドが必要です')
+    file = request.files['file']
+    if not file or file.filename == '':
+        return error('VALIDATION_ERROR', 'ファイルが選択されていません')
+    if not _allowed_file(file.filename):
+        return error('VALIDATION_ERROR', '許可されていないファイル形式です（jpg/png/gif/webp）')
+
+    user = User.query.get(g.user_id)
+    if not user:
+        return error('NOT_FOUND', 'ユーザーが見つかりません', 404)
+
+    _delete_old_file(user.icon_url)
+    url = _save_file(file, 'icons')
+    user.icon_url = url
+    db.session.commit()
+    return success({'icon_url': url})
+
+
+# POST /api/auth/upload-home-bg
+@auth_bp.route('/upload-home-bg', methods=['POST'])
+@require_auth
+def upload_home_bg():
+    if 'file' not in request.files:
+        return error('VALIDATION_ERROR', 'file フィールドが必要です')
+    file = request.files['file']
+    if not file or file.filename == '':
+        return error('VALIDATION_ERROR', 'ファイルが選択されていません')
+    if not _allowed_file(file.filename):
+        return error('VALIDATION_ERROR', '許可されていないファイル形式です（jpg/png/gif/webp）')
+
+    user = User.query.get(g.user_id)
+    if not user:
+        return error('NOT_FOUND', 'ユーザーが見つかりません', 404)
+
+    _delete_old_file(user.home_bg_url)
+    url = _save_file(file, 'home_bg')
+    user.home_bg_url = url
+    db.session.commit()
+    return success({'home_bg_url': url})
+
+
+# DELETE /api/auth/upload-icon
+@auth_bp.route('/upload-icon', methods=['DELETE'])
+@require_auth
+def delete_icon():
+    user = User.query.get(g.user_id)
+    if not user:
+        return error('NOT_FOUND', 'ユーザーが見つかりません', 404)
+    _delete_old_file(user.icon_url)
+    user.icon_url = None
+    db.session.commit()
+    return success(message='アイコンを削除しました')
+
+
+# DELETE /api/auth/upload-home-bg
+@auth_bp.route('/upload-home-bg', methods=['DELETE'])
+@require_auth
+def delete_home_bg():
+    user = User.query.get(g.user_id)
+    if not user:
+        return error('NOT_FOUND', 'ユーザーが見つかりません', 404)
+    _delete_old_file(user.home_bg_url)
+    user.home_bg_url = None
+    db.session.commit()
+    return success(message='背景画像を削除しました')
