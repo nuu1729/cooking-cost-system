@@ -2,17 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { accountStore } from '../../stores/accountStore';
 
-const DEFAULT_BG = '/images/ming_outlook.jpeg';
-const DEFAULT_BG_FALLBACK = '/images/ming_outlook.png';
-
 const HomePage: React.FC = () => {
-    const [bgUrl, setBgUrl] = useState<string | null>(accountStore.get().homeBgDataUrl);
+    const [bgUrl, setBgUrl] = useState<string | null>(accountStore.get().homeBgUrl);
 
-    // アカウント情報が更新されたら背景画像を再取得
     useEffect(() => {
         const handler = (e: Event) => {
             const custom = e as CustomEvent;
-            setBgUrl(custom.detail.homeBgDataUrl ?? null);
+            setBgUrl(custom.detail.homeBgUrl ?? null);
         };
         window.addEventListener('account-updated', handler);
         return () => window.removeEventListener('account-updated', handler);
@@ -35,7 +31,7 @@ const HomePage: React.FC = () => {
             </div>
 
             {/* Right side - Image (35%) */}
-            <div className="w-[35%] relative overflow-hidden bg-gray-100">
+            <div className="w-[35%] relative overflow-hidden">
                 {bgUrl ? (
                     <img
                         src={bgUrl}
@@ -43,16 +39,9 @@ const HomePage: React.FC = () => {
                         className="absolute inset-0 w-full h-full object-cover object-center"
                     />
                 ) : (
-                    <img
-                        src={DEFAULT_BG}
-                        alt="Mingering Diner Exterior"
-                        className="absolute inset-0 w-full h-full object-cover object-center"
-                        onError={(e) => {
-                            (e.target as HTMLImageElement).src = DEFAULT_BG_FALLBACK;
-                        }}
-                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300" />
                 )}
-                {/* Shadow overlay at the junction (vertical line) */}
+                {/* Shadow overlay at the junction */}
                 <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-black/20 to-transparent pointer-events-none" />
             </div>
         </div>

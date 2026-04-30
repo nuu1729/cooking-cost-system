@@ -65,7 +65,7 @@
         grid-column: 1 / -1;   // 2カラム全幅
         display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
         gap: 16px;
         padding-top: 16px;
         margin-top: 8px;
@@ -234,6 +234,18 @@
 
         &:hover {
             background: #fdecea;
+        }
+    }
+
+    &--logout {
+        background: transparent;
+        color: #666;
+        border: 1px solid #bbb;
+
+        &:hover {
+            background: #f5f5f5;
+            border-color: #888;
+            color: #333;
         }
     }
 }

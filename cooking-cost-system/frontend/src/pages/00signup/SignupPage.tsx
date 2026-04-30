@@ -5,8 +5,10 @@ import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { signinApi } from '@/api';
+import { accountStore } from '@/stores/accountStore';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 // Validation Schema
 const schema = yup.object({
@@ -74,20 +76,27 @@ const SignupPage: React.FC = () => {
         if (!pendingData) return;
 
         try {
-            console.log('Registering (Final):', pendingData);
             const response = await signinApi.register({
                 username: pendingData.name,
                 email: pendingData.email,
                 password: pendingData.password
             });
-            if (response.success) {
+            if (response.success && response.data) {
+                const data = response.data as any;
+                localStorage.setItem('authToken', data.token);
+                accountStore.initForUser(data.user.id, data.user.username, data.user.email, data.user.icon_url ?? null, data.user.home_bg_url ?? null);
                 setIsConfirmOpen(false);
-                navigate('/login');
+                navigate('/');
             }
-        } catch (error) {
-            console.error(error);
-            setErrorMessage('アカウント作成に失敗しました。');
+        } catch (err: any) {
             setIsConfirmOpen(false);
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message;
+            if (status === 409) {
+                setErrorMessage(`${message || 'このユーザー名またはメールアドレスは既に登録されています。'} → ログインページからサインインしてください。`);
+            } else {
+                setErrorMessage(message || 'アカウント作成に失敗しました。時間をおいて再度お試しください。');
+            }
         }
     };
 
@@ -123,8 +132,8 @@ const SignupPage: React.FC = () => {
                         className="bg-[#D9D9D9] p-6 md:p-8 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
                     >
                         {/* Icon */}
-                        <div className="mb-3">
-                            <img src="/icons/Authentication_icon.png" alt="Auth Icon" className="w-20 h-20 object-contain" />
+                        <div className="bg-blue-100 rounded-2xl p-4 mb-4 border-2 border-white shadow-sm">
+                            <AccountCircleIcon style={{ fontSize: 48, color: '#3B82F6' }} />
                         </div>
 
                         {/* Title */}
@@ -261,8 +270,17 @@ const SignupPage: React.FC = () => {
 
                             {/* Error Box */}
                             {errorMessage && (
-                                <div className="bg-red-100 text-red-600 text-xs p-2 rounded text-center border border-red-200">
-                                    {errorMessage}
+                                <div className="bg-red-100 text-red-600 text-xs p-3 rounded border border-red-200 space-y-2">
+                                    <p className="text-center">{errorMessage}</p>
+                                    <div className="text-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/login')}
+                                            className="text-[#1E90FF] font-bold hover:underline text-xs"
+                                        >
+                                            ログインページへ →
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 

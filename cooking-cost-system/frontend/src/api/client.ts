@@ -68,13 +68,19 @@ apiClient.interceptors.response.use(
             data: error.response?.data,
         });
         
-        if (error.response?.status === 401) {
+        const url = error.config?.url ?? '';
+        // login/register はページ側でエラーを処理するため除外
+        // auth/me・auth/status はApp起動時のセッション復元呼び出しのため除外（App.tsx の catch で処理）
+        const isLoginOrRegister = url.includes('auth/login') || url.includes('auth/register');
+        const isSessionCheck = url.includes('auth/me') || url.includes('auth/status');
+
+        if (error.response?.status === 401 && !isLoginOrRegister && !isSessionCheck) {
             localStorage.removeItem('authToken');
             window.location.href = '/login';
             return Promise.reject(error);
         }
-        
-        if (!error.config?.url?.includes('/auth/')) {
+
+        if (!isLoginOrRegister && !isSessionCheck) {
             toast.error(errorMessage);
         }
         
