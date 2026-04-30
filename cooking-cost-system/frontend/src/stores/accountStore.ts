@@ -1,49 +1,56 @@
-/**
- * アカウント情報のストア（localStorageベース）
- * 将来的にはAPIと連携することを想定したシンプルな実装
- */
-
-const STORAGE_KEY = 'account_info';
-
 export interface AccountInfo {
+    userId: number | null;
     displayName: string;
     email: string;
-    iconDataUrl: string | null;    // base64エンコードされたアカウントアイコン
-    homeBgDataUrl: string | null;  // base64エンコードされたホーム画面背景画像
+    iconUrl: string | null;      // サーバー上の画像URL
+    homeBgUrl: string | null;    // サーバー上の画像URL
 }
 
-const DEFAULT_ACCOUNT: AccountInfo = {
+const EMPTY: AccountInfo = {
+    userId: null,
     displayName: '',
     email: '',
-    iconDataUrl: null,
-    homeBgDataUrl: null,
+    iconUrl: null,
+    homeBgUrl: null,
 };
 
+let current: AccountInfo = { ...EMPTY };
+
+function dispatch(info: AccountInfo) {
+    window.dispatchEvent(new CustomEvent('account-updated', { detail: info }));
+}
+
 export const accountStore = {
+    initForUser(userId: number, username: string, email: string, iconUrl: string | null = null, homeBgUrl: string | null = null): AccountInfo {
+        current = { userId, displayName: username, email, iconUrl, homeBgUrl };
+        dispatch(current);
+        return { ...current };
+    },
+
     get(): AccountInfo {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return { ...DEFAULT_ACCOUNT };
-            return { ...DEFAULT_ACCOUNT, ...JSON.parse(raw) };
-        } catch {
-            return { ...DEFAULT_ACCOUNT };
-        }
+        return { ...current };
     },
 
-    save(info: Partial<AccountInfo>): AccountInfo {
-        const current = this.get();
-        const updated = { ...current, ...info };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        // カスタムイベントで変更を通知
-        window.dispatchEvent(new CustomEvent('account-updated', { detail: updated }));
-        return updated;
+    updateProfile(displayName: string, email: string): AccountInfo {
+        current = { ...current, displayName, email };
+        dispatch(current);
+        return { ...current };
     },
 
-    clearIcon(): AccountInfo {
-        return this.save({ iconDataUrl: null });
+    updateIconUrl(iconUrl: string | null): AccountInfo {
+        current = { ...current, iconUrl };
+        dispatch(current);
+        return { ...current };
     },
 
-    clearHomeBg(): AccountInfo {
-        return this.save({ homeBgDataUrl: null });
+    updateHomeBgUrl(homeBgUrl: string | null): AccountInfo {
+        current = { ...current, homeBgUrl };
+        dispatch(current);
+        return { ...current };
+    },
+
+    clear(): void {
+        current = { ...EMPTY };
+        dispatch(current);
     },
 };

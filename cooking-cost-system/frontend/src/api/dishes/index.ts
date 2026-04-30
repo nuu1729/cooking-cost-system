@@ -10,7 +10,7 @@ export const dishApi = {
 
     // お品作成
     createOhi: async (data: CreateOhiRequest): Promise<ApiResponse<any>> => {
-        const response = await apiClient.post('/dishes', data);
+        const response = await apiClient.post('/foods', data);
         return response.data;
     },
 
@@ -25,37 +25,37 @@ export const dishApi = {
         limit?: number;
         offset?: number;
     }): Promise<ApiResponse<Dish[]>> => {
-        const response = await apiClient.get('/dishes', { params });
+        const response = await apiClient.get('/foods', { params });
         return response.data;
     },
-    
+
     // 料理詳細取得（食材付き）
     getById: async (id: number): Promise<ApiResponse<Dish>> => {
-        const response = await apiClient.get(`/dishes/${id}`);
+        const response = await apiClient.get(`/foods/${id}`);
         return response.data;
     },
-    
+
     // 料理作成
     create: async (data: CreateDishRequest): Promise<ApiResponse<Dish>> => {
-        const response = await apiClient.post('/dishes', data);
+        const response = await apiClient.post('/foods', data);
         return response.data;
     },
-    
+
     // 料理更新
     update: async (id: number, data: Partial<CreateDishRequest>): Promise<ApiResponse<Dish>> => {
-        const response = await apiClient.put(`/dishes/${id}`, data);
+        const response = await apiClient.put(`/foods/${id}`, data);
         return response.data;
     },
-    
+
     // 料理削除
     delete: async (id: number): Promise<ApiResponse<void>> => {
-        const response = await apiClient.delete(`/dishes/${id}`);
+        const response = await apiClient.delete(`/foods/${id}`);
         return response.data;
     },
-    
+
     // ジャンル別統計
     getGenreStats: async (): Promise<ApiResponse<any[]>> => {
-        const response = await apiClient.get('/dishes/stats/genre');
+        const response = await apiClient.get('/foods/stats/profit');
         return response.data;
     },
 };

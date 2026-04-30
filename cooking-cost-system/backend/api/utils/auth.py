@@ -17,7 +17,7 @@ def require_auth(f):
                 current_app.config['JWT_SECRET'],
                 algorithms=['HS256']
             )
-            g.user_id = payload['sub']
+            g.user_id = int(payload['sub'])
         except jwt.ExpiredSignatureError:
             return error('UNAUTHORIZED', 'トークンの有効期限が切れています', 401)
         except jwt.InvalidTokenError:

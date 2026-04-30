@@ -14,18 +14,12 @@ interface AccountIconProps {
  * - アイコン登録済み：円形切り抜き画像
  */
 const AccountIcon: React.FC<AccountIconProps> = ({ size = 40, onClick, className = '' }) => {
-    const [iconDataUrl, setIconDataUrl] = useState<string | null>(null);
+    const [iconUrl, setIconUrl] = useState<string | null>(accountStore.get().iconUrl);
 
-    // 初期ロード
-    useEffect(() => {
-        setIconDataUrl(accountStore.get().iconDataUrl);
-    }, []);
-
-    // 他コンポーネントからの更新を受け取る
     useEffect(() => {
         const handler = (e: Event) => {
             const custom = e as CustomEvent;
-            setIconDataUrl(custom.detail?.iconDataUrl ?? null);
+            setIconUrl(custom.detail?.iconUrl ?? null);
         };
         window.addEventListener('account-updated', handler);
         return () => window.removeEventListener('account-updated', handler);
@@ -53,9 +47,9 @@ const AccountIcon: React.FC<AccountIconProps> = ({ size = 40, onClick, className
             className={`account-icon-wrapper ${className}`}
             title="アカウント情報"
         >
-            {iconDataUrl ? (
+            {iconUrl ? (
                 <img
-                    src={iconDataUrl}
+                    src={iconUrl}
                     alt="アカウントアイコン"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />

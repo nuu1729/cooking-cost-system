@@ -2,31 +2,37 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountStore, AccountInfo } from '../../stores/accountStore';
 import AccountIcon from '../../components/features/AccountIcon';
+import { authApi } from '../../api';
+import { toBackendUrl } from '../../utils/url';
 import './AccountPage.scss';
 
 const MAX_FILE_SIZE_MB = 5;
 
 const AccountPage: React.FC = () => {
     const [account, setAccount] = useState<AccountInfo>(accountStore.get());
-    const [editDisplayName, setEditDisplayName] = useState(account.displayName);
-    const [editEmail, setEditEmail] = useState(account.email);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(account.iconDataUrl);
+    const [editDisplayName, setEditDisplayName] = useState(accountStore.get().displayName);
+    const [editEmail, setEditEmail] = useState(accountStore.get().email);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(accountStore.get().iconUrl);
+    const [iconFile, setIconFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [showSaveModal, setShowSaveModal] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // ストアの変更を反映
     useEffect(() => {
         const handler = (e: Event) => {
-            const custom = e as CustomEvent;
+            const custom = e as CustomEvent<AccountInfo>;
             setAccount(custom.detail);
+            setEditDisplayName(custom.detail.displayName);
+            setEditEmail(custom.detail.email);
+            setPreviewUrl(custom.detail.iconUrl);
+            setBgPreviewUrl(custom.detail.homeBgUrl);
         };
         window.addEventListener('account-updated', handler);
         return () => window.removeEventListener('account-updated', handler);
     }, []);
 
-    /** 画像ファイルを読み込んでbase64化 */
+    /** 画像ファイルをプレビュー表示してアップロード用に保持 */
     const loadFile = useCallback((file: File) => {
         setErrorMsg('');
         if (!file.type.startsWith('image/')) {
@@ -37,11 +43,9 @@ const AccountPage: React.FC = () => {
             setErrorMsg(`ファイルサイズが大きすぎます（最大 ${MAX_FILE_SIZE_MB}MB）。`);
             return;
         }
+        setIconFile(file);
         const reader = new FileReader();
-        reader.onload = (ev) => {
-            const result = ev.target?.result as string;
-            setPreviewUrl(result);
-        };
+        reader.onload = (ev) => setPreviewUrl(ev.target?.result as string);
         reader.readAsDataURL(file);
     }, []);
 
@@ -65,11 +69,13 @@ const AccountPage: React.FC = () => {
 
     const handleClearIcon = () => {
         setPreviewUrl(null);
+        setIconFile(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     // ─── ホーム背景画像 ───────────────────────────────────────────
-    const [bgPreviewUrl, setBgPreviewUrl] = useState<string | null>(account.homeBgDataUrl);
+    const [bgPreviewUrl, setBgPreviewUrl] = useState<string | null>(accountStore.get().homeBgUrl);
+    const [bgFile, setBgFile] = useState<File | null>(null);
     const [isBgDragging, setIsBgDragging] = useState(false);
     const [bgErrorMsg, setBgErrorMsg] = useState('');
     const bgFileInputRef = useRef<HTMLInputElement>(null);
@@ -84,10 +90,9 @@ const AccountPage: React.FC = () => {
             setBgErrorMsg(`ファイルサイズが大きすぎます（最大 ${MAX_FILE_SIZE_MB}MB）。`);
             return;
         }
+        setBgFile(file);
         const reader = new FileReader();
-        reader.onload = (ev) => {
-            setBgPreviewUrl(ev.target?.result as string);
-        };
+        reader.onload = (ev) => setBgPreviewUrl(ev.target?.result as string);
         reader.readAsDataURL(file);
     }, []);
 
@@ -111,21 +116,73 @@ const AccountPage: React.FC = () => {
 
     const handleClearBg = () => {
         setBgPreviewUrl(null);
+        setBgFile(null);
         if (bgFileInputRef.current) bgFileInputRef.current.value = '';
     };
     // ─────────────────────────────────────────────────────────────
 
     const navigate = useNavigate();
 
-    const handleSave = () => {
-        const updated = accountStore.save({
-            displayName: editDisplayName.trim(),
-            email: editEmail.trim(),
-            iconDataUrl: previewUrl,
-            homeBgDataUrl: bgPreviewUrl,
-        });
-        setAccount(updated);
-        // 保存完了後、モーダルを表示
+    const handleLogout = async () => {
+        try {
+            await authApi.logout();
+        } catch {}
+        localStorage.removeItem('authToken');
+        accountStore.clear();
+        navigate('/login');
+    };
+
+    const handleSave = async () => {
+        setErrorMsg('');
+        try {
+            // プロフィール更新（username / email）
+            const res = await authApi.updateProfile({
+                username: editDisplayName.trim(),
+                email: editEmail.trim(),
+            });
+            if (res.success && res.data) {
+                const u = res.data as any;
+                accountStore.updateProfile(u.username, u.email);
+            }
+        } catch (err: any) {
+            setErrorMsg(err?.response?.data?.message || 'プロフィールの保存に失敗しました。');
+            return;
+        }
+
+        // アイコン画像のアップロード
+        if (iconFile) {
+            try {
+                const res = await authApi.uploadIcon(iconFile);
+                if (res.success && res.data) {
+                    accountStore.updateIconUrl(toBackendUrl(res.data.icon_url));
+                }
+            } catch {
+                setErrorMsg('アイコン画像のアップロードに失敗しました。');
+                return;
+            }
+        } else if (previewUrl === null && accountStore.get().iconUrl !== null) {
+            // クリアされた場合はサーバーからも削除
+            await authApi.deleteIcon().catch(() => {});
+            accountStore.updateIconUrl(null);
+        }
+
+        // 背景画像のアップロード
+        if (bgFile) {
+            try {
+                const res = await authApi.uploadHomeBg(bgFile);
+                if (res.success && res.data) {
+                    accountStore.updateHomeBgUrl(toBackendUrl(res.data.home_bg_url));
+                }
+            } catch {
+                setErrorMsg('背景画像のアップロードに失敗しました。');
+                return;
+            }
+        } else if (bgPreviewUrl === null && accountStore.get().homeBgUrl !== null) {
+            await authApi.deleteHomeBg().catch(() => {});
+            accountStore.updateHomeBgUrl(null);
+        }
+
+        setAccount(accountStore.get());
         setShowSaveModal(true);
     };
 
@@ -240,17 +297,22 @@ const AccountPage: React.FC = () => {
                                     {bgPreviewUrl ? (
                                         <img src={bgPreviewUrl} alt="ホーム背景プレビュー" />
                                     ) : (
-                                        <img
-                                            src="/images/ming_outlook.jpeg"
-                                            alt="デフォルト背景"
-                                            onError={(e) => {
-                                                (e.target as HTMLImageElement).src = '/images/ming_outlook.png';
-                                            }}
-                                        />
+                                        <div style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            background: 'linear-gradient(135deg, #f3f4f6, #d1d5db, #9ca3af)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: '#6b7280',
+                                            fontSize: '13px',
+                                        }}>
+                                            未設定
+                                        </div>
                                     )}
                                 </div>
                                 <p className="account-bg-preview__caption">
-                                    {bgPreviewUrl ? '登録済みの画像' : 'デフォルト画像（初期設定）'}
+                                    {bgPreviewUrl ? '登録済みの画像' : '未設定（グラデーション表示）'}
                                 </p>
                             </div>
 
@@ -283,8 +345,14 @@ const AccountPage: React.FC = () => {
                         </section>
                     </div>{/* ／右列 */}
 
-                    {/* ── フッター：保存ボタン（全幅） ── */}
+                    {/* ── フッター：ログアウト（左）/ 戻る（中央）/ 保存（右） ── */}
                     <div className="account-body__footer">
+                        <button className="account-btn account-btn--logout" onClick={handleLogout} type="button">
+                            ログアウト
+                        </button>
+                        <button className="account-btn account-btn--back" onClick={() => navigate(-1)} type="button">
+                            戻る
+                        </button>
                         <button className="account-btn account-btn--primary" onClick={handleSave} type="button">
                             保存する
                         </button>

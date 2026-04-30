@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { dishApi } from '@/api';
 import { OhiItem, UnifiedItem } from '../../types';
 import './dish.scss';
@@ -25,6 +25,48 @@ const DishPage: React.FC = () => {
     const [totalCost, setTotalCost] = useState(0);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [searchParams] = useSearchParams();
+
+    // --- 編集モード：URLの ?id=xxx からデータを読み込む ---
+    useEffect(() => {
+        const id = searchParams.get('id');
+        if (id) {
+            (async () => {
+                try {
+                    const res = await dishApi.getById(Number(id));
+                    if (res.success && res.data) {
+                        const data = res.data as any;
+
+                        // お品名をセット（バックエンドは name で返す）
+                        setDishName(data.name || '');
+
+                        // 構成仕込みリストをセット（バックエンドは preps キーで返す）
+                        const prepsList: any[] = data.preps || [];
+                        setItems(prepsList.map((it: any) => ({
+                            id: Math.random().toString(36).substr(2, 9),
+                            prep_id: it.prep_id,
+                            amount: Number(it.amount),
+                            unit: it.prep_unit || 'g',
+                            cost: Number(it.cost),
+                            prep: {
+                                id: it.prep_id,
+                                name: it.prep_name || '(不明)',
+                                item_type: 2 as const,
+                                store: '自家製',
+                                price: 0,
+                                quantity: 1,
+                                unit: it.prep_unit || 'g',
+                                unit_price: it.prep_unit_price || 0,
+                                genre: it.prep_genre || '',
+                            }
+                        })));
+                    }
+                } catch (e) {
+                    console.error('Failed to load dish by ID', e);
+                }
+            })();
+        }
+    }, [searchParams]);
 
     // --- Effects ---
     useEffect(() => {
