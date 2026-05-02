@@ -53,13 +53,13 @@ def create_prep():
     body = request.get_json(silent=True) or {}
     name = (body.get('name') or '').strip()
     quantity = body.get('quantity')
-    unit = (body.get('unit') or '').strip()
+    unit = 'g'
     genre = body.get('genre')
     description = body.get('description')
     items_list = body.get('items') or []
 
-    if not name or quantity is None or not unit:
-        return error('VALIDATION_ERROR', 'name・quantity・unit は必須です')
+    if not name or quantity is None:
+        return error('VALIDATION_ERROR', 'name・quantity は必須です')
     if float(quantity) <= 0:
         return error('VALIDATION_ERROR', 'quantity は 0 より大きい値で入力してください')
     if not items_list:
@@ -87,6 +87,28 @@ def create_prep():
 
     total_cost = round(total_cost, 2)
     unit_price = round(total_cost / float(quantity), 4)
+
+    existing = Item.query.filter_by(item_type=ITEM_TYPE, name=name, user_id=g.user_id).first()
+    if existing:
+        existing.quantity = quantity
+        existing.unit = unit
+        existing.price = total_cost
+        existing.unit_price = unit_price
+        if genre is not None:
+            existing.genre = genre
+        if description is not None:
+            existing.description = description
+        ItemRelation.query.filter_by(parent_item_id=existing.id).delete()
+        db.session.flush()
+        for r in relations:
+            db.session.add(ItemRelation(
+                parent_item_id=existing.id,
+                child_item_id=r['ingredient_id'],
+                amount=r['amount'],
+                cost=r['cost']
+            ))
+        db.session.commit()
+        return success(existing.to_dict(), message='仕込みを更新しました')
 
     prep = Item(
         name=name, item_type=ITEM_TYPE, store='自家製',
@@ -157,6 +179,82 @@ def get_prep(item_id):
     data = prep.to_dict()
     data['ingredients'] = ingredients
     return success(data)
+
+
+# PUT /api/preps/<id>
+@preps_bp.route('/<int:item_id>', methods=['PUT'])
+@require_auth
+def update_prep(item_id):
+    prep = Item.query.filter_by(id=item_id, item_type=ITEM_TYPE, user_id=g.user_id).first()
+    if not prep:
+        return error('NOT_FOUND', '仕込み品が見つかりません', 404)
+
+    body = request.get_json(silent=True) or {}
+    name = (body.get('name') or '').strip()
+    quantity = body.get('quantity')
+    genre = body.get('genre')
+    description = body.get('description')
+    items_list = body.get('items')
+
+    if name:
+        prep.name = name
+    if quantity is not None:
+        if float(quantity) <= 0:
+            return error('VALIDATION_ERROR', 'quantity は 0 より大きい値で入力してください')
+        prep.quantity = quantity
+    if 'genre' in body:
+        prep.genre = genre
+    if 'description' in body:
+        prep.description = description
+    prep.unit = 'g'
+
+    if items_list is not None:
+        if not items_list:
+            return error('VALIDATION_ERROR', '食材を 1 件以上選択してください')
+
+        ingredient_ids = [i.get('ingredient_id') for i in items_list]
+        ingredients = {
+            ing.id: ing for ing in
+            Item.query.filter(Item.id.in_(ingredient_ids), Item.item_type == 1).all()
+        }
+        for ing_id in ingredient_ids:
+            if ing_id not in ingredients:
+                return error('VALIDATION_ERROR', f'食材 ID {ing_id} が見つかりません')
+
+        ItemRelation.query.filter_by(parent_item_id=item_id).delete()
+
+        total_cost = 0.0
+        for entry in items_list:
+            ing_id = entry['ingredient_id']
+            amount = float(entry.get('amount', 0))
+            if amount <= 0:
+                return error('VALIDATION_ERROR', 'amount は 0 より大きい値で入力してください')
+            cost = round(float(ingredients[ing_id].unit_price) * amount, 2)
+            total_cost += cost
+            db.session.add(ItemRelation(
+                parent_item_id=item_id,
+                child_item_id=ing_id,
+                amount=amount,
+                cost=cost
+            ))
+
+        prep.price = round(total_cost, 2)
+        prep.unit_price = round(float(prep.price) / float(prep.quantity), 4)
+
+        # この仕込みを使うお品のコストを再計算
+        from api.utils.cascade import _recalculate_dish
+        dish_ids = [
+            r[0] for r in db.session.query(ItemRelation.parent_item_id)
+            .join(Item, ItemRelation.parent_item_id == Item.id)
+            .filter(ItemRelation.child_item_id == item_id, Item.item_type == 3)
+            .distinct().all()
+        ]
+        db.session.flush()
+        for dish_id in dish_ids:
+            _recalculate_dish(dish_id)
+
+    db.session.commit()
+    return success(prep.to_dict(), message='仕込みを更新しました')
 
 
 # DELETE /api/preps/<id>

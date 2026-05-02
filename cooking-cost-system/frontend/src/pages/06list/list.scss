@@ -194,6 +194,18 @@
                         box-shadow: inset 4px 0 0 #10b981;
                     }
 
+                    &.cost-row--warning {
+                        background: #fffbeb;
+                        box-shadow: inset 4px 0 0 #f59e0b;
+                        &:hover { background: #fef3c7; }
+                    }
+
+                    &.cost-row--danger {
+                        background: #fff1f1;
+                        box-shadow: inset 4px 0 0 #ef4444;
+                        &:hover { background: #fee2e2; }
+                    }
+
                     td {
                         padding: 1.25rem 1.5rem;
                         color: #1f2937;
@@ -203,6 +215,42 @@
                             display: flex;
                             gap: 0.5rem;
                             justify-content: center;
+                        }
+
+                        .dish-name-cell {
+                            display: flex;
+                            align-items: center;
+                            gap: 0.5rem;
+                            flex-wrap: wrap;
+                        }
+
+                        .price-cell {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 0.15rem;
+                            font-size: 0.85rem;
+                        }
+
+                        .cost-badge {
+                            display: inline-flex;
+                            align-items: center;
+                            padding: 0.15rem 0.5rem;
+                            border-radius: 999px;
+                            font-size: 0.72rem;
+                            font-weight: 700;
+                            white-space: nowrap;
+
+                            &--warning {
+                                background: #fef3c7;
+                                color: #b45309;
+                                border: 1px solid #fbbf24;
+                            }
+
+                            &--danger {
+                                background: #fee2e2;
+                                color: #b91c1c;
+                                border: 1px solid #fca5a5;
+                            }
                         }
 
                         .link-btn {
@@ -300,6 +348,17 @@
             color: #ef4444;
             font-size: 0.875rem;
             font-weight: 600;
+            margin-top: 1rem;
+        }
+
+        .error-text {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            color: #dc2626;
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
             margin-top: 1rem;
         }
 

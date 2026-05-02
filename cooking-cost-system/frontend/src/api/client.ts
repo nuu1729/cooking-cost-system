@@ -80,7 +80,8 @@ apiClient.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (!isLoginOrRegister && !isSessionCheck) {
+        const isConflict = error.response?.status === 409;
+        if (!isLoginOrRegister && !isSessionCheck && !isConflict) {
             toast.error(errorMessage);
         }
         

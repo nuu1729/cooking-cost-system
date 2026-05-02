@@ -8,6 +8,18 @@ import './list.scss';
 
 type TabType = 'ingredients' | 'preps' | 'dishes';
 
+type CostJudgment = 'warning' | 'danger' | null;
+
+function getDishCostJudgment(item: any): CostJudgment {
+    const cost = item.price ?? 0;
+    const selling = item.selling_price;
+    if (!selling || selling <= 0 || cost <= 0) return null;
+    const ratio = cost / selling;
+    if (ratio >= 0.50) return 'danger';
+    if (ratio >= 0.35) return 'warning';
+    return null;
+}
+
 const ListPage: React.FC = () => {
     const navigate = useNavigate();
     
@@ -36,6 +48,7 @@ const ListPage: React.FC = () => {
     
     const [isLoading, setIsLoading] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<{ type: TabType; item: any } | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     // Data Fetching
     const fetchData = useCallback(async () => {
@@ -96,6 +109,7 @@ const ListPage: React.FC = () => {
 
     const handleDeleteClick = (type: TabType, item: any) => {
         setDeleteTarget({ type, item });
+        setDeleteError(null);
     };
 
     const confirmDelete = async () => {
@@ -119,11 +133,8 @@ const ListPage: React.FC = () => {
             }
         } catch (error: any) {
             console.error('Delete failed:', error);
-            // Handling "in use" error as per spec
-            if (error.response?.status === 400 || error.response?.status === 409) {
-                const message = error.response?.data?.message || '削除できませんでした。';
-                toast.error(message);
-            }
+            const message = error.response?.data?.message || '削除できませんでした。';
+            setDeleteError(message);
         }
     };
 
@@ -264,7 +275,7 @@ const ListPage: React.FC = () => {
                                                 </button>
                                             </td>
                                             <td className="font-mono text-emerald-600 font-bold">
-                                                ¥ {item.total_cost?.toLocaleString()}
+                                                ¥ {item.unit_price != null ? Number(item.unit_price).toFixed(2) : '-'}<span className="text-gray-400 font-normal text-xs">/g</span>
                                             </td>
                                             <td className="text-xs text-gray-500">
                                                 {item.items?.map((i: any) => i.ingredient?.name).join(', ') || item.ingredients?.join(', ')}
@@ -279,35 +290,59 @@ const ListPage: React.FC = () => {
                                             </td>
                                         </motion.tr>
                                     ))}
-                                    {activeTab === 'dishes' && dishes.map((item) => (
-                                        <motion.tr 
-                                            key={item.id}
-                                            layout
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95 }}
-                                        >
-                                            <td>
-                                                <button className="link-btn" onClick={() => handleEdit('dishes', item.id!)}>
-                                                    {item.name}
-                                                </button>
-                                            </td>
-                                            <td className="font-mono text-blue-600 font-bold">
-                                                ¥ {item.price?.toLocaleString() || item.total_cost?.toLocaleString()}
-                                            </td>
-                                            <td className="text-xs text-gray-400">
-                                                {item.dishes?.map((p: any) => p.prep_name || p.name).join(', ') || '-'}
-                                            </td>
-                                            <td className="actions-cell">
-                                                <button className="btn-icon edit" onClick={() => handleEdit('dishes', item.id!)} title="編集">
-                                                    ✏️
-                                                </button>
-                                                <button className="btn-icon delete" onClick={() => handleDeleteClick('dishes', item)} title="削除">
-                                                    🗑️
-                                                </button>
-                                            </td>
-                                        </motion.tr>
-                                    ))}
+                                    {activeTab === 'dishes' && dishes.map((item) => {
+                                        const judgment = getDishCostJudgment(item);
+                                        const costRatio = item.selling_price && item.selling_price > 0
+                                            ? ((item.price ?? 0) / item.selling_price * 100).toFixed(1)
+                                            : null;
+                                        return (
+                                            <motion.tr
+                                                key={item.id}
+                                                layout
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95 }}
+                                                className={judgment ? `cost-row--${judgment}` : ''}
+                                            >
+                                                <td>
+                                                    <div className="dish-name-cell">
+                                                        <button className="link-btn" onClick={() => handleEdit('dishes', item.id!)}>
+                                                            {item.name}
+                                                        </button>
+                                                        {judgment === 'danger' && (
+                                                            <span className="cost-badge cost-badge--danger" title={`原価率 ${costRatio}%（赤字リスク）`}>
+                                                                ✗ {costRatio}%
+                                                            </span>
+                                                        )}
+                                                        {judgment === 'warning' && (
+                                                            <span className="cost-badge cost-badge--warning" title={`原価率 ${costRatio}%（要注意）`}>
+                                                                △ {costRatio}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="price-cell">
+                                                        <span className="font-mono text-gray-600">原価 ¥{(item.price ?? 0).toLocaleString()}</span>
+                                                        {item.selling_price != null && (
+                                                            <span className="font-mono text-blue-600 font-bold">売 ¥{item.selling_price.toLocaleString()}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="text-xs text-gray-400">
+                                                    {item.dishes?.map((p: any) => p.prep_name || p.name).join(', ') || '-'}
+                                                </td>
+                                                <td className="actions-cell">
+                                                    <button className="btn-icon edit" onClick={() => handleEdit('dishes', item.id!)} title="編集">
+                                                        ✏️
+                                                    </button>
+                                                    <button className="btn-icon delete" onClick={() => handleDeleteClick('dishes', item)} title="削除">
+                                                        🗑️
+                                                    </button>
+                                                </td>
+                                            </motion.tr>
+                                        );
+                                    })}
                                     
                                     {!isLoading && currentCount === 0 && (
                                         <tr>
@@ -325,7 +360,7 @@ const ListPage: React.FC = () => {
             <AnimatePresence>
                 {deleteTarget && (
                     <div className="modal-overlay">
-                        <motion.div 
+                        <motion.div
                             className="confirm-modal"
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
@@ -333,11 +368,19 @@ const ListPage: React.FC = () => {
                         >
                             <h2>削除の確認</h2>
                             <p>「<strong>{deleteTarget.item.name || deleteTarget.item.prep_name}</strong>」を本当に削除しますか？</p>
-                            <p className="warning-text">この操作は取り消せません。</p>
-                            
+                            {deleteError ? (
+                                <p className="error-text">{deleteError}</p>
+                            ) : (
+                                <p className="warning-text">この操作は取り消せません。</p>
+                            )}
+
                             <div className="modal-actions">
-                                <button className="btn-cancel" onClick={() => setDeleteTarget(null)}>キャンセル</button>
-                                <button className="btn-danger" onClick={confirmDelete}>保存して削除</button>
+                                <button className="btn-cancel" onClick={() => { setDeleteTarget(null); setDeleteError(null); }}>
+                                    {deleteError ? '閉じる' : 'キャンセル'}
+                                </button>
+                                {!deleteError && (
+                                    <button className="btn-danger" onClick={confirmDelete}>保存して削除</button>
+                                )}
                             </div>
                         </motion.div>
                     </div>

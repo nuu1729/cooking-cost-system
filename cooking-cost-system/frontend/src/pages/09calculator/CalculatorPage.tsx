@@ -51,6 +51,7 @@ interface DishOption {
     name: string;
     total_cost: number;
     price: number;
+    selling_price: number | null;
 }
 
 // ── 価格帯テーブル行 ─────────────────────────────────────
@@ -95,8 +96,9 @@ const CalculatorPage: React.FC = () => {
                     setDishes(res.data.map((d: any) => ({
                         id: d.id,
                         name: d.name,
-                        total_cost: d.total_cost ?? 0,
+                        total_cost: d.price ?? 0,
                         price: d.price ?? 0,
+                        selling_price: d.selling_price ?? null,
                     })));
                 }
             })
@@ -109,7 +111,11 @@ const CalculatorPage: React.FC = () => {
         setSelectedId(id);
         if (id === '') { setCost(0); setPriceInput(''); return; }
         const d = dishes.find(x => x.id === id);
-        if (d) { setCost(d.total_cost); setPriceInput(String(d.price)); setPriceErr(false); }
+        if (d) {
+            setCost(d.total_cost);
+            setPriceInput(d.selling_price != null ? String(d.selling_price) : '');
+            setPriceErr(false);
+        }
     };
 
     // 販売価格のパース

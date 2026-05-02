@@ -185,8 +185,14 @@ def update_ingredient(item_id):
         if float(quantity) <= 0:
             return error('VALIDATION_ERROR', 'quantity は 0 より大きい値で入力してください')
         item.quantity = quantity
-    if price is not None or quantity is not None:
+    price_changed = price is not None or quantity is not None
+    if price_changed:
         item.unit_price = round(float(item.price) / float(item.quantity), 4)
+
+    if price_changed:
+        db.session.flush()
+        from api.utils.cascade import cascade_from_ingredient
+        cascade_from_ingredient(item.id)
 
     db.session.commit()
     return success(item.to_dict())

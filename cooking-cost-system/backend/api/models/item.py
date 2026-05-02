@@ -13,6 +13,7 @@ class Item(db.Model):
     quantity = db.Column(db.Numeric(10, 2), nullable=False)
     unit = db.Column(db.String(20), nullable=False)
     unit_price = db.Column(db.Numeric(10, 4), nullable=False)
+    selling_price = db.Column(db.Numeric(10, 2), nullable=True)
     genre = db.Column(db.String(50), nullable=True)
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -45,6 +46,7 @@ class Item(db.Model):
             'quantity': float(self.quantity) if self.quantity is not None else 0,
             'unit': self.unit,
             'unit_price': float(self.unit_price) if self.unit_price is not None else 0,
+            'selling_price': float(self.selling_price) if self.selling_price is not None else None,
             'genre': self.genre,
             'description': self.description,
             'created_at': self.created_at.isoformat() if self.created_at else None,

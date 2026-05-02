@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { signinApi } from '@/api';
 import { accountStore } from '@/stores/accountStore';
+import { toBackendUrl } from '@/utils/url';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -84,7 +85,7 @@ const SignupPage: React.FC = () => {
             if (response.success && response.data) {
                 const data = response.data as any;
                 localStorage.setItem('authToken', data.token);
-                accountStore.initForUser(data.user.id, data.user.username, data.user.email, data.user.icon_url ?? null, data.user.home_bg_url ?? null);
+                accountStore.initForUser(data.user.id, data.user.username, data.user.email, toBackendUrl(data.user.icon_url), toBackendUrl(data.user.home_bg_url));
                 setIsConfirmOpen(false);
                 navigate('/');
             }

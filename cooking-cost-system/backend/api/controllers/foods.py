@@ -47,15 +47,18 @@ def create_food():
     body = request.get_json(silent=True) or {}
     name = (body.get('name') or '').strip()
     quantity = body.get('quantity', 1)
-    unit = (body.get('unit') or '食分').strip()
+    unit = 'g'
     genre = body.get('genre')
     description = body.get('description')
+    selling_price = body.get('selling_price')
     items_list = body.get('items') or []
 
     if not name:
         return error('VALIDATION_ERROR', 'name は必須です')
     if float(quantity) <= 0:
         return error('VALIDATION_ERROR', 'quantity は 0 より大きい値で入力してください')
+    if selling_price is not None and float(selling_price) < 0:
+        return error('VALIDATION_ERROR', 'selling_price は 0 以上で入力してください')
     if not items_list:
         return error('VALIDATION_ERROR', '仕込み品を 1 件以上選択してください')
 
@@ -83,10 +86,35 @@ def create_food():
     total_cost = round(total_cost, 2)
     unit_price = round(total_cost / float(quantity), 4)
 
+    existing = Item.query.filter_by(item_type=ITEM_TYPE, name=name, user_id=g.user_id).first()
+    if existing:
+        existing.quantity = quantity
+        existing.unit = unit
+        existing.price = total_cost
+        existing.unit_price = unit_price
+        if selling_price is not None:
+            existing.selling_price = selling_price
+        if genre is not None:
+            existing.genre = genre
+        if description is not None:
+            existing.description = description
+        ItemRelation.query.filter_by(parent_item_id=existing.id).delete()
+        db.session.flush()
+        for r in relations:
+            db.session.add(ItemRelation(
+                parent_item_id=existing.id,
+                child_item_id=r['prep_id'],
+                amount=r['amount'],
+                cost=r['cost']
+            ))
+        db.session.commit()
+        return success(existing.to_dict(), message='お品を更新しました')
+
     food = Item(
         name=name, item_type=ITEM_TYPE, store='自家製',
         price=total_cost, quantity=quantity, unit=unit,
-        unit_price=unit_price, genre=genre, description=description,
+        unit_price=unit_price, selling_price=selling_price,
+        genre=genre, description=description,
         user_id=g.user_id
     )
     db.session.add(food)
@@ -151,12 +179,16 @@ def update_food(item_id):
     body = request.get_json(silent=True) or {}
     if 'name' in body:
         food.name = (body['name'] or '').strip()
-    if 'unit' in body:
-        food.unit = body['unit']
+    food.unit = 'g'
     if 'genre' in body:
         food.genre = body['genre']
     if 'description' in body:
         food.description = body['description']
+    if 'selling_price' in body:
+        sp = body['selling_price']
+        if sp is not None and float(sp) < 0:
+            return error('VALIDATION_ERROR', 'selling_price は 0 以上で入力してください')
+        food.selling_price = sp
 
     quantity = body.get('quantity')
     if quantity is not None:

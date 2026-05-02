@@ -133,6 +133,7 @@ export interface DishSearchParams {
 export interface CompletedFood extends BaseModel {
     name: string;
     price?: number;
+    selling_price?: number | null;
     total_cost: number;
     description?: string;
     dishes?: FoodDish[];
@@ -449,6 +450,7 @@ export interface OhiItem {
 export interface CreateOhiRequest {
     name: string;
     total_cost: number;
+    selling_price?: number | null;
     items: {
         prep_id: number;
         prep_name?: string;
@@ -461,12 +463,12 @@ export interface CreateOhiRequest {
 export interface CreatePrepRequest {
     prep_name: string;
     yield_amount: number;
-    yield_unit: 'ml' | 'g' | '個';
+    yield_unit: 'g';
     total_cost: number;
     items: {
         ingredient_id: number;
         amount: number;
-        unit: 'ml' | 'g' | '個';
+        unit: string;
         cost: number;
     }[];
 }

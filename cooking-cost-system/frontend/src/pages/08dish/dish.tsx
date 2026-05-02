@@ -21,6 +21,7 @@ const DishPage: React.FC = () => {
 
     // --- State: 右カラム ---
     const [dishName, setDishName] = useState('');
+    const [sellingPriceInput, setSellingPriceInput] = useState('');
     const [items, setItems] = useState<OhiItem[]>([]);
     const [totalCost, setTotalCost] = useState(0);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -37,8 +38,8 @@ const DishPage: React.FC = () => {
                     if (res.success && res.data) {
                         const data = res.data as any;
 
-                        // お品名をセット（バックエンドは name で返す）
                         setDishName(data.name || '');
+                        setSellingPriceInput(data.selling_price != null ? String(data.selling_price) : '');
 
                         // 構成仕込みリストをセット（バックエンドは preps キーで返す）
                         const prepsList: any[] = data.preps || [];
@@ -152,9 +153,12 @@ const DishPage: React.FC = () => {
     const handleFinalSubmit = async () => {
         setIsSubmitting(true);
         try {
-            const res = await dishApi.createOhi({
+            const sellingPrice = sellingPriceInput !== '' ? parseFloat(sellingPriceInput) : null;
+            const editId = searchParams.get('id');
+            const payload = {
                 name: dishName.trim(),
                 total_cost: totalCost,
+                selling_price: sellingPrice,
                 items: items.map(item => ({
                     prep_id: item.prep_id,
                     prep_name: item.prep?.name,
@@ -162,7 +166,10 @@ const DishPage: React.FC = () => {
                     unit: item.unit,
                     cost: item.cost
                 }))
-            });
+            };
+            const res = editId
+                ? await dishApi.update(Number(editId), payload)
+                : await dishApi.createOhi(payload);
             if (res.success) {
                 toast.success('お品を登録しました');
                 setShowConfirmModal(false);
@@ -349,7 +356,7 @@ const DishPage: React.FC = () => {
 
                     {/* 下部バー */}
                     <div className="dish-bottom-bar">
-                        {/* 左：お品名 */}
+                        {/* 左：お品名 + 販売価格 */}
                         <div className="dish-bottom-fields">
                             <div className="dish-form-block">
                                 <label className="dish-form-label">お品名</label>
@@ -360,6 +367,23 @@ const DishPage: React.FC = () => {
                                     onChange={(e) => setDishName(e.target.value)}
                                     placeholder="例：ロコモコ"
                                 />
+                            </div>
+                            <div className="dish-form-block">
+                                <label className="dish-form-label">販売価格（任意）</label>
+                                <div className="dish-price-row">
+                                    <span className="dish-yen">¥</span>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        className="d-input d-input--num"
+                                        value={sellingPriceInput}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            if (v === '' || /^\d*$/.test(v)) setSellingPriceInput(v);
+                                        }}
+                                        placeholder="例：980"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -401,9 +425,15 @@ const DishPage: React.FC = () => {
                                     <span className="dmv dmv--green">{dishName}</span>
                                 </div>
                                 <div className="dish-modal-row">
-                                    <span className="dml">合計コスト</span>
+                                    <span className="dml">食材原価</span>
                                     <span className="dmv dmv--bold">¥ {totalCost.toLocaleString()}</span>
                                 </div>
+                                {sellingPriceInput !== '' && (
+                                    <div className="dish-modal-row">
+                                        <span className="dml">販売価格</span>
+                                        <span className="dmv dmv--green">¥ {Number(sellingPriceInput).toLocaleString()}</span>
+                                    </div>
+                                )}
                                 <div className="dish-modal-items">
                                     <p className="dish-modal-items-ttl">構成仕込み品 ({items.length}件)</p>
                                     <div className="dish-modal-items-list">

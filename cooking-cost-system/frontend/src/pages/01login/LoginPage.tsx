@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/api';
 import { accountStore } from '@/stores/accountStore';
+import { toBackendUrl } from '@/utils/url';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 // Validation Schema
@@ -45,7 +46,7 @@ const LoginPage: React.FC = () => {
             if (response.success && response.data) {
                 localStorage.setItem('authToken', response.data.token);
                 const user = response.data.user as any;
-                accountStore.initForUser(user.id, user.username, user.email, user.icon_url ?? null, user.home_bg_url ?? null);
+                accountStore.initForUser(user.id, user.username, user.email, toBackendUrl(user.icon_url), toBackendUrl(user.home_bg_url));
                 navigate('/');
             } else {
                 throw new Error('ログインに失敗しました。');
