@@ -19,6 +19,7 @@ import LoginPage from './pages/01login/LoginPage';
 
 import ListPage from './pages/06list/list';
 import AccountPage from './pages/10account/AccountPage';
+import StoresPage from './pages/11stores/StoresPage';
 
 const App: React.FC = () => {
     const navigate = useNavigate();
@@ -72,6 +73,7 @@ const App: React.FC = () => {
                                 <Route path="/dishes/prep" element={<PrepPage />} />
                                 <Route path="/dishes/medium" element={<Navigate to="/dishes/prep" replace />} />
                                 <Route path="/dishes/large" element={<DishPage />} />
+                                <Route path="/stores" element={<StoresPage />} />
                                 <Route path="/calculator" element={<CalculatorPage />} />
                                 <Route path="/account" element={<AccountPage />} />
 

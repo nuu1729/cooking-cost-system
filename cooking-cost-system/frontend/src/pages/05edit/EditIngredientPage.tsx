@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ingredientApi } from '@/api';
+import { storesApi, Store } from '@/api/stores';
 import { Ingredient } from '../../types';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -20,7 +21,7 @@ interface FormData {
     priceAfter: string;
     quantity: string;
     unit: 'ml' | 'g' | '個';
-    supplier: string;
+    supplier_id: string;
 }
 
 const EditIngredientPage: React.FC = () => {
@@ -32,8 +33,9 @@ const EditIngredientPage: React.FC = () => {
         priceAfter: '',
         quantity: '',
         unit: 'g',
-        supplier: ''
+        supplier_id: ''
     });
+    const [stores, setStores] = useState<Store[]>([]);
 
     const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
     const [isConfirming, setIsConfirming] = useState(false);
@@ -49,6 +51,12 @@ const EditIngredientPage: React.FC = () => {
     const [isListening, setIsListening] = useState(false);
     const [lastTranscript, setLastTranscript] = useState('');
     const [searchParams] = useSearchParams();
+
+    useEffect(() => {
+        storesApi.getAll().then(res => {
+            if (res.success && res.data) setStores(res.data);
+        }).catch(() => {});
+    }, []);
 
     // ID Load Logic
     useEffect(() => {
@@ -101,6 +109,10 @@ const EditIngredientPage: React.FC = () => {
     }, []);
 
     const handleSelectIngredient = (item: Ingredient) => {
+        const storeIdFromItem = (item as any).store_id;
+        const matchedStore = storeIdFromItem
+            ? stores.find(s => s.id === storeIdFromItem)
+            : stores.find(s => s.name === item.store);
         setFormData({
             id: item.id || null,
             name: item.name,
@@ -108,7 +120,7 @@ const EditIngredientPage: React.FC = () => {
             priceAfter: item.price.toString(),
             quantity: item.quantity.toString(),
             unit: item.unit,
-            supplier: item.store
+            supplier_id: matchedStore ? matchedStore.id.toString() : ''
         });
         setSearchQuery(item.name);
         setSearchResults([]);
@@ -145,8 +157,8 @@ const EditIngredientPage: React.FC = () => {
             newErrors.quantity = '半角数字で入力してください';
             isValid = false;
         }
-        if (!formData.supplier.trim()) {
-            newErrors.supplier = '入力してください';
+        if (!formData.supplier_id) {
+            newErrors.supplier_id = '選択してください';
             isValid = false;
         }
 
@@ -180,7 +192,7 @@ const EditIngredientPage: React.FC = () => {
             const response = await ingredientApi.update(formData.id, {
                 id: formData.id,
                 name: formData.name,
-                store: formData.supplier,
+                store_id: parseInt(formData.supplier_id),
                 price: parseFloat(formData.priceAfter),
                 quantity: parseFloat(formData.quantity),
                 unit: formData.unit
@@ -188,7 +200,7 @@ const EditIngredientPage: React.FC = () => {
 
             if (response.success) {
                 toast.success('食材情報を更新しました！');
-                setFormData({ id: null, name: '', priceBefore: '0', priceAfter: '', quantity: '', unit: 'g', supplier: '' });
+                setFormData({ id: null, name: '', priceBefore: '0', priceAfter: '', quantity: '', unit: 'g', supplier_id: '' });
                 setSearchQuery('');
                 setErrors({});
                 setIsConfirming(false);
@@ -242,7 +254,9 @@ const EditIngredientPage: React.FC = () => {
         );
 
         if (nonDataWords.length >= 2) {
-            data.supplier = nonDataWords[nonDataWords.length - 1];
+            const spokenStore = nonDataWords[nonDataWords.length - 1];
+            const matched = stores.find(s => s.name.includes(spokenStore) || spokenStore.includes(s.name));
+            if (matched) data.supplier_id = matched.id.toString();
         }
 
         setFormData(data);
@@ -482,16 +496,26 @@ const EditIngredientPage: React.FC = () => {
                             <div className="space-y-2">
                                 <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>購入先</span>
-                                    {errors.supplier && <span className="text-sm text-red-500 font-normal">入力してください</span>}
+                                    {errors.supplier_id && <span className="text-sm text-red-500 font-normal">{errors.supplier_id}</span>}
                                 </label>
-                                <input
-                                    type="text"
-                                    name="supplier"
-                                    value={formData.supplier}
-                                    onChange={handleChange}
-                                    placeholder="例：コスモス"
-                                    className={`w-full px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg ${errors.supplier ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}
-                                />
+                                <div className="relative">
+                                    <select
+                                        name="supplier_id"
+                                        value={formData.supplier_id}
+                                        onChange={handleChange}
+                                        className={`w-full px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none appearance-none cursor-pointer text-lg ${errors.supplier_id ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}
+                                    >
+                                        <option value="">選択してください</option>
+                                        {stores.map(s => (
+                                            <option key={s.id} value={s.id.toString()}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -558,7 +582,7 @@ const EditIngredientPage: React.FC = () => {
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-500 font-bold">購入先</span>
-                                        <span className="text-gray-800 font-black">{formData.supplier}</span>
+                                        <span className="text-gray-800 font-black">{stores.find(s => s.id.toString() === formData.supplier_id)?.name ?? '-'}</span>
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-3">
