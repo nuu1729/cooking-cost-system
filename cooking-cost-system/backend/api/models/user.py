@@ -16,6 +16,7 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     def to_dict(self):
+        # password_hash は絶対に含めない
         return {
             'id': self.id,
             'username': self.username,

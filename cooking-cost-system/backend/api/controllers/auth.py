@@ -38,6 +38,9 @@ def _delete_old_file(url: Optional[str]):
 
 auth_bp = Blueprint('auth', __name__)
 
+# タイミング攻撃対策：ユーザーが存在しない場合もbcryptを実行するためのダミーハッシュ
+_DUMMY_HASH = bcrypt.hashpw(b'dummy_timing_protection', bcrypt.gensalt(rounds=12)).decode()
+
 
 def _validate_password(password: str) -> str | None:
     if len(password) < 8:
@@ -103,9 +106,11 @@ def login():
         (User.email == identifier) | (User.username == identifier)
     ).first()
     if not user:
-        return error('USER_NOT_FOUND', 'このアカウントは登録されていません', 404)
+        # ユーザーが存在しない場合もbcryptを実行してタイミング攻撃を防ぐ
+        bcrypt.checkpw(password.encode(), _DUMMY_HASH.encode())
+        return error('UNAUTHORIZED', 'ユーザー名またはパスワードが正しくありません', 401)
     if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
-        return error('WRONG_PASSWORD', 'パスワードが正しくありません', 401)
+        return error('UNAUTHORIZED', 'ユーザー名またはパスワードが正しくありません', 401)
     if not user.is_active:
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
 
