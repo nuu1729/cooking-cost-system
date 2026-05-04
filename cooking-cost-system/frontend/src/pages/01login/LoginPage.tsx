@@ -52,17 +52,8 @@ const LoginPage: React.FC = () => {
                 throw new Error('ログインに失敗しました。');
             }
         } catch (err: any) {
-            const status = err?.response?.status;
-            const errorCode = err?.response?.data?.error;
-            if (status === 404 || errorCode === 'USER_NOT_FOUND') {
-                // アカウントが存在しない → サインアップへ
-                navigate('/signup');
-            } else if (status === 401 || errorCode === 'WRONG_PASSWORD') {
-                // パスワードが違う → その場でエラー表示
-                setErrorMessage('パスワードが正しくありません。');
-            } else {
-                setErrorMessage(err?.response?.data?.message || 'ログインに失敗しました。時間をおいて再度お試しください。');
-            }
+            const message = err?.response?.data?.message;
+            setErrorMessage(message || 'ログインに失敗しました。時間をおいて再度お試しください。');
         }
     };
 
@@ -140,7 +131,7 @@ const LoginPage: React.FC = () => {
                                 <input
                                     type="password"
                                     {...register('password')}
-                                    placeholder="8文字以上（大文字・小文字・数字を含む）"
+                                    placeholder="パスワードを入力"
                                     className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                 />
                                 <AnimatePresence>
