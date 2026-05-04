@@ -23,19 +23,9 @@ const schema = yup.object({
     password: yup
         .string()
         .required('パスワードは必須です')
-        .min(8, 'パスワードは8文字以上である必要があります')
-        .test('password-complexity', 'パスワードの複雑さが不足しています', function(value, context) {
-            if (!value) return true;
-            const missing = [];
-            if (!/[a-z]/.test(value)) missing.push('小文字');
-            if (!/[A-Z]/.test(value)) missing.push('大文字');
-            if (!/[0-9]/.test(value)) missing.push('数字');
-
-            if (missing.length > 0) {
-                return context.createError({ message: `${missing.join('、')}を用いること` });
-            }
-            return true;
-        }),
+        .min(8, 'パスワードは8文字以上で入力してください')
+        .test('password-has-alpha', 'パスワードに英字を含めてください', (v) => !v || /[A-Za-z]/.test(v))
+        .test('password-has-digit', 'パスワードに数字を含めてください', (v) => !v || /[0-9]/.test(v)),
     confirmPassword: yup
         .string()
         .required('パスワード（確認）は必須です')
@@ -197,7 +187,7 @@ const SignupPage: React.FC = () => {
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         {...register('password')}
-                                        placeholder="8文字以上（大文字・小文字・数字を含む）"
+                                        placeholder="8文字以上（英字・数字を含む）"
                                         className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 pr-10 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                     />
                                     <button

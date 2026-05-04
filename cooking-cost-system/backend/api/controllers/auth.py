@@ -4,6 +4,7 @@ from typing import Optional
 import jwt
 import bcrypt
 import os
+import re
 import uuid
 from api.database import db
 from api.models.user import User
@@ -38,6 +39,16 @@ def _delete_old_file(url: Optional[str]):
 auth_bp = Blueprint('auth', __name__)
 
 
+def _validate_password(password: str) -> str | None:
+    if len(password) < 8:
+        return 'パスワードは8文字以上で入力してください'
+    if not re.search(r'[A-Za-z]', password):
+        return 'パスワードに英字を含めてください'
+    if not re.search(r'[0-9]', password):
+        return 'パスワードに数字を含めてください'
+    return None
+
+
 def _generate_token(user_id: int, secret: str) -> tuple[str, str]:
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     token = jwt.encode(
@@ -60,8 +71,9 @@ def register():
         return error('VALIDATION_ERROR', 'username・email・password は必須です')
     if len(username) < 3 or len(username) > 50:
         return error('VALIDATION_ERROR', 'username は 3〜50 文字で入力してください')
-    if len(password) < 8:
-        return error('VALIDATION_ERROR', 'password は 8 文字以上で入力してください')
+    pw_error = _validate_password(password)
+    if pw_error:
+        return error('VALIDATION_ERROR', pw_error)
 
     if User.query.filter_by(username=username).first():
         return error('CONFLICT', 'そのユーザー名は既に使用されています', 409)
@@ -186,8 +198,9 @@ def update_password():
 
     if not current_password or not new_password:
         return error('VALIDATION_ERROR', 'currentPassword と newPassword は必須です')
-    if len(new_password) < 8:
-        return error('VALIDATION_ERROR', 'newPassword は 8 文字以上で入力してください')
+    pw_error = _validate_password(new_password)
+    if pw_error:
+        return error('VALIDATION_ERROR', pw_error)
 
     user = User.query.get(g.user_id)
     if not user or not bcrypt.checkpw(current_password.encode(), user.password_hash.encode()):
