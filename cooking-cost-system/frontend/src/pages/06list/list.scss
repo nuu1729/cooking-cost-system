@@ -136,12 +136,11 @@
     // Table Area
     .table-wrapper {
         flex: 1;
+        min-height: 0; // flex child が縮めるように
         background: white;
         border-radius: 1.5rem;
         border: 1px solid #f1f5f9;
-        overflow: hidden; // For rounding corners
-        display: flex;
-        flex-direction: column;
+        overflow-y: auto; // 縦スクロール有効
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.02);
 
         .custom-table {
@@ -173,14 +172,6 @@
             }
 
             tbody {
-                display: block; // Enable scroll on tbody
-                height: 100%; 
-                overflow-y: auto;
-                width: 100%;
-
-                // Re-enabling table row layout for tbody scroll hack
-                display: table-row-group; 
-
                 tr {
                     border-bottom: 1px solid #f1f5f9;
                     transition: all 0.15s;
