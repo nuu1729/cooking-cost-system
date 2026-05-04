@@ -3,6 +3,7 @@ from sqlalchemy import func, or_
 from api.database import db
 from api.models.item import Item, ItemRelation
 from api.models.store import Store
+from api.models.genre import Genre
 from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.utils.japanese import kana_variants
@@ -11,7 +12,6 @@ ingredients_bp = Blueprint('ingredients', __name__)
 
 ITEM_TYPE = 1
 ALLOWED_SORT = {'name', 'price', 'unit_price', 'store', 'created_at', 'updated_at'}
-ALLOWED_GENRE = {'meat', 'vegetable', 'seasoning', 'sauce', 'frozen', 'drink', 'other'}
 
 
 def _escape_like(s: str) -> str:
@@ -68,7 +68,7 @@ def create_ingredient():
     price = body.get('price')
     quantity = body.get('quantity')
     unit = (body.get('unit') or '').strip()
-    genre = body.get('genre')
+    genre_id = body.get('genre_id')
     description = body.get('description')
 
     if not name or store_id is None or price is None or quantity is None or not unit:
@@ -82,12 +82,20 @@ def create_ingredient():
     if not store:
         return error('VALIDATION_ERROR', f'購入先 ID {store_id} が見つかりません')
 
+    genre_name = None
+    resolved_genre_id = None
+    if genre_id is not None:
+        genre_obj = Genre.query.get(genre_id)
+        if genre_obj:
+            genre_name = genre_obj.name
+            resolved_genre_id = genre_obj.id
+
     unit_price = round(float(price) / float(quantity), 4)
     item = Item(
         name=name, item_type=ITEM_TYPE, store=store.name, store_id=store_id,
         price=price, quantity=quantity, unit=unit,
-        unit_price=unit_price, genre=genre, description=description,
-        user_id=g.user_id
+        unit_price=unit_price, genre=genre_name, genre_id=resolved_genre_id,
+        description=description, user_id=g.user_id
     )
     db.session.add(item)
     db.session.commit()
@@ -115,11 +123,11 @@ def search_ingredients():
 @require_auth
 def genre_stats():
     rows = db.session.query(
-        func.coalesce(Item.genre, 'other').label('genre'),
+        func.coalesce(Item.genre, 'その他').label('genre'),
         func.count(Item.id).label('count'),
         func.round(func.avg(Item.unit_price), 4).label('avg_unit_price')
     ).filter(Item.item_type == ITEM_TYPE, Item.user_id == g.user_id).group_by(
-        func.coalesce(Item.genre, 'other')
+        func.coalesce(Item.genre, 'その他')
     ).order_by(func.count(Item.id).desc()).all()
 
     data = [{'genre': r.genre, 'count': r.count, 'avg_unit_price': float(r.avg_unit_price or 0)} for r in rows]
@@ -177,10 +185,15 @@ def update_ingredient(item_id):
             return error('VALIDATION_ERROR', f'購入先 ID {sid} が見つかりません')
         item.store_id = sid
         item.store = store.name
+    if 'genre_id' in body and body['genre_id'] is not None:
+        genre_obj = Genre.query.get(body['genre_id'])
+        if genre_obj:
+            item.genre_id = genre_obj.id
+            item.genre = genre_obj.name
+    elif 'genre' in body:
+        item.genre = body['genre']
     if 'unit' in body:
         item.unit = (body['unit'] or '').strip()
-    if 'genre' in body:
-        item.genre = body['genre']
     if 'description' in body:
         item.description = body['description']
 

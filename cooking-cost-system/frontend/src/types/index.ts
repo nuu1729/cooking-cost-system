@@ -59,7 +59,8 @@ export interface Ingredient extends BaseModel {
     unit: 'ml' | 'g' | '個';
     price: number;
     unit_price: number;
-    genre: GenreType;
+    genre: string;
+    genre_id?: number | null;
 }
 
 export interface CreateIngredientRequest {
@@ -68,7 +69,8 @@ export interface CreateIngredientRequest {
     quantity: number;
     unit: string;
     price: number;
-    genre: GenreType;
+    genre?: string;
+    genre_id?: number;
 }
 
 export interface UpdateIngredientRequest {
@@ -78,7 +80,8 @@ export interface UpdateIngredientRequest {
     quantity?: number;
     unit?: string;
     price?: number;
-    genre?: GenreType;
+    genre?: string;
+    genre_id?: number;
 }
 
 export interface IngredientSearchParams {

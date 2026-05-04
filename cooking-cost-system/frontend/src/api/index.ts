@@ -11,3 +11,5 @@ export { memoApi } from './memo';
 export { uploadApi } from './upload';
 export { healthApi } from './health';
 export { storesApi } from './stores';
+export { genreApi } from './genres';
+export type { Genre } from './genres';

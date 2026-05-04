@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: ジャンルマスタ API
+  version: 1.0.0
+
+paths:
+  /api/genres:
+    get:
+      summary: ジャンル一覧取得
+      tags: [Genres]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Genre'
+                  count:
+                    type: integer
+
+    post:
+      summary: ジャンル登録
+      tags: [Genres]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 50
+                  example: 乳製品
+      responses:
+        "201":
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Genre'
+        "409":
+          description: 同名ジャンルが存在する
+
+  /api/genres/{id}:
+    put:
+      summary: ジャンル更新
+      tags: [Genres]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 50
+      responses:
+        "200":
+          description: 更新成功
+        "404":
+          description: ジャンルが見つからない
+        "409":
+          description: 同名ジャンルが存在する
+
+    delete:
+      summary: ジャンル削除
+      tags: [Genres]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 削除成功
+        "404":
+          description: ジャンルが見つからない
+        "409":
+          description: 食材で使用中のため削除不可
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Genre:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: 肉類
+        ingredient_count:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time

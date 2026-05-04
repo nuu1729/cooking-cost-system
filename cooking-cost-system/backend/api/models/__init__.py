@@ -2,5 +2,6 @@ from .item import Item, ItemRelation
 from .user import User
 from .memo import Memo
 from .store import Store
+from .genre import Genre
 
-__all__ = ['Item', 'ItemRelation', 'User', 'Memo', 'Store']
+__all__ = ['Item', 'ItemRelation', 'User', 'Memo', 'Store', 'Genre']
