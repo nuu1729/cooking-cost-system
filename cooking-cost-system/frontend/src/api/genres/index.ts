@@ -3,11 +3,9 @@ import { ApiResponse } from '../../types';
 
 export interface Genre {
     id: number;
-    user_id: number;
     name: string;
     ingredient_count: number;
     created_at: string;
-    updated_at: string;
 }
 
 export const genreApi = {
