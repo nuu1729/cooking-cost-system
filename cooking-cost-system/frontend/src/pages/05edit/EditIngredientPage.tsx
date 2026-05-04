@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ingredientApi } from '@/api';
+import { ingredientApi, genreApi } from '@/api';
+import type { Genre } from '@/api';
 import { Ingredient } from '../../types';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -21,6 +22,7 @@ interface FormData {
     quantity: string;
     unit: 'ml' | 'g' | '個';
     supplier: string;
+    genre_id: string;
 }
 
 const EditIngredientPage: React.FC = () => {
@@ -32,12 +34,16 @@ const EditIngredientPage: React.FC = () => {
         priceAfter: '',
         quantity: '',
         unit: 'g',
-        supplier: ''
+        supplier: '',
+        genre_id: ''
     });
 
     const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
     const [isConfirming, setIsConfirming] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Genre State
+    const [genres, setGenres] = useState<Genre[]>([]);
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +55,12 @@ const EditIngredientPage: React.FC = () => {
     const [isListening, setIsListening] = useState(false);
     const [lastTranscript, setLastTranscript] = useState('');
     const [searchParams] = useSearchParams();
+
+    useEffect(() => {
+        genreApi.getAll().then(res => {
+            if (res.success && res.data) setGenres(res.data);
+        }).catch(() => {});
+    }, []);
 
     // ID Load Logic
     useEffect(() => {
@@ -101,6 +113,7 @@ const EditIngredientPage: React.FC = () => {
     }, []);
 
     const handleSelectIngredient = (item: Ingredient) => {
+        const genreIdStr = item.genre_id ? item.genre_id.toString() : '';
         setFormData({
             id: item.id || null,
             name: item.name,
@@ -108,7 +121,8 @@ const EditIngredientPage: React.FC = () => {
             priceAfter: item.price.toString(),
             quantity: item.quantity.toString(),
             unit: item.unit,
-            supplier: item.store
+            supplier: item.store,
+            genre_id: genreIdStr
         });
         setSearchQuery(item.name);
         setSearchResults([]);
@@ -177,18 +191,22 @@ const EditIngredientPage: React.FC = () => {
         if (!formData.id) return;
         setIsSubmitting(true);
         try {
-            const response = await ingredientApi.update(formData.id, {
+            const updatePayload: any = {
                 id: formData.id,
                 name: formData.name,
                 store: formData.supplier,
                 price: parseFloat(formData.priceAfter),
                 quantity: parseFloat(formData.quantity),
                 unit: formData.unit
-            });
+            };
+            if (formData.genre_id) {
+                updatePayload.genre_id = parseInt(formData.genre_id);
+            }
+            const response = await ingredientApi.update(formData.id, updatePayload);
 
             if (response.success) {
                 toast.success('食材情報を更新しました！');
-                setFormData({ id: null, name: '', priceBefore: '0', priceAfter: '', quantity: '', unit: 'g', supplier: '' });
+                setFormData({ id: null, name: '', priceBefore: '0', priceAfter: '', quantity: '', unit: 'g', supplier: '', genre_id: '' });
                 setSearchQuery('');
                 setErrors({});
                 setIsConfirming(false);
@@ -493,6 +511,31 @@ const EditIngredientPage: React.FC = () => {
                                     className={`w-full px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg ${errors.supplier ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}
                                 />
                             </div>
+
+                            {/* ジャンル */}
+                            <div className="space-y-2">
+                                <label className="text-lg font-bold text-gray-700 ml-1">
+                                    ジャンル
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        name="genre_id"
+                                        value={formData.genre_id}
+                                        onChange={handleChange}
+                                        className="w-full px-6 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl transition-all outline-none appearance-none cursor-pointer text-lg focus:ring-2 focus:ring-emerald-500"
+                                    >
+                                        <option value="">変更しない</option>
+                                        {genres.map(g => (
+                                            <option key={g.id} value={g.id}>{g.name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
                         </form>
                     </div>
 
@@ -556,10 +599,18 @@ const EditIngredientPage: React.FC = () => {
                                         <span className="text-gray-500 font-bold">量</span>
                                         <span className="text-gray-800 font-black">{formData.quantity}{formData.unit}</span>
                                     </div>
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between border-b border-gray-200 pb-3">
                                         <span className="text-gray-500 font-bold">購入先</span>
                                         <span className="text-gray-800 font-black">{formData.supplier}</span>
                                     </div>
+                                    {formData.genre_id && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500 font-bold">ジャンル</span>
+                                            <span className="text-gray-800 font-black">
+                                                {genres.find(g => g.id.toString() === formData.genre_id)?.name}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex flex-col gap-3">
                                     <button onClick={handleFinalSubmit} disabled={isSubmitting} className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all flex items-center justify-center gap-3 font-['Outfit']">

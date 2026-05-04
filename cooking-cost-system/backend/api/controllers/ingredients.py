@@ -2,6 +2,7 @@ from flask import Blueprint, request, g
 from sqlalchemy import func, or_
 from api.database import db
 from api.models.item import Item, ItemRelation
+from api.models.genre import Genre
 from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.utils.japanese import kana_variants
@@ -68,6 +69,7 @@ def create_ingredient():
     quantity = body.get('quantity')
     unit = (body.get('unit') or '').strip()
     genre = body.get('genre')
+    genre_id = body.get('genre_id')
     description = body.get('description')
 
     if not name or not store or price is None or quantity is None or not unit:
@@ -77,12 +79,19 @@ def create_ingredient():
     if quantity <= 0:
         return error('VALIDATION_ERROR', 'quantity は 0 より大きい値で入力してください')
 
+    resolved_genre_id = None
+    if genre_id is not None:
+        genre_obj = Genre.query.filter_by(id=genre_id, user_id=g.user_id).first()
+        if genre_obj:
+            genre = genre_obj.name
+            resolved_genre_id = genre_obj.id
+
     unit_price = round(float(price) / float(quantity), 4)
     item = Item(
         name=name, item_type=ITEM_TYPE, store=store,
         price=price, quantity=quantity, unit=unit,
-        unit_price=unit_price, genre=genre, description=description,
-        user_id=g.user_id
+        unit_price=unit_price, genre=genre, genre_id=resolved_genre_id,
+        description=description, user_id=g.user_id
     )
     db.session.add(item)
     db.session.commit()
@@ -170,7 +179,12 @@ def update_ingredient(item_id):
         item.store = v
     if 'unit' in body:
         item.unit = (body['unit'] or '').strip()
-    if 'genre' in body:
+    if 'genre_id' in body and body['genre_id'] is not None:
+        genre_obj = Genre.query.filter_by(id=body['genre_id'], user_id=g.user_id).first()
+        if genre_obj:
+            item.genre_id = genre_obj.id
+            item.genre = genre_obj.name
+    elif 'genre' in body:
         item.genre = body['genre']
     if 'description' in body:
         item.description = body['description']

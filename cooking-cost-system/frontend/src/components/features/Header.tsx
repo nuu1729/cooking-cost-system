@@ -10,6 +10,7 @@ const navItems = [
     { label: '一覧', subLabel: 'LIST', path: '/list' },
     { label: '仕込み', subLabel: 'PREP', path: '/dishes/prep' },
     { label: 'お品', subLabel: 'DISH', path: '/dishes/large' },
+    { label: 'ジャンル', subLabel: 'GENRE', path: '/genres' },
     { label: '販売価格計算', subLabel: 'CALCULATOR', path: '/calculator' },
 ];
 

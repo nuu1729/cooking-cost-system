@@ -19,6 +19,7 @@ import LoginPage from './pages/01login/LoginPage';
 
 import ListPage from './pages/06list/list';
 import AccountPage from './pages/10account/AccountPage';
+import GenresPage from './pages/12genres/GenresPage';
 
 const App: React.FC = () => {
     const navigate = useNavigate();
@@ -74,6 +75,7 @@ const App: React.FC = () => {
                                 <Route path="/dishes/large" element={<DishPage />} />
                                 <Route path="/calculator" element={<CalculatorPage />} />
                                 <Route path="/account" element={<AccountPage />} />
+                                <Route path="/genres" element={<GenresPage />} />
 
                                 {/* 404 - Inside Layout */}
                                 <Route path="*" element={<Navigate to="/" replace />} />
