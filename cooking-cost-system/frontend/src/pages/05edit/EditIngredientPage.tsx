@@ -112,9 +112,6 @@ const EditIngredientPage: React.FC = () => {
 
     const handleSelectIngredient = (item: Ingredient) => {
         const storeIdFromItem = (item as any).store_id;
-        const matchedStore = storeIdFromItem
-            ? stores.find(s => s.id === storeIdFromItem)
-            : stores.find(s => s.name === item.store);
         const genreIdStr = item.genre_id ? item.genre_id.toString() : '';
         setFormData({
             id: item.id || null,
@@ -123,7 +120,7 @@ const EditIngredientPage: React.FC = () => {
             priceAfter: item.price.toString(),
             quantity: item.quantity.toString(),
             unit: item.unit,
-            supplier_id: matchedStore ? matchedStore.id.toString() : '',
+            supplier_id: storeIdFromItem ? storeIdFromItem.toString() : '',
             genre_id: genreIdStr
         });
         setSearchQuery(item.name);
@@ -182,11 +179,11 @@ const EditIngredientPage: React.FC = () => {
             const updatePayload: any = {
                 id: formData.id,
                 name: formData.name,
-                store_id: parseInt(formData.supplier_id),
                 price: parseFloat(formData.priceAfter),
                 quantity: parseFloat(formData.quantity),
                 unit: formData.unit
             };
+            if (formData.supplier_id) updatePayload.store_id = parseInt(formData.supplier_id);
             if (formData.genre_id) updatePayload.genre_id = parseInt(formData.genre_id);
 
             const response = await ingredientApi.update(formData.id, updatePayload);
