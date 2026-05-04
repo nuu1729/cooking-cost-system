@@ -45,8 +45,10 @@ _DUMMY_HASH = bcrypt.hashpw(b'dummy_timing_protection', bcrypt.gensalt(rounds=12
 def _validate_password(password: str) -> str | None:
     if len(password) < 8:
         return 'パスワードは8文字以上で入力してください'
-    if not re.search(r'[A-Za-z]', password):
-        return 'パスワードに英字を含めてください'
+    if not re.search(r'[a-z]', password):
+        return 'パスワードに小文字英字を含めてください'
+    if not re.search(r'[A-Z]', password):
+        return 'パスワードに大文字英字を含めてください'
     if not re.search(r'[0-9]', password):
         return 'パスワードに数字を含めてください'
     return None

@@ -24,7 +24,8 @@ const schema = yup.object({
         .string()
         .required('パスワードは必須です')
         .min(8, 'パスワードは8文字以上で入力してください')
-        .test('password-has-alpha', 'パスワードに英字を含めてください', (v) => !v || /[A-Za-z]/.test(v))
+        .test('password-has-lower', 'パスワードに小文字英字を含めてください', (v) => !v || /[a-z]/.test(v))
+        .test('password-has-upper', 'パスワードに大文字英字を含めてください', (v) => !v || /[A-Z]/.test(v))
         .test('password-has-digit', 'パスワードに数字を含めてください', (v) => !v || /[0-9]/.test(v)),
     confirmPassword: yup
         .string()
@@ -187,7 +188,7 @@ const SignupPage: React.FC = () => {
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         {...register('password')}
-                                        placeholder="8文字以上（英字・数字を含む）"
+                                        placeholder="8文字以上（大文字・小文字・数字を含む）"
                                         className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 pr-10 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                     />
                                     <button
