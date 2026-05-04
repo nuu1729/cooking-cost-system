@@ -54,6 +54,7 @@ export type GenreType = 'meat' | 'vegetable' | 'seasoning' | 'sauce' | 'frozen' 
 export interface Ingredient extends BaseModel {
     name: string;
     store: string;
+    store_id?: number | null;
     quantity: number;
     unit: 'ml' | 'g' | '個';
     price: number;
@@ -64,7 +65,7 @@ export interface Ingredient extends BaseModel {
 
 export interface CreateIngredientRequest {
     name: string;
-    store: string;
+    store_id: number;
     quantity: number;
     unit: string;
     price: number;
@@ -75,7 +76,7 @@ export interface CreateIngredientRequest {
 export interface UpdateIngredientRequest {
     id: number;
     name?: string;
-    store?: string;
+    store_id?: number;
     quantity?: number;
     unit?: string;
     price?: number;

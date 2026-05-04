@@ -1,0 +1,297 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - 購入先 API
+  description: |
+    購入先マスタの登録・一覧・更新・削除を扱う API。
+    対応テーブル定義: T011 購入先テーブル定義
+    対応画面: `/stores`（購入先管理画面）
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: stores
+    description: 購入先マスタ管理
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Store:
+      type: object
+      description: 購入先マスタレコード
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 100
+          example: コスモス
+        ingredient_count:
+          type: integer
+          description: この購入先を参照している食材（item_type=1）の件数
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-04T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-05-04T00:00:00Z"
+
+    StoreRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 業務スーパー
+
+    StoreListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Store'
+          description: 使用食材数降順でソート済み
+        timestamp:
+          type: string
+          format: date-time
+
+    StoreResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Store'
+        message:
+          type: string
+          example: 購入先を登録しました
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: CONFLICT
+        message:
+          type: string
+          example: その購入先名はすでに登録されています
+        timestamp:
+          type: string
+          format: date-time
+
+  parameters:
+    StoreId:
+      name: store_id
+      in: path
+      required: true
+      description: 購入先ID（stores.id）
+      schema:
+        type: integer
+        example: 1
+
+  responses:
+    NotFound:
+      description: 購入先が見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: NOT_FOUND
+            message: 購入先が見つかりません
+            timestamp: "2026-05-04T00:00:00Z"
+
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: 操作不可（同名重複または食材で使用中）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            duplicate_name:
+              value:
+                success: false
+                error: CONFLICT
+                message: その購入先名はすでに登録されています
+            in_use:
+              value:
+                success: false
+                error: CONFLICT
+                message: この購入先は 3 件の食材で使用中のため削除できません
+
+paths:
+  /stores:
+    get:
+      tags: [stores]
+      summary: 購入先一覧取得
+      description: |
+        ログインユーザーの購入先マスタ一覧を取得する。
+        各レコードに `ingredient_count`（使用食材数）を付与し、降順でソートして返す。
+        対応画面: 購入先管理（`/stores`）右カラム一覧
+      responses:
+        '200':
+          description: 購入先一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreListResponse'
+              example:
+                success: true
+                data:
+                  - id: 1
+                    user_id: 1
+                    name: コスモス
+                    ingredient_count: 8
+                  - id: 2
+                    user_id: 1
+                    name: 業務スーパー
+                    ingredient_count: 3
+                  - id: 3
+                    user_id: 1
+                    name: 自家製
+                    ingredient_count: 0
+                timestamp: "2026-05-04T00:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [stores]
+      summary: 購入先登録
+      description: |
+        新しい購入先を登録する。同一ユーザー内で同名の購入先が既存の場合は 409 を返す。
+        対応画面: 購入先管理（`/stores`）左カラム登録フォーム
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreRequest'
+            example:
+              name: 業務スーパー
+      responses:
+        '201':
+          description: 購入先登録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreResponse'
+        '400':
+          description: バリデーションエラー（name が空）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /stores/{store_id}:
+    put:
+      tags: [stores]
+      summary: 購入先更新
+      description: |
+        指定 ID の購入先名を更新する。
+        更新時に `items.store`（テキスト）も一括 UPDATE して同期する。
+        同一ユーザー内で同名の別購入先が存在する場合は 409 を返す。
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreRequest'
+            example:
+              name: コストコ
+      responses:
+        '200':
+          description: 購入先更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreResponse'
+        '400':
+          description: バリデーションエラー（name が空）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags: [stores]
+      summary: 購入先削除
+      description: |
+        指定 ID の購入先を削除する。
+        `items.store_id` で参照している食材が 1 件以上存在する場合は 409 を返す（削除不可）。
+      parameters:
+        - $ref: '#/components/parameters/StoreId'
+      responses:
+        '200':
+          description: 購入先削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 購入先を削除しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'

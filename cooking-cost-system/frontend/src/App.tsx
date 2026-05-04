@@ -6,7 +6,6 @@ import { accountStore } from './stores/accountStore';
 import { toBackendUrl } from './utils/url';
 
 // Pages
-// Pages
 import HomePage from './pages/02home/HomePage';
 import AddIngredientPage from './pages/03add/AddIngredientPage';
 import EditIngredientPage from './pages/05edit/EditIngredientPage';
@@ -16,9 +15,9 @@ import DishPage from './pages/08dish/dish';
 import CalculatorPage from './pages/09calculator/CalculatorPage';
 import SignupPage from './pages/00signup/SignupPage';
 import LoginPage from './pages/01login/LoginPage';
-
 import ListPage from './pages/06list/list';
 import AccountPage from './pages/10account/AccountPage';
+import StoresPage from './pages/11stores/StoresPage';
 import GenresPage from './pages/12genres/GenresPage';
 
 const App: React.FC = () => {
@@ -44,7 +43,6 @@ const App: React.FC = () => {
             const code = err?.response?.data?.error;
             if (status === 401 && code === 'UNAUTHORIZED') {
                 localStorage.removeItem('authToken');
-                // ログイン・サインアップ以外のページにいる場合はログインへ遷移
                 const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
                 if (!isAuthPage) {
                     navigate('/login');
@@ -73,9 +71,10 @@ const App: React.FC = () => {
                                 <Route path="/dishes/prep" element={<PrepPage />} />
                                 <Route path="/dishes/medium" element={<Navigate to="/dishes/prep" replace />} />
                                 <Route path="/dishes/large" element={<DishPage />} />
+                                <Route path="/stores" element={<StoresPage />} />
+                                <Route path="/genres" element={<GenresPage />} />
                                 <Route path="/calculator" element={<CalculatorPage />} />
                                 <Route path="/account" element={<AccountPage />} />
-                                <Route path="/genres" element={<GenresPage />} />
 
                                 {/* 404 - Inside Layout */}
                                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -87,11 +86,5 @@ const App: React.FC = () => {
         </Suspense>
     );
 };
-
-const Placeholder: React.FC<{ title: string }> = ({ title }) => (
-    <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
-        <h1 className="text-3xl font-bold text-gray-400">{title} (開発中)</h1>
-    </div>
-);
 
 export default App;

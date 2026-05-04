@@ -47,7 +47,13 @@ components:
         store:
           type: string
           maxLength: 100
+          description: 購入先名（stores.name のキャッシュ。store_id と同期）
           example: コストコ
+        store_id:
+          type: integer
+          nullable: true
+          description: 購入先マスタID（stores.id）。食材のみ設定。
+          example: 2
         price:
           type: number
           format: double
@@ -88,18 +94,17 @@ components:
 
     CreateIngredientRequest:
       type: object
-      required: [name, store, price, quantity, unit]
+      required: [name, store_id, price, quantity, unit]
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 255
           example: 豚バラ肉
-        store:
-          type: string
-          minLength: 1
-          maxLength: 100
-          example: コストコ
+        store_id:
+          type: integer
+          description: 購入先マスタID（stores.id）。バックエンドが stores.name を取得して items.store に同期する。
+          example: 2
         price:
           type: number
           format: double
@@ -134,11 +139,10 @@ components:
           minLength: 1
           maxLength: 255
           example: 豚バラ肉（特売）
-        store:
-          type: string
-          minLength: 1
-          maxLength: 100
-          example: 業務スーパー
+        store_id:
+          type: integer
+          description: 購入先マスタID（stores.id）。変更時に items.store も同期される。
+          example: 3
         price:
           type: number
           format: double
