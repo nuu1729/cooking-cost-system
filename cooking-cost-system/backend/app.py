@@ -2,6 +2,7 @@ import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from api.database import db
+from api.extensions import limiter
 from api.error import register_error_handlers
 from datetime import datetime, timezone
 
@@ -19,6 +20,11 @@ def create_app():
     else:
         app.config.from_object('config.DevelopmentConfig')
 
+    # 本番では REDIS_URL があれば Redis、なければメモリストレージを使用
+    redis_url = os.environ.get('REDIS_URL')
+    app.config['RATELIMIT_STORAGE_URI'] = redis_url if redis_url else 'memory://'
+
+    limiter.init_app(app)
     db.init_app(app)
     register_error_handlers(app)
 
