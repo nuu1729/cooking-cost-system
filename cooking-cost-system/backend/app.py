@@ -19,7 +19,7 @@ def create_app():
         strict_transport_security=False,
         content_security_policy=False,
         frame_options='DENY',
-        content_type_options=True,
+        x_content_type_options=True,
         referrer_policy='strict-origin-when-cross-origin',
     )
 
