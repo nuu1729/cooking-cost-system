@@ -10,7 +10,7 @@ from api.database import db
 from api.models.user import User
 from api.utils.response import success, error
 from api.utils.auth import require_auth
-from app import limiter
+from api.extensions import limiter
 
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 

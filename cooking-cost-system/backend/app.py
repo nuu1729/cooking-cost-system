@@ -1,13 +1,10 @@
 import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from api.database import db
+from api.extensions import limiter
 from api.error import register_error_handlers
 from datetime import datetime, timezone
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 def create_app():
