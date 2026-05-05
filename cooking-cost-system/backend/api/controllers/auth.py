@@ -6,16 +6,34 @@ import bcrypt
 import os
 import re
 import uuid
+import filetype
 from api.database import db
 from api.models.user import User
 from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.extensions import limiter
 
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
-def _allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def _validate_image(file) -> str | None:
+    filename = file.filename or ''
+    if '.' not in filename or filename.rsplit('.', 1)[1].lower() not in {'jpg', 'jpeg', 'png', 'gif', 'webp'}:
+        return '許可されていないファイル形式です（jpg/png/gif/webp）'
+
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > MAX_FILE_SIZE:
+        return 'ファイルサイズは5MB以下にしてください'
+
+    header = file.read(512)
+    file.seek(0)
+    kind = filetype.guess(header)
+    if kind is None or kind.mime not in ALLOWED_MIME_TYPES:
+        return '画像ファイルを選択してください（ファイルの内容が画像ではありません）'
+
+    return None
 
 def _upload_dir() -> str:
     base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -230,8 +248,9 @@ def upload_icon():
     file = request.files['file']
     if not file or file.filename == '':
         return error('VALIDATION_ERROR', 'ファイルが選択されていません')
-    if not _allowed_file(file.filename):
-        return error('VALIDATION_ERROR', '許可されていないファイル形式です（jpg/png/gif/webp）')
+    img_error = _validate_image(file)
+    if img_error:
+        return error('VALIDATION_ERROR', img_error)
 
     user = User.query.get(g.user_id)
     if not user:
@@ -253,8 +272,9 @@ def upload_home_bg():
     file = request.files['file']
     if not file or file.filename == '':
         return error('VALIDATION_ERROR', 'ファイルが選択されていません')
-    if not _allowed_file(file.filename):
-        return error('VALIDATION_ERROR', '許可されていないファイル形式です（jpg/png/gif/webp）')
+    img_error = _validate_image(file)
+    if img_error:
+        return error('VALIDATION_ERROR', img_error)
 
     user = User.query.get(g.user_id)
     if not user:
