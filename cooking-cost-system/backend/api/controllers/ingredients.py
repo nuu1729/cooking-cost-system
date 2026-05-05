@@ -7,6 +7,7 @@ from api.models.genre import Genre
 from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.utils.japanese import kana_variants
+from api.utils.audit import log_delete
 
 ingredients_bp = Blueprint('ingredients', __name__)
 
@@ -237,4 +238,5 @@ def delete_ingredient(item_id):
 
     db.session.delete(item)
     db.session.commit()
+    log_delete(g.user_id, 'ingredient', item_id)
     return success(message='食材を削除しました')

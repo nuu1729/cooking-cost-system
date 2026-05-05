@@ -1,4 +1,6 @@
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_talisman import Talisman
@@ -8,8 +10,29 @@ from api.error import register_error_handlers
 from datetime import datetime, timezone
 
 
+def _configure_logging(log_dir: str):
+    os.makedirs(log_dir, exist_ok=True)
+    fmt = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+
+    audit_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'audit.log'),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=30,
+        encoding='utf-8',
+    )
+    audit_handler.setFormatter(fmt)
+
+    audit_logger = logging.getLogger('audit')
+    audit_logger.setLevel(logging.INFO)
+    audit_logger.addHandler(audit_handler)
+    audit_logger.addHandler(logging.StreamHandler())
+    audit_logger.propagate = False
+
+
 def create_app():
     app = Flask(__name__)
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    _configure_logging(log_dir)
 
     CORS(app, resources={r'/api/*': {'origins': '*'}, r'/uploads/*': {'origins': '*'}})
 

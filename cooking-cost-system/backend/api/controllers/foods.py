@@ -3,6 +3,7 @@ from api.database import db
 from api.models.item import Item, ItemRelation
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.utils.audit import log_delete
 
 foods_bp = Blueprint('foods', __name__)
 
@@ -245,4 +246,5 @@ def delete_food(item_id):
     ItemRelation.query.filter_by(parent_item_id=item_id).delete()
     db.session.delete(food)
     db.session.commit()
+    log_delete(g.user_id, 'food', item_id)
     return success(message='お品を削除しました')

@@ -4,6 +4,7 @@ from api.database import db
 from api.models.item import Item, ItemRelation
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.utils.audit import log_delete
 from api.utils.japanese import kana_variants
 
 preps_bp = Blueprint('preps', __name__)
@@ -275,4 +276,5 @@ def delete_prep(item_id):
     ItemRelation.query.filter_by(parent_item_id=item_id).delete()
     db.session.delete(prep)
     db.session.commit()
+    log_delete(g.user_id, 'prep', item_id)
     return success(message='仕込みを削除しました')

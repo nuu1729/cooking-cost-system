@@ -13,6 +13,7 @@ from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.extensions import limiter
 from api.models.revoked_token import RevokedToken
+from api.utils.audit import log_login_success, log_login_failure, log_logout
 
 ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -133,12 +134,16 @@ def login():
     if not user:
         # ユーザーが存在しない場合もbcryptを実行してタイミング攻撃を防ぐ
         bcrypt.checkpw(password.encode(), _DUMMY_HASH.encode())
+        log_login_failure(identifier)
         return error('UNAUTHORIZED', 'ユーザー名またはパスワードが正しくありません', 401)
     if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
+        log_login_failure(identifier)
         return error('UNAUTHORIZED', 'ユーザー名またはパスワードが正しくありません', 401)
     if not user.is_active:
+        log_login_failure(identifier)
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
 
+    log_login_success(user.id, user.username)
     token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at})
 
@@ -156,6 +161,7 @@ def logout():
         db.session.add(revoked)
         RevokedToken.cleanup_expired()
         db.session.commit()
+    log_logout(g.user_id)
     return success(message='ログアウトしました')
 
 

@@ -4,6 +4,7 @@ from api.models.store import Store
 from api.models.item import Item
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.utils.audit import log_delete
 
 stores_bp = Blueprint('stores', __name__)
 
@@ -83,4 +84,5 @@ def delete_store(store_id):
 
     db.session.delete(store)
     db.session.commit()
+    log_delete(g.user_id, 'store', store_id)
     return success(message='購入先を削除しました')

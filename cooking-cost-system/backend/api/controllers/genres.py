@@ -4,6 +4,7 @@ from api.models.genre import Genre
 from api.models.item import Item
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.utils.audit import log_delete
 
 genres_bp = Blueprint('genres', __name__)
 
@@ -80,4 +81,5 @@ def delete_genre(genre_id):
         return error('CONFLICT', f'このジャンルは {count} 件の食材で使用中のため削除できません', 409)
     db.session.delete(genre)
     db.session.commit()
+    log_delete(g.user_id, 'genre', genre_id)
     return success(message='ジャンルを削除しました')
