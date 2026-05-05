@@ -12,6 +12,7 @@ from api.models.user import User
 from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.extensions import limiter
+from api.models.revoked_token import RevokedToken
 
 ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -73,14 +74,15 @@ def _validate_password(password: str) -> str | None:
     return None
 
 
-def _generate_token(user_id: int, secret: str) -> tuple[str, str]:
+def _generate_token(user_id: int, secret: str) -> tuple[str, str, str]:
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    jti = uuid.uuid4().hex
     token = jwt.encode(
-        {'sub': str(user_id), 'exp': expires_at},
+        {'sub': str(user_id), 'exp': expires_at, 'jti': jti},
         secret,
         algorithm='HS256'
     )
-    return token, expires_at.isoformat().replace('+00:00', 'Z')
+    return token, expires_at.isoformat().replace('+00:00', 'Z'), expires_at
 
 
 # POST /api/auth/register
@@ -110,7 +112,7 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    token, expires_at = _generate_token(user.id, current_app.config['JWT_SECRET'])
+    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at}, status=201)
 
 
@@ -137,7 +139,7 @@ def login():
     if not user.is_active:
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
 
-    token, expires_at = _generate_token(user.id, current_app.config['JWT_SECRET'])
+    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at})
 
 
@@ -145,6 +147,15 @@ def login():
 @auth_bp.route('/logout', methods=['POST'])
 @require_auth
 def logout():
+    jti = g.token_jti
+    if jti and not RevokedToken.is_revoked(jti):
+        revoked = RevokedToken(
+            jti=jti,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        )
+        db.session.add(revoked)
+        RevokedToken.cleanup_expired()
+        db.session.commit()
     return success(message='ログアウトしました')
 
 
@@ -182,7 +193,7 @@ def refresh():
     user = User.query.get(g.user_id)
     if not user or not user.is_active:
         return error('UNAUTHORIZED', 'ユーザーが見つかりません', 401)
-    token, expires_at = _generate_token(user.id, current_app.config['JWT_SECRET'])
+    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'token': token, 'expiresAt': expires_at})
 
 
