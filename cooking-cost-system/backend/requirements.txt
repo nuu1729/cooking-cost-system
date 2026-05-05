@@ -10,3 +10,4 @@ click
 PyJWT>=2.8.0
 bcrypt>=4.1.0
 cryptography
+filetype>=1.2.0
