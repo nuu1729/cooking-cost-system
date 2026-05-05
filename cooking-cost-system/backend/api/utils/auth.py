@@ -18,9 +18,15 @@ def require_auth(f):
                 algorithms=['HS256']
             )
             g.user_id = int(payload['sub'])
+            g.token_jti = payload.get('jti')
         except jwt.ExpiredSignatureError:
             return error('UNAUTHORIZED', 'トークンの有効期限が切れています', 401)
         except jwt.InvalidTokenError:
             return error('UNAUTHORIZED', 'トークンが無効です', 401)
+
+        from api.models.revoked_token import RevokedToken
+        if g.token_jti and RevokedToken.is_revoked(g.token_jti):
+            return error('UNAUTHORIZED', 'トークンは失効しています', 401)
+
         return f(*args, **kwargs)
     return decorated

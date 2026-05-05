@@ -41,7 +41,8 @@ def create_app():
 
     # Import models so SQLAlchemy registers them before create_all
     with app.app_context():
-        from api.models import User, Memo, Item, ItemRelation, Store, Genre  # noqa: F401
+        from api.models import User, Memo, Item, ItemRelation, Store, Genre, RevokedToken  # noqa: F401
+        db.create_all()
 
     from api.controllers import register_blueprints
     register_blueprints(app)
