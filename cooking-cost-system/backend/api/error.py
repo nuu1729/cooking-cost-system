@@ -1,4 +1,5 @@
 from flask import jsonify
+from werkzeug.exceptions import HTTPException
 from datetime import datetime, timezone
 import logging
 
@@ -27,7 +28,13 @@ def register_error_handlers(app):
         logger.error('Internal server error: %s', e, exc_info=True)
         return jsonify(success=False, error='INTERNAL_ERROR', message='サーバーエラーが発生しました', timestamp=_now()), 500
 
+    @app.errorhandler(429)
+    def too_many_requests(e):
+        return jsonify(success=False, error='TOO_MANY_REQUESTS', message='リクエストが多すぎます。しばらく待ってから再試行してください', timestamp=_now()), 429
+
     @app.errorhandler(Exception)
     def handle_exception(e):
+        if isinstance(e, HTTPException):
+            return e
         logger.error('Unhandled exception: %s', e, exc_info=True)
         return jsonify(success=False, error='INTERNAL_ERROR', message='サーバーエラーが発生しました', timestamp=_now()), 500
