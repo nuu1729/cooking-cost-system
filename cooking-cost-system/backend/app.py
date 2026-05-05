@@ -1,6 +1,7 @@
 import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_talisman import Talisman
 from api.database import db
 from api.extensions import limiter
 from api.error import register_error_handlers
@@ -11,6 +12,16 @@ def create_app():
     app = Flask(__name__)
 
     CORS(app, resources={r'/api/*': {'origins': '*'}, r'/uploads/*': {'origins': '*'}})
+
+    Talisman(
+        app,
+        force_https=False,
+        strict_transport_security=False,
+        content_security_policy=False,
+        frame_options='DENY',
+        x_content_type_options=True,
+        referrer_policy='strict-origin-when-cross-origin',
+    )
 
     env = os.environ.get('FLASK_ENV', 'development')
     if env == 'production':
