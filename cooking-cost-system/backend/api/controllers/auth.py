@@ -10,6 +10,7 @@ from api.database import db
 from api.models.user import User
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from app import limiter
 
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 
@@ -66,6 +67,7 @@ def _generate_token(user_id: int, secret: str) -> tuple[str, str]:
 
 # POST /api/auth/register
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit('5 per hour')
 def register():
     body = request.get_json(silent=True) or {}
     username = (body.get('username') or '').strip()
@@ -96,6 +98,7 @@ def register():
 
 # POST /api/auth/login
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit('10 per minute')
 def login():
     body = request.get_json(silent=True) or {}
     identifier = (body.get('username') or body.get('email') or '').strip()
