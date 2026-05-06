@@ -24,7 +24,6 @@ const PrepPage: React.FC = () => {
     const [yieldAmount, setYieldAmount] = useState<string>('');
     const [yieldAmountError, setYieldAmountError] = useState('');
     const [items, setItems] = useState<PrepItem[]>([]);
-    const [yieldUnit, setYieldUnit] = useState<'ml' | 'g' | '個'>('g');
     const [totalCost, setTotalCost] = useState(0);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,8 +43,6 @@ const PrepPage: React.FC = () => {
                         // フロントの state名 (prep_name / yield_amount / yield_unit) と異なるため両方に対応
                         setPrepName(data.prep_name || data.name || '');
                         setYieldAmount(String(data.yield_amount ?? data.quantity ?? 0));
-                        const unitVal = data.yield_unit || data.unit;
-                        if (unitVal) setYieldUnit(unitVal as any);
 
                         // バックエンドは "ingredients" キーで返す
                         // (get_prep が ingredients リストを返す構造)
@@ -169,7 +166,7 @@ const PrepPage: React.FC = () => {
         const request: CreatePrepRequest = {
             prep_name: prepName,
             yield_amount: parseFloat(yieldAmount),
-            yield_unit: yieldUnit,
+            yield_unit: 'g',
             total_cost: totalCost,
             items: items.map(item => ({
                 ingredient_id: item.ingredient_id,
@@ -179,14 +176,17 @@ const PrepPage: React.FC = () => {
             }))
         };
         try {
-            const res = await prepApi.create(request);
+            const editId = searchParams.get('id');
+            const res = editId
+                ? await prepApi.update(Number(editId), request)
+                : await prepApi.create(request);
             if (res.success) {
-                toast.success('仕込みを登録しました');
+                toast.success(editId ? '仕込みを更新しました' : '仕込みを登録しました');
                 setShowConfirmModal(false);
                 navigate('/list', { state: { tab: 'preps' } });
             }
         } catch (e) {
-            console.error('Failed to create prep', e);
+            console.error('Failed to save prep', e);
         } finally {
             setIsSubmitting(false);
         }
@@ -413,7 +413,7 @@ const PrepPage: React.FC = () => {
                             </div>
                             <div className="modal-body">
                                 <div className="modal-row"><span className="ml">仕込み名</span><span className="mv mv--green">{prepName}</span></div>
-                                <div className="modal-row"><span className="ml">仕込み量</span><span className="mv">{yieldAmount} {yieldUnit}</span></div>
+                                <div className="modal-row"><span className="ml">仕込み量</span><span className="mv">{yieldAmount} g</span></div>
                                 <div className="modal-row"><span className="ml">合計コスト</span><span className="mv mv--bold">¥ {totalCost.toLocaleString()}</span></div>
                                 <div className="modal-items">
                                     <p className="modal-items-ttl">構成食材 ({items.length}件)</p>

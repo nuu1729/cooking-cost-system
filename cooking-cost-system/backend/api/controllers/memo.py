@@ -3,6 +3,7 @@ from api.database import db
 from api.models.memo import Memo
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.utils.audit import log_delete
 
 memo_bp = Blueprint('memo', __name__)
 
@@ -64,4 +65,5 @@ def delete_memo(memo_id):
         return error('NOT_FOUND', 'メモが見つかりません', 404)
     db.session.delete(memo)
     db.session.commit()
+    log_delete(g.user_id, 'memo', memo_id)
     return success(message='メモを削除しました')

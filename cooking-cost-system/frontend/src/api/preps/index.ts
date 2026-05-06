@@ -39,6 +39,19 @@ export const prepApi = {
         return response.data;
     },
 
+    // 仕込み更新
+    update: async (id: number, data: CreatePrepRequest): Promise<ApiResponse<any>> => {
+        const payload = {
+            name: data.prep_name,
+            quantity: data.yield_amount,
+            unit: data.yield_unit,
+            total_cost: data.total_cost,
+            items: data.items,
+        };
+        const response = await apiClient.put(`/preps/${id}`, payload);
+        return response.data;
+    },
+
     // 仕込み削除
     delete: async (id: number): Promise<ApiResponse<void>> => {
         const response = await apiClient.delete(`/preps/${id}`);

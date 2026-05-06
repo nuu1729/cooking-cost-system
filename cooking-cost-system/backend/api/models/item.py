@@ -13,7 +13,10 @@ class Item(db.Model):
     quantity = db.Column(db.Numeric(10, 2), nullable=False)
     unit = db.Column(db.String(20), nullable=False)
     unit_price = db.Column(db.Numeric(10, 4), nullable=False)
+    selling_price = db.Column(db.Numeric(10, 2), nullable=True)
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.id', ondelete='SET NULL'), nullable=True, index=True)
     genre = db.Column(db.String(50), nullable=True)
+    genre_id = db.Column(db.Integer, db.ForeignKey('genres.id', ondelete='SET NULL'), nullable=True, index=True)
     description = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -45,7 +48,10 @@ class Item(db.Model):
             'quantity': float(self.quantity) if self.quantity is not None else 0,
             'unit': self.unit,
             'unit_price': float(self.unit_price) if self.unit_price is not None else 0,
+            'selling_price': float(self.selling_price) if self.selling_price is not None else None,
+            'store_id': self.store_id,
             'genre': self.genre,
+            'genre_id': self.genre_id,
             'description': self.description,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

@@ -4,16 +4,38 @@ from typing import Optional
 import jwt
 import bcrypt
 import os
+import re
 import uuid
+import filetype
 from api.database import db
 from api.models.user import User
 from api.utils.response import success, error
 from api.utils.auth import require_auth
+from api.extensions import limiter
+from api.models.revoked_token import RevokedToken
+from api.utils.audit import log_login_success, log_login_failure, log_logout
 
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
-def _allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def _validate_image(file) -> str | None:
+    filename = file.filename or ''
+    if '.' not in filename or filename.rsplit('.', 1)[1].lower() not in {'jpg', 'jpeg', 'png', 'gif', 'webp'}:
+        return '許可されていないファイル形式です（jpg/png/gif/webp）'
+
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > MAX_FILE_SIZE:
+        return 'ファイルサイズは5MB以下にしてください'
+
+    header = file.read(512)
+    file.seek(0)
+    kind = filetype.guess(header)
+    if kind is None or kind.mime not in ALLOWED_MIME_TYPES:
+        return '画像ファイルを選択してください（ファイルの内容が画像ではありません）'
+
+    return None
 
 def _upload_dir() -> str:
     base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -37,19 +59,36 @@ def _delete_old_file(url: Optional[str]):
 
 auth_bp = Blueprint('auth', __name__)
 
+# タイミング攻撃対策：ユーザーが存在しない場合もbcryptを実行するためのダミーハッシュ
+_DUMMY_HASH = bcrypt.hashpw(b'dummy_timing_protection', bcrypt.gensalt(rounds=12)).decode()
 
-def _generate_token(user_id: int, secret: str) -> tuple[str, str]:
+
+def _validate_password(password: str) -> str | None:
+    if len(password) < 8:
+        return 'パスワードは8文字以上で入力してください'
+    if not re.search(r'[a-z]', password):
+        return 'パスワードに小文字英字を含めてください'
+    if not re.search(r'[A-Z]', password):
+        return 'パスワードに大文字英字を含めてください'
+    if not re.search(r'[0-9]', password):
+        return 'パスワードに数字を含めてください'
+    return None
+
+
+def _generate_token(user_id: int, secret: str) -> tuple[str, str, str]:
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    jti = uuid.uuid4().hex
     token = jwt.encode(
-        {'sub': str(user_id), 'exp': expires_at},
+        {'sub': str(user_id), 'exp': expires_at, 'jti': jti},
         secret,
         algorithm='HS256'
     )
-    return token, expires_at.isoformat().replace('+00:00', 'Z')
+    return token, expires_at.isoformat().replace('+00:00', 'Z'), expires_at
 
 
 # POST /api/auth/register
 @auth_bp.route('/register', methods=['POST'])
+@limiter.limit('5 per hour')
 def register():
     body = request.get_json(silent=True) or {}
     username = (body.get('username') or '').strip()
@@ -60,8 +99,9 @@ def register():
         return error('VALIDATION_ERROR', 'username・email・password は必須です')
     if len(username) < 3 or len(username) > 50:
         return error('VALIDATION_ERROR', 'username は 3〜50 文字で入力してください')
-    if len(password) < 8:
-        return error('VALIDATION_ERROR', 'password は 8 文字以上で入力してください')
+    pw_error = _validate_password(password)
+    if pw_error:
+        return error('VALIDATION_ERROR', pw_error)
 
     if User.query.filter_by(username=username).first():
         return error('CONFLICT', 'そのユーザー名は既に使用されています', 409)
@@ -73,12 +113,13 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    token, expires_at = _generate_token(user.id, current_app.config['JWT_SECRET'])
+    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at}, status=201)
 
 
 # POST /api/auth/login
 @auth_bp.route('/login', methods=['POST'])
+@limiter.limit('10 per minute')
 def login():
     body = request.get_json(silent=True) or {}
     identifier = (body.get('username') or body.get('email') or '').strip()
@@ -91,13 +132,19 @@ def login():
         (User.email == identifier) | (User.username == identifier)
     ).first()
     if not user:
-        return error('USER_NOT_FOUND', 'このアカウントは登録されていません', 404)
+        # ユーザーが存在しない場合もbcryptを実行してタイミング攻撃を防ぐ
+        bcrypt.checkpw(password.encode(), _DUMMY_HASH.encode())
+        log_login_failure(identifier)
+        return error('UNAUTHORIZED', 'ユーザー名またはパスワードが正しくありません', 401)
     if not bcrypt.checkpw(password.encode(), user.password_hash.encode()):
-        return error('WRONG_PASSWORD', 'パスワードが正しくありません', 401)
+        log_login_failure(identifier)
+        return error('UNAUTHORIZED', 'ユーザー名またはパスワードが正しくありません', 401)
     if not user.is_active:
+        log_login_failure(identifier)
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
 
-    token, expires_at = _generate_token(user.id, current_app.config['JWT_SECRET'])
+    log_login_success(user.id, user.username)
+    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at})
 
 
@@ -105,6 +152,16 @@ def login():
 @auth_bp.route('/logout', methods=['POST'])
 @require_auth
 def logout():
+    jti = g.token_jti
+    if jti and not RevokedToken.is_revoked(jti):
+        revoked = RevokedToken(
+            jti=jti,
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        )
+        db.session.add(revoked)
+        RevokedToken.cleanup_expired()
+        db.session.commit()
+    log_logout(g.user_id)
     return success(message='ログアウトしました')
 
 
@@ -142,7 +199,7 @@ def refresh():
     user = User.query.get(g.user_id)
     if not user or not user.is_active:
         return error('UNAUTHORIZED', 'ユーザーが見つかりません', 401)
-    token, expires_at = _generate_token(user.id, current_app.config['JWT_SECRET'])
+    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'token': token, 'expiresAt': expires_at})
 
 
@@ -186,8 +243,9 @@ def update_password():
 
     if not current_password or not new_password:
         return error('VALIDATION_ERROR', 'currentPassword と newPassword は必須です')
-    if len(new_password) < 8:
-        return error('VALIDATION_ERROR', 'newPassword は 8 文字以上で入力してください')
+    pw_error = _validate_password(new_password)
+    if pw_error:
+        return error('VALIDATION_ERROR', pw_error)
 
     user = User.query.get(g.user_id)
     if not user or not bcrypt.checkpw(current_password.encode(), user.password_hash.encode()):
@@ -207,8 +265,9 @@ def upload_icon():
     file = request.files['file']
     if not file or file.filename == '':
         return error('VALIDATION_ERROR', 'ファイルが選択されていません')
-    if not _allowed_file(file.filename):
-        return error('VALIDATION_ERROR', '許可されていないファイル形式です（jpg/png/gif/webp）')
+    img_error = _validate_image(file)
+    if img_error:
+        return error('VALIDATION_ERROR', img_error)
 
     user = User.query.get(g.user_id)
     if not user:
@@ -230,8 +289,9 @@ def upload_home_bg():
     file = request.files['file']
     if not file or file.filename == '':
         return error('VALIDATION_ERROR', 'ファイルが選択されていません')
-    if not _allowed_file(file.filename):
-        return error('VALIDATION_ERROR', '許可されていないファイル形式です（jpg/png/gif/webp）')
+    img_error = _validate_image(file)
+    if img_error:
+        return error('VALIDATION_ERROR', img_error)
 
     user = User.query.get(g.user_id)
     if not user:

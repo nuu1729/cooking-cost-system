@@ -1,15 +1,50 @@
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_talisman import Talisman
 from api.database import db
+from api.extensions import limiter
 from api.error import register_error_handlers
 from datetime import datetime, timezone
 
 
+def _configure_logging(log_dir: str):
+    os.makedirs(log_dir, exist_ok=True)
+    fmt = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+
+    audit_handler = RotatingFileHandler(
+        os.path.join(log_dir, 'audit.log'),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=30,
+        encoding='utf-8',
+    )
+    audit_handler.setFormatter(fmt)
+
+    audit_logger = logging.getLogger('audit')
+    audit_logger.setLevel(logging.INFO)
+    audit_logger.addHandler(audit_handler)
+    audit_logger.addHandler(logging.StreamHandler())
+    audit_logger.propagate = False
+
+
 def create_app():
     app = Flask(__name__)
+    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    _configure_logging(log_dir)
 
     CORS(app, resources={r'/api/*': {'origins': '*'}, r'/uploads/*': {'origins': '*'}})
+
+    Talisman(
+        app,
+        force_https=False,
+        strict_transport_security=False,
+        content_security_policy=False,
+        frame_options='DENY',
+        x_content_type_options=True,
+        referrer_policy='strict-origin-when-cross-origin',
+    )
 
     env = os.environ.get('FLASK_ENV', 'development')
     if env == 'production':
@@ -19,12 +54,18 @@ def create_app():
     else:
         app.config.from_object('config.DevelopmentConfig')
 
+    # 本番では REDIS_URL があれば Redis、なければメモリストレージを使用
+    redis_url = os.environ.get('REDIS_URL')
+    app.config['RATELIMIT_STORAGE_URI'] = redis_url if redis_url else 'memory://'
+
+    limiter.init_app(app)
     db.init_app(app)
     register_error_handlers(app)
 
     # Import models so SQLAlchemy registers them before create_all
     with app.app_context():
-        from api.models import User, Memo, Item, ItemRelation  # noqa: F401
+        from api.models import User, Memo, Item, ItemRelation, Store, Genre, RevokedToken  # noqa: F401
+        db.create_all()
 
     from api.controllers import register_blueprints
     register_blueprints(app)
@@ -68,4 +109,4 @@ def create_app():
 if __name__ == '__main__':
     app = create_app()
     port = int(os.environ.get('PORT', 3001))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=app.config.get('DEBUG', False))

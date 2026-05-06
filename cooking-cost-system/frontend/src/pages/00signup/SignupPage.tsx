@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { signinApi } from '@/api';
 import { accountStore } from '@/stores/accountStore';
+import { toBackendUrl } from '@/utils/url';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -22,19 +23,10 @@ const schema = yup.object({
     password: yup
         .string()
         .required('パスワードは必須です')
-        .min(8, 'パスワードは8文字以上である必要があります')
-        .test('password-complexity', 'パスワードの複雑さが不足しています', function(value, context) {
-            if (!value) return true;
-            const missing = [];
-            if (!/[a-z]/.test(value)) missing.push('小文字');
-            if (!/[A-Z]/.test(value)) missing.push('大文字');
-            if (!/[0-9]/.test(value)) missing.push('数字');
-
-            if (missing.length > 0) {
-                return context.createError({ message: `${missing.join('、')}を用いること` });
-            }
-            return true;
-        }),
+        .min(8, 'パスワードは8文字以上で入力してください')
+        .test('password-has-lower', 'パスワードに小文字英字を含めてください', (v) => !v || /[a-z]/.test(v))
+        .test('password-has-upper', 'パスワードに大文字英字を含めてください', (v) => !v || /[A-Z]/.test(v))
+        .test('password-has-digit', 'パスワードに数字を含めてください', (v) => !v || /[0-9]/.test(v)),
     confirmPassword: yup
         .string()
         .required('パスワード（確認）は必須です')
@@ -84,7 +76,7 @@ const SignupPage: React.FC = () => {
             if (response.success && response.data) {
                 const data = response.data as any;
                 localStorage.setItem('authToken', data.token);
-                accountStore.initForUser(data.user.id, data.user.username, data.user.email, data.user.icon_url ?? null, data.user.home_bg_url ?? null);
+                accountStore.initForUser(data.user.id, data.user.username, data.user.email, toBackendUrl(data.user.icon_url), toBackendUrl(data.user.home_bg_url));
                 setIsConfirmOpen(false);
                 navigate('/');
             }

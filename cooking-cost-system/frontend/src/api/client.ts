@@ -29,6 +29,19 @@ const getErrorMessage = (error: AxiosError): string => {
     return error.message || '不明なエラーが発生しました';
 };
 
+const SENSITIVE_KEYS = ['password', 'currentPassword', 'newPassword', 'token'];
+
+function sanitizeForLog(data: unknown): unknown {
+    if (!data || typeof data !== 'object') return data;
+    return Object.fromEntries(
+        Object.entries(data as Record<string, unknown>).map(([k, v]) =>
+            SENSITIVE_KEYS.some(f => k.toLowerCase().includes(f.toLowerCase()))
+                ? [k, '[MASKED]']
+                : [k, v]
+        )
+    );
+}
+
 // リクエストインターセプター
 apiClient.interceptors.request.use(
     (config) => {
@@ -36,11 +49,11 @@ apiClient.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
-        
+
         if (import.meta.env.DEV) {
-            console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`, config.data);
+            console.log(`🚀 API Request: ${config.method?.toUpperCase()} ${config.url}`, sanitizeForLog(config.data));
         }
-        
+
         return config;
     },
     (error) => {
@@ -80,7 +93,8 @@ apiClient.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (!isLoginOrRegister && !isSessionCheck) {
+        const isConflict = error.response?.status === 409;
+        if (!isLoginOrRegister && !isSessionCheck && !isConflict) {
             toast.error(errorMessage);
         }
         
