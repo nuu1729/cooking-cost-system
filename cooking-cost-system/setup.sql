@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS `users` (
     `email`         VARCHAR(255) NOT NULL,
     `password_hash` VARCHAR(255) NOT NULL,
     `is_active`     TINYINT(1)   NOT NULL DEFAULT 1,
+    `icon_url`      VARCHAR(500) NULL,
+    `home_bg_url`   VARCHAR(500) NULL,
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
@@ -82,7 +84,7 @@ CREATE TABLE IF NOT EXISTS `memos` (
 
 INSERT INTO `users` (`username`, `email`, `password_hash`, `is_active`) VALUES
 ('nuu1729', 'nuu1729@example.com',
- '$2b$12$6L9noqVmhQ/LWS/p2rpfWOO8iqxwpx7rD86jiZ0YIfhw4sCBXz1ty', 1);
+ '$2b$12$SXkZ1GO5MDEM8mgWFgpCh.nC1AXs5LRs3NKithj2Xxie1OhXT8FM2', 1);
 
 -- ============================================================
 -- 3. 食材（item_type = 1）

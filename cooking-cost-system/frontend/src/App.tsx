@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/common/Layout';
 import { authApi } from './api';
@@ -23,10 +23,14 @@ import GenresPage from './pages/12genres/GenresPage';
 const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [authChecked, setAuthChecked] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
-        if (!token) return;
+        if (!token) {
+            setAuthChecked(true);
+            return;
+        }
         authApi.me().then(res => {
             if (res.success && res.data) {
                 const u = res.data as any;
@@ -48,8 +52,16 @@ const App: React.FC = () => {
                     navigate('/login');
                 }
             }
+        }).finally(() => {
+            setAuthChecked(true);
         });
     }, []);
+
+    if (!authChecked) {
+        return <div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">読み込み中...</div>;
+    }
+
+    const isAuthenticated = !!localStorage.getItem('authToken');
 
     return (
         <Suspense fallback={<div className="flex items-center justify-center min-h-screen bg-slate-900 text-white">読み込み中...</div>}>
@@ -57,29 +69,33 @@ const App: React.FC = () => {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
 
-                {/* Main Application Routes wrapped in Layout */}
+                {/* Protected routes - redirect to /login if not authenticated */}
                 <Route
                     path="/*"
                     element={
-                        <Layout>
-                            <Routes>
-                                <Route path="/" element={<HomePage />} />
-                                <Route path="/ingredients/add" element={<AddIngredientPage />} />
-                                <Route path="/ingredients/search" element={<SearchIngredientPage />} />
-                                <Route path="/ingredients/edit" element={<EditIngredientPage />} />
-                                <Route path="/list" element={<ListPage />} />
-                                <Route path="/dishes/prep" element={<PrepPage />} />
-                                <Route path="/dishes/medium" element={<Navigate to="/dishes/prep" replace />} />
-                                <Route path="/dishes/large" element={<DishPage />} />
-                                <Route path="/stores" element={<StoresPage />} />
-                                <Route path="/genres" element={<GenresPage />} />
-                                <Route path="/calculator" element={<CalculatorPage />} />
-                                <Route path="/account" element={<AccountPage />} />
+                        isAuthenticated ? (
+                            <Layout>
+                                <Routes>
+                                    <Route path="/" element={<HomePage />} />
+                                    <Route path="/ingredients/add" element={<AddIngredientPage />} />
+                                    <Route path="/ingredients/search" element={<SearchIngredientPage />} />
+                                    <Route path="/ingredients/edit" element={<EditIngredientPage />} />
+                                    <Route path="/list" element={<ListPage />} />
+                                    <Route path="/dishes/prep" element={<PrepPage />} />
+                                    <Route path="/dishes/medium" element={<Navigate to="/dishes/prep" replace />} />
+                                    <Route path="/dishes/large" element={<DishPage />} />
+                                    <Route path="/stores" element={<StoresPage />} />
+                                    <Route path="/genres" element={<GenresPage />} />
+                                    <Route path="/calculator" element={<CalculatorPage />} />
+                                    <Route path="/account" element={<AccountPage />} />
 
-                                {/* 404 - Inside Layout */}
-                                <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                        </Layout>
+                                    {/* 404 - Inside Layout */}
+                                    <Route path="*" element={<Navigate to="/" replace />} />
+                                </Routes>
+                            </Layout>
+                        ) : (
+                            <Navigate to="/login" replace state={{ from: location }} />
+                        )
                     }
                 />
             </Routes>

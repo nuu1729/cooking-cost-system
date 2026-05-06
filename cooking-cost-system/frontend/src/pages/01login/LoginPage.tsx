@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authApi } from '@/api';
 import { accountStore } from '@/stores/accountStore';
 import { toBackendUrl } from '@/utils/url';
@@ -24,7 +24,9 @@ type FormData = yup.InferType<typeof schema>;
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const from = (location.state as any)?.from?.pathname ?? '/';
 
     const {
         register,
@@ -47,7 +49,7 @@ const LoginPage: React.FC = () => {
                 localStorage.setItem('authToken', response.data.token);
                 const user = response.data.user as any;
                 accountStore.initForUser(user.id, user.username, user.email, toBackendUrl(user.icon_url), toBackendUrl(user.home_bg_url));
-                navigate('/');
+                navigate(from, { replace: true });
             } else {
                 throw new Error('ログインに失敗しました。');
             }
