@@ -5,10 +5,10 @@ services:
     container_name: cooking-cost-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: cooking_cost_system
-      MYSQL_USER: nuu1729
-      MYSQL_PASSWORD: 8810HayaTake
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
       - ./setup.sql:/docker-entrypoint-initdb.d/setup.sql
@@ -29,10 +29,10 @@ services:
     container_name: cooking-cost-backend
     restart: unless-stopped
     environment:
-      FLASK_ENV: development
-      DATABASE_URL: mysql+pymysql://nuu1729:8810HayaTake@database/cooking_cost_system
-      SECRET_KEY: dev_secret_key
-      CORS_ORIGIN: http://localhost:3000
+      FLASK_ENV: ${FLASK_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     volumes:
       - ./backend:/app
     ports:
@@ -71,7 +71,7 @@ services:
     environment:
       PMA_HOST: database
       PMA_USER: root
-      PMA_PASSWORD: rootpassword
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     ports:
       - "8080:80"
     networks:
