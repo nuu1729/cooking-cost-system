@@ -4,14 +4,21 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _require_env(key: str) -> str:
+    value = os.environ.get(key)
+    if not value:
+        raise RuntimeError(
+            f"環境変数 '{key}' が設定されていません。"
+            f".env.example を参考に .env を作成してください。"
+        )
+    return value
+
+
 class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev_secret_key')
-    JWT_SECRET = os.environ.get('JWT_SECRET', 'dev_jwt_secret_change_in_production')
+    SECRET_KEY = _require_env('SECRET_KEY')
+    JWT_SECRET = os.environ.get('JWT_SECRET', os.environ.get('SECRET_KEY', ''))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
-        'mysql+pymysql://cooking_user:cooking_password@localhost/cooking_cost_system'
-    )
+    SQLALCHEMY_DATABASE_URI = _require_env('DATABASE_URL')
 
 
 class DevelopmentConfig(Config):
