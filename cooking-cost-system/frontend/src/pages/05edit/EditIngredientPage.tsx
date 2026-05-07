@@ -6,6 +6,42 @@ import { storesApi, Store } from '@/api/stores';
 import { Ingredient } from '../../types';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import CreatableSelect from 'react-select/creatable';
+
+const buildSelectStyles = (hasError: boolean) => ({
+    control: (base: any, state: any) => ({
+        ...base,
+        backgroundColor: hasError ? '#fef2f2' : '#f0f0f0',
+        borderRadius: '1rem',
+        border: hasError
+            ? '2px solid #fca5a5'
+            : state.isFocused ? '2px solid #10b981' : '2px solid transparent',
+        boxShadow: hasError
+            ? '0 0 0 2px rgba(252,165,165,0.3)'
+            : state.isFocused ? '0 0 0 2px rgba(16,185,129,0.2)' : 'none',
+        minHeight: '60px',
+        cursor: 'pointer',
+        '&:hover': { borderColor: hasError ? '#fca5a5' : 'transparent' },
+    }),
+    valueContainer: (base: any) => ({ ...base, padding: '0 1.25rem' }),
+    placeholder: (base: any) => ({ ...base, color: '#9ca3af', fontSize: '1.125rem' }),
+    singleValue: (base: any) => ({ ...base, fontSize: '1.125rem', color: '#1f2937' }),
+    input: (base: any) => ({ ...base, fontSize: '1.125rem' }),
+    menu: (base: any) => ({
+        ...base, borderRadius: '1rem', overflow: 'hidden', zIndex: 50,
+        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+    }),
+    option: (base: any, state: any) => ({
+        ...base,
+        backgroundColor: state.isSelected ? '#10b981' : state.isFocused ? '#f0fdf4' : 'white',
+        color: state.isSelected ? 'white' : '#1f2937',
+        fontSize: '1.125rem',
+        padding: '0.75rem 1.25rem',
+        cursor: 'pointer',
+    }),
+    indicatorSeparator: () => ({ display: 'none' }),
+    dropdownIndicator: (base: any) => ({ ...base, color: '#9ca3af' }),
+});
 
 // Speech Recognition Types
 declare global {
@@ -45,6 +81,8 @@ const EditIngredientPage: React.FC = () => {
 
     const [stores, setStores] = useState<Store[]>([]);
     const [genres, setGenres] = useState<Genre[]>([]);
+    const [isCreatingStore, setIsCreatingStore] = useState(false);
+    const [isCreatingGenre, setIsCreatingGenre] = useState(false);
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -127,6 +165,47 @@ const EditIngredientPage: React.FC = () => {
         setSearchResults([]);
         setShowResults(false);
         setErrors({});
+    };
+
+    const handleCreateStore = async (inputValue: string) => {
+        const name = inputValue.trim();
+        if (!name) return;
+        setIsCreatingStore(true);
+        try {
+            const res = await storesApi.create(name);
+            if (res.success && res.data) {
+                setStores(prev => [...prev, res.data!]);
+                setFormData(prev => ({ ...prev, supplier_id: res.data!.id.toString() }));
+                setErrors(prev => ({ ...prev, supplier_id: undefined }));
+                toast.success(`「${name}」を購入先に追加しました`);
+            } else {
+                toast.error(res.message || '購入先の追加に失敗しました');
+            }
+        } catch {
+            toast.error('購入先の追加に失敗しました');
+        } finally {
+            setIsCreatingStore(false);
+        }
+    };
+
+    const handleCreateGenre = async (inputValue: string) => {
+        const name = inputValue.trim();
+        if (!name) return;
+        setIsCreatingGenre(true);
+        try {
+            const res = await genreApi.create({ name });
+            if (res.success && res.data) {
+                setGenres(prev => [...prev, res.data!]);
+                setFormData(prev => ({ ...prev, genre_id: res.data!.id.toString() }));
+                toast.success(`「${name}」をジャンルに追加しました`);
+            } else {
+                toast.error(res.message || 'ジャンルの追加に失敗しました');
+            }
+        } catch {
+            toast.error('ジャンルの追加に失敗しました');
+        } finally {
+            setIsCreatingGenre(false);
+        }
     };
 
     const isHalfWidthNumber = (value: string) => /^\d+(\.\d+)?$/.test(value);
@@ -385,35 +464,48 @@ const EditIngredientPage: React.FC = () => {
                                     <span>購入先</span>
                                     {errors.supplier_id && <span className="text-sm text-red-500 font-normal">{errors.supplier_id}</span>}
                                 </label>
-                                <div className="relative">
-                                    <select name="supplier_id" value={formData.supplier_id} onChange={handleChange}
-                                        className={`w-full px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none appearance-none cursor-pointer text-lg ${errors.supplier_id ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`}>
-                                        <option value="">選択してください</option>
-                                        {stores.map(s => <option key={s.id} value={s.id.toString()}>{s.name}</option>)}
-                                    </select>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                </div>
+                                <CreatableSelect
+                                    value={stores.find(s => s.id.toString() === formData.supplier_id)
+                                        ? { value: formData.supplier_id, label: stores.find(s => s.id.toString() === formData.supplier_id)!.name }
+                                        : null}
+                                    options={stores.map(s => ({ value: s.id.toString(), label: s.name }))}
+                                    onChange={(opt) => {
+                                        const v = opt ? opt.value : '';
+                                        setFormData(prev => ({ ...prev, supplier_id: v }));
+                                        if (v) setErrors(prev => ({ ...prev, supplier_id: undefined }));
+                                    }}
+                                    onCreateOption={handleCreateStore}
+                                    isLoading={isCreatingStore}
+                                    isDisabled={isCreatingStore}
+                                    formatCreateLabel={(v) => `「${v}」を新規追加`}
+                                    placeholder="選択または新規入力"
+                                    isClearable
+                                    noOptionsMessage={() => '一致する購入先がありません'}
+                                    styles={buildSelectStyles(!!errors.supplier_id)}
+                                />
                             </div>
 
                             {/* ジャンル */}
                             <div className="space-y-2">
                                 <label className="text-lg font-bold text-gray-700 ml-1">ジャンル</label>
-                                <div className="relative">
-                                    <select name="genre_id" value={formData.genre_id} onChange={handleChange}
-                                        className="w-full px-6 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl transition-all outline-none appearance-none cursor-pointer text-lg focus:ring-2 focus:ring-emerald-500">
-                                        <option value="">変更しない</option>
-                                        {genres.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                                    </select>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                </div>
+                                <CreatableSelect
+                                    value={genres.find(g => g.id.toString() === formData.genre_id)
+                                        ? { value: formData.genre_id, label: genres.find(g => g.id.toString() === formData.genre_id)!.name }
+                                        : null}
+                                    options={genres.map(g => ({ value: g.id.toString(), label: g.name }))}
+                                    onChange={(opt) => {
+                                        const v = opt ? opt.value : '';
+                                        setFormData(prev => ({ ...prev, genre_id: v }));
+                                    }}
+                                    onCreateOption={handleCreateGenre}
+                                    isLoading={isCreatingGenre}
+                                    isDisabled={isCreatingGenre}
+                                    formatCreateLabel={(v) => `「${v}」を新規追加`}
+                                    placeholder="選択または新規入力"
+                                    isClearable
+                                    noOptionsMessage={() => '一致するジャンルがありません'}
+                                    styles={buildSelectStyles(false)}
+                                />
                             </div>
                         </form>
                     </div>
