@@ -22,26 +22,52 @@ CREATE TABLE IF NOT EXISTS `users` (
     UNIQUE KEY `uk_email`    (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `stores` (
+    `id`         INT          NOT NULL AUTO_INCREMENT,
+    `user_id`    INT          NOT NULL,
+    `name`       VARCHAR(100) NOT NULL,
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_stores_user_id` (`user_id`),
+    CONSTRAINT `fk_stores_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `genres` (
+    `id`         INT         NOT NULL AUTO_INCREMENT,
+    `name`       VARCHAR(50) NOT NULL,
+    `created_at` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_genre_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `items` (
-    `id`          INT            NOT NULL AUTO_INCREMENT,
-    `user_id`     INT            NULL,
-    `name`        VARCHAR(255)   NOT NULL,
-    `item_type`   TINYINT        NOT NULL COMMENT '1:食材 2:仕込み品 3:お品',
-    `store`       VARCHAR(100)   NOT NULL,
-    `price`       DECIMAL(10,2)  NOT NULL,
-    `quantity`    DECIMAL(10,2)  NOT NULL,
-    `unit`        VARCHAR(20)    NOT NULL,
-    `unit_price`  DECIMAL(10,4)  NOT NULL,
-    `genre`       VARCHAR(50)    DEFAULT NULL,
-    `description` TEXT           DEFAULT NULL,
-    `created_at`  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `id`            INT            NOT NULL AUTO_INCREMENT,
+    `user_id`       INT            NULL,
+    `name`          VARCHAR(255)   NOT NULL,
+    `item_type`     TINYINT        NOT NULL COMMENT '1:食材 2:仕込み品 3:お品',
+    `store`         VARCHAR(100)   NOT NULL,
+    `price`         DECIMAL(10,2)  NOT NULL,
+    `quantity`      DECIMAL(10,2)  NOT NULL,
+    `unit`          VARCHAR(20)    NOT NULL,
+    `unit_price`    DECIMAL(10,4)  NOT NULL,
+    `selling_price` DECIMAL(10,2)  NULL,
+    `store_id`      INT            NULL,
+    `genre`         VARCHAR(50)    DEFAULT NULL,
+    `genre_id`      INT            NULL,
+    `description`   TEXT           DEFAULT NULL,
+    `created_at`    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_user_id`   (`user_id`),
     INDEX `idx_item_type` (`item_type`),
     INDEX `idx_name`      (`name`),
     INDEX `idx_type_name` (`item_type`, `name`),
-    CONSTRAINT `fk_items_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    INDEX `idx_store_id`  (`store_id`),
+    INDEX `idx_genre_id`  (`genre_id`),
+    CONSTRAINT `fk_items_user_id`  FOREIGN KEY (`user_id`)  REFERENCES `users`  (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_items_store_id` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_items_genre_id` FOREIGN KEY (`genre_id`) REFERENCES `genres` (`id`) ON DELETE SET NULL,
     CONSTRAINT `chk_item_type` CHECK (`item_type` IN (1, 2, 3)),
     CONSTRAINT `chk_price`     CHECK (`price`    >= 0),
     CONSTRAINT `chk_quantity`  CHECK (`quantity`  > 0)
@@ -71,6 +97,15 @@ CREATE TABLE IF NOT EXISTS `memos` (
     PRIMARY KEY (`id`),
     INDEX `idx_memos_user_id` (`user_id`),
     CONSTRAINT `fk_memos_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `revoked_tokens` (
+    `id`         INT         NOT NULL AUTO_INCREMENT,
+    `jti`        VARCHAR(36) NOT NULL,
+    `revoked_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `expires_at` DATETIME(6) NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_jti` (`jti`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
