@@ -14,6 +14,7 @@ from api.utils.auth import require_auth
 from api.extensions import limiter
 from api.models.revoked_token import RevokedToken
 from api.utils.audit import log_login_success, log_login_failure, log_logout
+from api.controllers.genres import seed_default_genres
 
 ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -112,6 +113,8 @@ def register():
     user = User(username=username, email=email, password_hash=pw_hash)
     db.session.add(user)
     db.session.commit()
+
+    seed_default_genres(user.id)
 
     token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at}, status=201)
