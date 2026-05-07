@@ -44,7 +44,22 @@ def list_preps():
     q = q.order_by(col.asc() if sort_order == 'ASC' else col.desc())
     total = q.count()
     items = q.offset(offset).limit(limit).all()
-    return success([i.to_dict() for i in items], count=total)
+
+    prep_ids = [i.id for i in items]
+    rels = db.session.query(ItemRelation, Item).join(
+        Item, ItemRelation.child_item_id == Item.id
+    ).filter(ItemRelation.parent_item_id.in_(prep_ids)).all() if prep_ids else []
+
+    names_by_prep: dict = {}
+    for rel, ing in rels:
+        names_by_prep.setdefault(rel.parent_item_id, []).append(ing.name)
+
+    result = []
+    for i in items:
+        d = i.to_dict()
+        d['ingredient_names'] = names_by_prep.get(i.id, [])
+        result.append(d)
+    return success(result, count=total)
 
 
 # POST /api/preps

@@ -280,7 +280,7 @@ const ListPage: React.FC = () => {
                                                 ¥ {item.unit_price != null ? Number(item.unit_price).toFixed(2) : '-'}<span className="text-gray-400 font-normal text-xs">/g</span>
                                             </td>
                                             <td className="text-xs text-gray-500">
-                                                {item.items?.map((i: any) => i.ingredient?.name).join(', ') || item.ingredients?.join(', ')}
+                                                {item.ingredient_names?.join(', ') || '-'}
                                             </td>
                                             <td className="actions-cell">
                                                 <button className="btn-icon edit" onClick={() => handleEdit('preps', item.id)} title="編集">
