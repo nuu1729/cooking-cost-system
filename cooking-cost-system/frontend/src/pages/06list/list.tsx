@@ -200,8 +200,9 @@ const ListPage: React.FC = () => {
                         {activeTab === 'ingredients' && (
                             <tr>
                                 <th>食材名</th>
-                                <th>単価/金額</th>
+                                <th>単価</th>
                                 <th>購入先</th>
+                                <th>ジャンル</th>
                                 <th className="text-center">操作</th>
                             </tr>
                         )}
@@ -230,7 +231,7 @@ const ListPage: React.FC = () => {
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
                                 >
-                                    <td colSpan={4} className="loading-cell">読み込み中...</td>
+                                    <td colSpan={5} className="loading-cell">読み込み中...</td>
                                 </motion.tr>
                             ) : (
                                 <>
@@ -251,6 +252,7 @@ const ListPage: React.FC = () => {
                                                 ¥ {(item.price / item.quantity).toFixed(2)}/{item.unit}
                                             </td>
                                             <td className="text-gray-500">{item.store}</td>
+                                            <td className="text-gray-500">{(item as any).genre || '-'}</td>
                                             <td className="actions-cell">
                                                 <button className="btn-icon edit" onClick={() => handleEdit('ingredients', item.id!)} title="編集">
                                                     ✏️
@@ -346,7 +348,7 @@ const ListPage: React.FC = () => {
                                     
                                     {!isLoading && currentCount === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="empty-cell">データがありません</td>
+                                            <td colSpan={5} className="empty-cell">データがありません</td>
                                         </tr>
                                     )}
                                 </>
