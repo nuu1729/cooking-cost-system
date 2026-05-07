@@ -113,6 +113,14 @@ const PrepPage: React.FC = () => {
         if (n <= 0) { setAmountError('0より大きい値を入力してください'); return; }
         setAmountError('');
 
+        if (!isEditing) {
+            const duplicate = items.find(i => i.ingredient_id === selectedIngredient.id);
+            if (duplicate) {
+                toast.error(`「${selectedIngredient.name}」はすでにリストに追加されています`);
+                return;
+            }
+        }
+
         const newItem: PrepItem = {
             id: isEditing || Math.random().toString(36).substr(2, 9),
             ingredient_id: selectedIngredient.id!,
