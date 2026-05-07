@@ -296,13 +296,17 @@ const AddIngredientPage: React.FC = () => {
     // Keyboard support for Modal
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (successItem) {
+                if (e.key === 'Enter') setSuccessItem(null);
+                return;
+            }
             if (!isConfirming) return;
             if (e.key === 'Enter') handleFinalSubmit();
             else if (e.key === 'Escape') setIsConfirming(false);
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isConfirming, formData]);
+    }, [isConfirming, formData, successItem]);
 
     return (
         <div className="min-h-[calc(100vh-80px)] bg-[#f9f9f9] py-16 px-4">
@@ -576,7 +580,7 @@ const AddIngredientPage: React.FC = () => {
                                 <div className="flex flex-col gap-3">
                                     <button onClick={() => setSuccessItem(null)}
                                         className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all font-['Outfit']">
-                                        続けて登録する
+                                        続けて登録する (Enter)
                                     </button>
                                     <button onClick={() => navigate('/list', { state: { tab: 'ingredients' } })}
                                         className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
