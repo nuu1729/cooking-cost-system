@@ -34,7 +34,8 @@ def create_app():
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
     _configure_logging(log_dir)
 
-    CORS(app, resources={r'/api/*': {'origins': '*'}, r'/uploads/*': {'origins': '*'}})
+    cors_origins = [o.strip() for o in os.environ.get('CORS_ORIGIN', 'http://localhost:3000').split(',')]
+    CORS(app, resources={r'/api/*': {'origins': cors_origins}, r'/uploads/*': {'origins': cors_origins}})
 
     Talisman(
         app,
