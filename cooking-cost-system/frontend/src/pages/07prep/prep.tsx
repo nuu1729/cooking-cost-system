@@ -56,11 +56,11 @@ const PrepPage: React.FC = () => {
                             ingredient: it.ingredient || {
                                 id: it.ingredient_id,
                                 name: it.ingredient_name || '(不明)',
-                                store: it.store || '-',
+                                store: it.ingredient_store || it.store || '-',
                                 unit: it.ingredient_unit || '',
-                                price: 0,
-                                quantity: 1,
-                                unit_price: 0,
+                                price: it.ingredient_price ?? 0,
+                                quantity: it.ingredient_quantity ?? 1,
+                                unit_price: it.ingredient_unit_price ?? 0,
                             }
                         })));
                     }

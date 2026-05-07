@@ -173,6 +173,10 @@ def get_prep(item_id):
         'ingredient_name': ing.name,
         'ingredient_unit': ing.unit,
         'ingredient_genre': ing.genre,
+        'ingredient_store': ing.store,
+        'ingredient_price': float(ing.price),
+        'ingredient_quantity': float(ing.quantity),
+        'ingredient_unit_price': float(ing.unit_price),
         'amount': float(rel.amount),
         'cost': float(rel.cost),
     } for rel, ing in rels]
