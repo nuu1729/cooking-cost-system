@@ -35,10 +35,13 @@ CREATE TABLE IF NOT EXISTS `stores` (
 
 CREATE TABLE IF NOT EXISTS `genres` (
     `id`         INT         NOT NULL AUTO_INCREMENT,
+    `user_id`    INT         NOT NULL,
     `name`       VARCHAR(50) NOT NULL,
     `created_at` DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_genre_name` (`name`)
+    INDEX `idx_genres_user_id` (`user_id`),
+    UNIQUE KEY `uk_user_genre_name` (`user_id`, `name`),
+    CONSTRAINT `fk_genres_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `items` (
