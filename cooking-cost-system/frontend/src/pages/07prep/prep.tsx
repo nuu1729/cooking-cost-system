@@ -116,6 +116,7 @@ const PrepPage: React.FC = () => {
         if (!isEditing) {
             const duplicate = items.find(i => i.ingredient_id === selectedIngredient.id);
             if (duplicate) {
+                setAmountError(`「${selectedIngredient.name}」はすでに追加されています`);
                 toast.error(`「${selectedIngredient.name}」はすでにリストに追加されています`);
                 return;
             }
