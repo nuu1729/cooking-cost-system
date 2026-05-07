@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ingredientApi, genreApi } from '@/api';
 import type { Genre } from '@/api';
@@ -60,6 +61,7 @@ interface FormData {
 }
 
 const AddIngredientPage: React.FC = () => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState<FormData>({
         name: '',
         price: '',
@@ -72,6 +74,7 @@ const AddIngredientPage: React.FC = () => {
     const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
     const [isConfirming, setIsConfirming] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [successItem, setSuccessItem] = useState<{ name: string; price: string; quantity: string; unit: string } | null>(null);
 
     const [stores, setStores] = useState<Store[]>([]);
     const [genres, setGenres] = useState<Genre[]>([]);
@@ -118,6 +121,9 @@ const AddIngredientPage: React.FC = () => {
             isValid = false;
         } else if (!isHalfWidthNumber(formData.quantity)) {
             newErrors.quantity = '半角数字で入力してください';
+            isValid = false;
+        } else if (parseFloat(formData.quantity) <= 0) {
+            newErrors.quantity = '0 より大きい値を入力してください';
             isValid = false;
         }
         if (!formData.supplier_id) {
@@ -206,13 +212,15 @@ const AddIngredientPage: React.FC = () => {
             });
 
             if (response.success) {
-                toast.success('食材をデータベースに登録しました！');
+                setSuccessItem({ name: formData.name, price: formData.price, quantity: formData.quantity, unit: formData.unit });
                 setFormData({ name: '', price: '', quantity: '', unit: 'g', supplier_id: '', genre_id: '' });
                 setErrors({});
             } else {
                 toast.error(response.message || '登録に失敗しました');
             }
         } catch (error: any) {
+            const msg = (error as any)?.response?.data?.message || '登録に失敗しました';
+            toast.error(msg);
             console.error('Registration failed:', error);
         } finally {
             setIsSubmitting(false);
@@ -533,6 +541,46 @@ const AddIngredientPage: React.FC = () => {
                                     <button onClick={() => setIsConfirming(false)} disabled={isSubmitting}
                                         className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
                                         戻る (ESC)
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Success Modal */}
+            <AnimatePresence>
+                {successItem && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                        <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden">
+                            <div className="p-10 space-y-8">
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-center">
+                                        <h3 className="text-2xl font-black text-gray-800 font-['Outfit']">登録しました！</h3>
+                                        <p className="text-gray-500 mt-1">食材をデータベースに保存しました</p>
+                                    </div>
+                                </div>
+                                <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-100 text-center">
+                                    <p className="text-2xl font-black text-gray-800">{successItem.name}</p>
+                                    <p className="text-gray-500 mt-1">
+                                        ¥{Number(successItem.price).toLocaleString()} / {successItem.quantity}{successItem.unit}
+                                    </p>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    <button onClick={() => setSuccessItem(null)}
+                                        className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all font-['Outfit']">
+                                        続けて登録する
+                                    </button>
+                                    <button onClick={() => navigate('/list', { state: { tab: 'ingredients' } })}
+                                        className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
+                                        一覧を確認する
                                     </button>
                                 </div>
                             </div>
