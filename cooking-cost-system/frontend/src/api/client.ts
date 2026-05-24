@@ -2,8 +2,12 @@ import axios, { AxiosResponse, AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
 // APIベースURL設定
-const API_BASE_URL = import.meta.env.VITE_ENABLE_MOCK === 'true' 
-    ? '/api' // Mock有効時は相対パスにしつつ /api サフィックスをつける
+if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+    console.warn('[client] VITE_API_URL が設定されていません。本番環境では必ず設定してください。');
+}
+
+const API_BASE_URL = import.meta.env.VITE_ENABLE_MOCK === 'true'
+    ? '/api'
     : (import.meta.env.VITE_API_URL || 'http://localhost:3001/api');
 
 // Axiosインスタンス作成
