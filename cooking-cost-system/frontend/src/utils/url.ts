@@ -10,7 +10,12 @@
 /** VITE_API_URL から /api サフィックスを除いたバックエンドのオリジン */
 const BACKEND_ORIGIN = (() => {
     const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
-    if (!apiUrl) return 'http://localhost:3001';
+    if (!apiUrl) {
+        if (import.meta.env.PROD) {
+            console.warn('[url] VITE_API_URL が設定されていません。本番環境では必ず設定してください。');
+        }
+        return 'http://localhost:3001';
+    }
     // "http://localhost:3001/api" → "http://localhost:3001"
     return apiUrl.replace(/\/api\/?$/, '');
 })();
