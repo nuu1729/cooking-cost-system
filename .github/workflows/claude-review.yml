@@ -1,16 +1,14 @@
 name: Claude PR Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   issue_comment:
     types: [created]
 
 jobs:
   claude-review:
-    if: >-
-      github.event_name == 'pull_request' ||
-      (github.event.issue.pull_request && contains(github.event.comment.body, '@claude-review'))
+    if: |
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '@claude-review')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,7 +20,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
+          PR_NUMBER=${{ github.event.issue.number }}
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
           # PR の基本情報を取得
