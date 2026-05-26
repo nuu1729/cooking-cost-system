@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlparse
 from config import Config
 
 
@@ -9,17 +10,21 @@ def _require_env(name: str) -> str:
     return val
 
 
+_BLOCKED_HOSTS = {'localhost', '127.0.0.1', '[::1]', '0.0.0.0'}
+
+
 def _validate_cors_origin() -> str:
     val = _require_env('CORS_ORIGIN')
     origins = [o.strip() for o in val.split(',')]
     for origin in origins:
         if origin == '*':
             raise RuntimeError('本番環境の CORS_ORIGIN にワイルドカード "*" は使用できません。')
-        if not origin.startswith(('http://', 'https://')):
+        parsed = urlparse(origin)
+        if parsed.scheme not in ('http', 'https'):
             raise RuntimeError(
                 f'CORS_ORIGIN "{origin}" は http:// または https:// で始まる必要があります。'
             )
-        if 'localhost' in origin or '127.0.0.1' in origin:
+        if parsed.hostname in _BLOCKED_HOSTS:
             raise RuntimeError(
                 f'本番環境の CORS_ORIGIN にローカルオリジン "{origin}" は使用できません。'
                 ' Cloudflare Pages 等の本番ドメインを指定してください。'
