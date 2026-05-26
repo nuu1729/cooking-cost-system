@@ -13,6 +13,12 @@ def _validate_cors_origin() -> str:
     val = _require_env('CORS_ORIGIN')
     origins = [o.strip() for o in val.split(',')]
     for origin in origins:
+        if origin == '*':
+            raise RuntimeError('本番環境の CORS_ORIGIN にワイルドカード "*" は使用できません。')
+        if not origin.startswith(('http://', 'https://')):
+            raise RuntimeError(
+                f'CORS_ORIGIN "{origin}" は http:// または https:// で始まる必要があります。'
+            )
         if 'localhost' in origin or '127.0.0.1' in origin:
             raise RuntimeError(
                 f'本番環境の CORS_ORIGIN にローカルオリジン "{origin}" は使用できません。'

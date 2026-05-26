@@ -19,6 +19,7 @@ class Config:
     JWT_SECRET = os.environ.get('JWT_SECRET', os.environ.get('SECRET_KEY', ''))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = _require_env('DATABASE_URL')
+    CORS_ORIGIN = os.environ.get('CORS_ORIGIN', 'http://localhost:3000')
 
 
 class DevelopmentConfig(Config):
