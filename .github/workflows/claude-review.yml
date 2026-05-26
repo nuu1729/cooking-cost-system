@@ -1,14 +1,17 @@
 name: Claude PR Review
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   issue_comment:
     types: [created]
 
 jobs:
   claude-review:
     if: |
-      github.event.issue.pull_request != null &&
-      contains(github.event.comment.body, '@claude-review')
+      github.event_name == 'pull_request' ||
+      (github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '@claude-review'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
