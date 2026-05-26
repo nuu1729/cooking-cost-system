@@ -30,15 +30,14 @@ jobs:
           # PR の基本情報を取得
           PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
           TITLE=$(echo "$PR_DATA" | jq -r '.title')
-          BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
-          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+          # タイトルをファイルに保存（特殊文字・日本語が GITHUB_OUTPUT を壊すのを回避）
+          echo "$TITLE" > /tmp/pr_title.txt
 
           # 差分を取得（最大100KB）
           DIFF=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER \
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
           echo "$DIFF" > /tmp/pr_diff.txt
-          echo "title=${TITLE}" >> $GITHUB_OUTPUT
-          echo "body=${BODY}" >> $GITHUB_OUTPUT
 
       - name: Claude にレビューを依頼
         id: claude_review
@@ -46,7 +45,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           DIFF=$(cat /tmp/pr_diff.txt)
-          TITLE="${{ steps.pr_info.outputs.title }}"
+          TITLE=$(cat /tmp/pr_title.txt)
 
           RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
