@@ -42,7 +42,7 @@ def create_app():
     else:
         app.config.from_object('config.DevelopmentConfig')
 
-    cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',')]
+    cors_origins = [o.strip() for o in app.config.get('CORS_ORIGIN', 'http://localhost:3000').split(',')]
     CORS(app, resources={r'/api/*': {'origins': cors_origins}, r'/uploads/*': {'origins': cors_origins}})
 
     Talisman(
