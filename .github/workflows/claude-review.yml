@@ -7,38 +7,80 @@ on:
     types: [created]
 
 jobs:
-  # ラベル "claude-review" をつけたときに自動レビュー（agent mode）
-  claude-review-label:
-    if: github.event_name == 'pull_request' && github.event.label.name == 'claude-review'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          direct_prompt: |
-            このPRをレビューしてください。以下の観点で確認し、日本語でコメントしてください。
-            - バグや論理的な誤りがないか
-            - セキュリティの問題（XSS・SQLインジェクション・認証不備など）がないか
-            - コードの可読性・保守性に問題がないか
-            - パフォーマンス上の懸念点がないか
-            良い点も含めてフィードバックしてください。
-
-  # PR コメントで "@claude" とメンションしたときに返答（tag mode）
-  claude-review-comment:
+  claude-review:
     if: |
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request != null &&
-      contains(github.event.comment.body, '@claude')
+      (github.event_name == 'pull_request' && github.event.label.name == 'claude-review') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
+
     steps:
-      - uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: PR の差分を取得
+        id: pr_info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+          # PR の基本情報を取得
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          TITLE=$(echo "$PR_DATA" | jq -r '.title')
+          BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+          # 差分を取得（最大100KB）
+          DIFF=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER \
+            -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
+          echo "$DIFF" > /tmp/pr_diff.txt
+          echo "title=${TITLE}" >> $GITHUB_OUTPUT
+          echo "body=${BODY}" >> $GITHUB_OUTPUT
+
+      - name: Claude にレビューを依頼
+        id: claude_review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          DIFF=$(cat /tmp/pr_diff.txt)
+          TITLE="${{ steps.pr_info.outputs.title }}"
+
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$(jq -n \
+              --arg diff "$DIFF" \
+              --arg title "$TITLE" \
+              '{
+                model: "claude-opus-4-5",
+                max_tokens: 4096,
+                messages: [{
+                  role: "user",
+                  content: ("PR タイトル: " + $title + "\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n" + $diff + "\n```")
+                }]
+              }')"
+          )
+
+          REVIEW=$(echo "$RESPONSE" | jq -r '.content[0].text // "レビューの取得に失敗しました"')
+          echo "$REVIEW" > /tmp/review.txt
+
+      - name: レビューをPRにコメント投稿
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ steps.pr_info.outputs.pr_number }}
+          REVIEW=$(cat /tmp/review.txt)
+          COMMENT="## 🤖 Claude によるコードレビュー
+
+          ${REVIEW}
+
+          ---
+          *このレビューは Claude AI によって自動生成されました*"
+
+          gh pr comment $PR_NUMBER \
+            --repo ${{ github.repository }} \
+            --body "$COMMENT"
