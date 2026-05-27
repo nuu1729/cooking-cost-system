@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DEFAULT_CORS_ORIGIN = 'http://localhost:3000'
+
 _LOCAL_HOSTS = {'localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0'}
 
 
@@ -55,7 +57,7 @@ class Config:
     JWT_SECRET = os.environ.get('JWT_SECRET', os.environ.get('SECRET_KEY', ''))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = _require_env('DATABASE_URL')
-    CORS_ORIGIN = os.environ.get('CORS_ORIGIN', 'http://localhost:3000')
+    CORS_ORIGIN = os.environ.get('CORS_ORIGIN', DEFAULT_CORS_ORIGIN)
 
 
 class DevelopmentConfig(Config):

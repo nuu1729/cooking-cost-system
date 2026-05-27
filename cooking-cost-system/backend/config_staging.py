@@ -1,5 +1,5 @@
 import os
-from config import Config, validate_cors_origins
+from config import Config, DEFAULT_CORS_ORIGIN, validate_cors_origins
 
 
 class StagingConfig(Config):
@@ -7,7 +7,7 @@ class StagingConfig(Config):
     ENV = 'staging'
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL_STAGING')
     CORS_ORIGIN = validate_cors_origins(
-        os.environ.get('CORS_ORIGIN', 'http://localhost:3000'),
+        os.environ.get('CORS_ORIGIN', DEFAULT_CORS_ORIGIN),
         require_https=False,
         allow_local=True,
     )
