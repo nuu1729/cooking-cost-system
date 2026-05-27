@@ -8,7 +8,9 @@ on:
 
 jobs:
   claude-review:
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '@claude-review')) }}
+    if: >-
+      github.event_name == 'pull_request' ||
+      contains(github.event.comment.body, '@claude-review')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,14 +25,10 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
-          # PR の基本情報を取得
           PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
           TITLE=$(echo "$PR_DATA" | jq -r '.title')
-
-          # タイトルをファイルに保存（特殊文字・日本語が GITHUB_OUTPUT を壊すのを回避）
           echo "$TITLE" > /tmp/pr_title.txt
 
-          # 差分を取得（最大100KB）
           DIFF=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER \
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
           echo "$DIFF" > /tmp/pr_diff.txt
