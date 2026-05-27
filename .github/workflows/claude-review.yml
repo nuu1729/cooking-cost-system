@@ -8,10 +8,9 @@ on:
 
 jobs:
   claude-review:
-    if: |
+    if: >-
       github.event_name == 'pull_request' ||
-      (github.event.issue.pull_request != null &&
-       contains(github.event.comment.body, '@claude-review'))
+      (github.event.issue.pull_request && contains(github.event.comment.body, '@claude-review'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,7 +22,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ github.event.issue.number }}
+          PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
           # PR の基本情報を取得
@@ -58,7 +57,7 @@ jobs:
                 max_tokens: 4096,
                 messages: [{
                   role: "user",
-                  content: ("PR タイトル: " + $title + "\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n" + $diff + "\n```")
+                  content: ("PR タイトル: " + $title + "\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n\`\`\`diff\n" + $diff + "\n\`\`\`")
                 }]
               }')"
           )
