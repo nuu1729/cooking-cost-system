@@ -4,13 +4,15 @@
 #
 # 使用法:
 #   YOUR_DOMAIN を実際のAPIドメインに置き換える（例: api.example.com）
-#   caddy reload --config /etc/caddy/Caddyfile
+#   caddy validate --config /etc/caddy/Caddyfile
+#   systemctl reload caddy
 
 YOUR_DOMAIN {
-    # Flask バックエンド（Gunicorn, ポート 3001）へリバースプロキシ
-    reverse_proxy localhost:3001
+    reverse_proxy localhost:3001 {
+        health_uri      /health
+        health_interval 30s
+    }
 
-    # アクセスログ（ローテーションあり）
     log {
         output file /var/log/caddy/access.log {
             roll_size 10mb
@@ -18,7 +20,6 @@ YOUR_DOMAIN {
         }
     }
 
-    # セキュリティヘッダー
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
