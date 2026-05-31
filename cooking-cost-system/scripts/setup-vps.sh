@@ -17,7 +17,17 @@ readonly REPO_URL="https://github.com/nuu1729/cooking-cost-system.git"
 readonly DEPLOY_USER="deploy"
 readonly APP_PORT=3001
 readonly CADDY_KEYRING="/usr/share/keyrings/caddy-stable-archive-keyring.gpg"
+readonly DOCKER_KEYRING="/etc/apt/keyrings/docker.gpg"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# fail2ban 設定値
+readonly FAIL2BAN_MAXRETRY=3
+readonly FAIL2BAN_BANTIME=3600
+readonly FAIL2BAN_FINDTIME=600
+
+# Caddy ログ設定値
+readonly LOG_ROLL_SIZE="10mb"
+readonly LOG_ROLL_KEEP=5
 
 # ────────────────────────────────────────────
 # ログ出力ユーティリティ
@@ -39,6 +49,25 @@ cleanup() {
 trap cleanup ERR
 
 # ────────────────────────────────────────────
+# ユーティリティ関数
+# ────────────────────────────────────────────
+generate_secret() {
+    python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+}
+
+validate_domain() {
+    local domain="$1"
+    if ! [[ "${domain}" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
+        log_error "無効なドメイン形式です: ${domain}"
+        exit 1
+    fi
+    # DNS 解決チェック（VPS 設定直後は未設定の場合があるため warning のみ）
+    if command -v host &>/dev/null && ! host "${domain}" &>/dev/null; then
+        log_warn "DNS が解決できません: ${domain}（後から DNS レコードを設定する場合は問題ありません）"
+    fi
+}
+
+# ────────────────────────────────────────────
 # 引数・権限チェック
 # ────────────────────────────────────────────
 check_prerequisites() {
@@ -47,13 +76,13 @@ check_prerequisites() {
         exit 1
     fi
 
-    DOMAIN="${1:?使用法: bash setup-vps.sh <api-domain> (例: api.example.com)}"
-
-    if ! [[ "${DOMAIN}" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$ ]]; then
-        log_error "無効なドメイン形式です: ${DOMAIN}"
+    if ! command -v python3 &>/dev/null; then
+        log_error "python3 が必要です。apt-get install -y python3 を実行してから再試行してください"
         exit 1
     fi
 
+    DOMAIN="${1:?使用法: bash setup-vps.sh <api-domain> (例: api.example.com)}"
+    validate_domain "${DOMAIN}"
     readonly DOMAIN
 }
 
@@ -62,34 +91,50 @@ check_prerequisites() {
 # ────────────────────────────────────────────
 setup_system() {
     log_info "[1/5] システム初期化..."
+    install_base_packages
+    configure_auto_updates
+    create_deploy_user
+    configure_sudoers
+    setup_ssh
+    setup_firewall
+    setup_fail2ban
+}
 
+install_base_packages() {
     # システムパッケージのリストを更新（1回目: システム全体）
     apt-get update -q
     apt-get upgrade -y -q
-    apt-get install -y -q curl git ufw fail2ban unattended-upgrades \
-        debian-keyring debian-archive-keyring apt-transport-https
+    apt-get install -y -q \
+        curl git ufw fail2ban unattended-upgrades python3 \
+        debian-keyring debian-archive-keyring apt-transport-https \
+        dnsutils lsb-release
+    log_info "  -> 基本パッケージをインストールしました"
+}
 
+configure_auto_updates() {
     dpkg-reconfigure -f noninteractive unattended-upgrades
     log_info "  -> 自動セキュリティアップデートを有効化しました"
+}
 
-    # deploy ユーザー作成
+create_deploy_user() {
     if ! id "${DEPLOY_USER}" &>/dev/null; then
         useradd -m -s /bin/bash "${DEPLOY_USER}"
         usermod -aG sudo "${DEPLOY_USER}"
         log_info "  -> ${DEPLOY_USER} ユーザーを作成しました"
+    else
+        log_info "  -> ${DEPLOY_USER} ユーザーは既に存在します（スキップ）"
     fi
+}
 
-    # sudoers: Caddy 操作のみ・root として実行に限定
+configure_sudoers() {
+    # sudoers: Caddy 操作のみ root として実行に限定
+    # docker は docker グループで対応するため sudo 不要
     cat > "/etc/sudoers.d/${DEPLOY_USER}" <<EOF
 ${DEPLOY_USER} ALL=(root) NOPASSWD: /bin/systemctl restart caddy
 ${DEPLOY_USER} ALL=(root) NOPASSWD: /bin/systemctl reload caddy
 EOF
     chmod 440 "/etc/sudoers.d/${DEPLOY_USER}"
     log_info "  -> sudoers: Caddy 操作のみ root 権限で許可"
-
-    setup_ssh
-    setup_firewall
-    setup_fail2ban
 }
 
 setup_ssh() {
@@ -106,7 +151,13 @@ setup_ssh() {
     log_warn "   2. 別ターミナルで SSH 鍵ログインが成功することを確認済みである"
     log_warn "========================================================"
     echo ""
-    read -r -p "SSH 設定を変更しますか? [y/N]: " confirm
+
+    local confirm
+    if ! read -r -t 60 -p "SSH 設定を変更しますか? [y/N]: " confirm; then
+        log_warn "タイムアウト: SSH 設定の変更をスキップしました"
+        return
+    fi
+
     if [[ "${confirm}" == "y" || "${confirm}" == "Y" ]]; then
         sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
         sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -135,28 +186,44 @@ enabled  = true
 port     = 22
 filter   = sshd
 logpath  = /var/log/auth.log
-maxretry = 3
-bantime  = 3600
-findtime = 600
+maxretry = ${FAIL2BAN_MAXRETRY}
+bantime  = ${FAIL2BAN_BANTIME}
+findtime = ${FAIL2BAN_FINDTIME}
 EOF
     systemctl enable --now fail2ban
-    log_info "  -> fail2ban: SSH 保護を有効化（3回失敗で1時間 BAN）"
+    log_info "  -> fail2ban: SSH 保護を有効化（${FAIL2BAN_MAXRETRY}回失敗で${FAIL2BAN_BANTIME}秒 BAN）"
 }
 
 # ────────────────────────────────────────────
-# 2. Docker インストール
+# 2. Docker インストール（公式 APT リポジトリ方式）
 # ────────────────────────────────────────────
 install_docker() {
     log_info "[2/5] Docker インストール..."
 
     if ! command -v docker &>/dev/null; then
-        curl -fsSL https://get.docker.com | sh
+        # GPG キーリング（冪等性確保）
+        install -m 0755 -d /etc/apt/keyrings
+        if [ ! -f "${DOCKER_KEYRING}" ]; then
+            curl -fsSL "https://download.docker.com/linux/ubuntu/gpg" \
+                | gpg --dearmor -o "${DOCKER_KEYRING}"
+            chmod a+r "${DOCKER_KEYRING}"
+        fi
+
+        # Docker APT リポジトリ追加
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=${DOCKER_KEYRING}] \
+https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+            | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+        # Docker リポジトリ追加後に更新（2回目）
+        apt-get update -q
+        apt-get install -y -q docker-ce docker-ce-cli containerd.io docker-compose-plugin
         systemctl enable --now docker
-        log_info "  -> Docker をインストールしました"
+        log_info "  -> Docker を公式 APT リポジトリからインストールしました"
     else
         log_info "  -> Docker は既にインストール済みです"
     fi
 
+    # deploy ユーザーを docker グループに追加（sudo なしで実行可能に）
     usermod -aG docker "${DEPLOY_USER}"
     log_info "  -> ${DEPLOY_USER} を docker グループに追加しました"
     log_info "  -> Docker: $(docker --version)"
@@ -177,7 +244,7 @@ install_caddy() {
         curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
             | tee /etc/apt/sources.list.d/caddy-stable.list
 
-        # Caddy リポジトリ追加後に再更新（2回目: 新規リポジトリのパッケージリスト取得）
+        # Caddy リポジトリ追加後に更新（3回目）
         apt-get update -q
         apt-get install -y -q caddy
         log_info "  -> Caddy をインストールしました"
@@ -185,17 +252,17 @@ install_caddy() {
         log_info "  -> Caddy は既にインストール済みです"
     fi
 
+    configure_caddy
+}
+
+configure_caddy() {
     # ログディレクトリを Caddy ユーザーで所有
     mkdir -p /var/log/caddy
     chown caddy:caddy /var/log/caddy
     chmod 750 /var/log/caddy
 
-    configure_caddy
-}
-
-configure_caddy() {
+    # Caddyfile をテンプレートから生成（{{DOMAIN}} を置換）
     local caddyfile_template="${SCRIPT_DIR}/Caddyfile.template"
-
     if [ -f "${caddyfile_template}" ]; then
         sed "s/{{DOMAIN}}/${DOMAIN}/g" "${caddyfile_template}" > /etc/caddy/Caddyfile
         log_info "  -> Caddyfile をテンプレートから生成しました"
@@ -209,8 +276,8 @@ ${DOMAIN} {
     }
     log {
         output file /var/log/caddy/access.log {
-            roll_size 10mb
-            roll_keep 5
+            roll_size ${LOG_ROLL_SIZE}
+            roll_keep ${LOG_ROLL_KEEP}
         }
     }
     header {
@@ -264,10 +331,6 @@ setup_secrets() {
     mkdir -p "${secrets_dir}"
     chmod 700 "${secrets_dir}"
 
-    # URL-safe な文字のみ使用（MySQL URL 内での特殊文字エスケープ不要）
-    local generate_secret
-    generate_secret() { python3 -c "import secrets; print(secrets.token_urlsafe(32))"; }
-
     for secret_file in mysql_root_password mysql_password jwt_secret secret_key; do
         if [ ! -f "${secrets_dir}/${secret_file}.txt" ]; then
             generate_secret > "${secrets_dir}/${secret_file}.txt"
@@ -298,7 +361,7 @@ FLASK_ENV=production
 # NOTE: issue #86 完了後 Docker Secrets に移行予定。ホスト名も要確認（#86 参照）。
 ENV_HEADER
 
-    # シークレットを直接 cat で展開し、変数に保持しない
+    # シークレットを直接 cat で展開し、シェル変数に保持しない
     {
         echo "PORT=${APP_PORT}"
         echo "DATABASE_URL_PRODUCTION=mysql+pymysql://cooking_user:$(cat "${secrets_dir}/mysql_password.txt")@localhost:3306/cooking_cost_system"
@@ -344,13 +407,15 @@ start_app() {
 # 完了サマリー
 # ────────────────────────────────────────────
 print_summary() {
+    local env_file="${APP_DIR}/app/cooking-cost-system/.env.production"
+
     echo ""
     echo "========================================"
     log_info " セットアップ完了"
     echo "========================================"
     echo ""
     echo "次のステップ:"
-    echo "  1. ${APP_DIR}/app/cooking-cost-system/.env.production の CORS_ORIGIN を更新"
+    echo "  1. ${env_file} の CORS_ORIGIN を Cloudflare Pages のドメインに更新"
     echo "  2. ${DOMAIN} の DNS A レコードをこの VPS の IP に向ける"
     echo "  3. curl https://${DOMAIN}/health で疎通確認"
     echo "  4. deploy ユーザーに SSH 公開鍵を設定（未実施の場合）:"
