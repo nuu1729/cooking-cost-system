@@ -3,11 +3,12 @@
 # setup-vps.sh が自動生成するが、手動で調整する場合はこのテンプレートを参照
 #
 # 使用法:
-#   YOUR_DOMAIN を実際のAPIドメインに置き換える（例: api.example.com）
+#   {{DOMAIN}} を実際のAPIドメインに置き換える（例: api.example.com）
+#   または setup-vps.sh が sed で自動置換する
 #   caddy validate --config /etc/caddy/Caddyfile
 #   systemctl reload caddy
 
-YOUR_DOMAIN {
+{{DOMAIN}} {
     reverse_proxy localhost:3001 {
         health_uri      /health
         health_interval 30s
