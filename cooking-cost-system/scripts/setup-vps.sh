@@ -6,11 +6,6 @@
 
 set -euo pipefail
 
-DOMAIN="${1:?使用法: bash setup-vps.sh <api-domain> (例: api.example.com)}"
-APP_DIR="/opt/cooking-cost"
-REPO_URL="https://github.com/nuu1729/cooking-cost-system.git"
-DEPLOY_USER="deploy"
-
 # ────────────────────────────────────────────
 # ログ出力ユーティリティ
 # ────────────────────────────────────────────
@@ -23,12 +18,32 @@ log_info()  { echo -e "${GREEN}[INFO]${NC}  $(date '+%H:%M:%S') $1"; }
 log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $(date '+%H:%M:%S') $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S') $1"; }
 
-# エラー発生時にステップとログ確認を案内
 cleanup() {
     log_error "セットアップ中にエラーが発生しました（終了コード: $?）"
     log_error "ログを確認してください: journalctl -xe"
 }
 trap cleanup ERR
+
+# ────────────────────────────────────────────
+# 引数・権限チェック
+# ────────────────────────────────────────────
+if [[ $EUID -ne 0 ]]; then
+    log_error "このスクリプトは root で実行してください（sudo bash setup-vps.sh <domain>）"
+    exit 1
+fi
+
+DOMAIN="${1:?使用法: bash setup-vps.sh <api-domain> (例: api.example.com)}"
+
+if ! [[ "${DOMAIN}" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$ ]]; then
+    log_error "無効なドメイン形式です: ${DOMAIN}"
+    exit 1
+fi
+
+APP_DIR="/opt/cooking-cost"
+REPO_URL="https://github.com/nuu1729/cooking-cost-system.git"
+DEPLOY_USER="deploy"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CADDY_KEYRING="/usr/share/keyrings/caddy-stable-archive-keyring.gpg"
 
 echo "========================================"
 echo " 料理原価計算システム VPS セットアップ"
@@ -40,9 +55,11 @@ echo "========================================"
 # ────────────────────────────────────────────
 log_info "[1/5] システム初期化..."
 
+# システムパッケージのリストを更新（1回目: システム全体）
 apt-get update -q
 apt-get upgrade -y -q
-apt-get install -y -q curl git ufw fail2ban unattended-upgrades
+apt-get install -y -q curl git ufw fail2ban unattended-upgrades \
+    debian-keyring debian-archive-keyring apt-transport-https
 
 # 自動セキュリティアップデート有効化
 dpkg-reconfigure -f noninteractive unattended-upgrades
@@ -55,13 +72,13 @@ if ! id "${DEPLOY_USER}" &>/dev/null; then
     log_info "  -> ${DEPLOY_USER} ユーザーを作成しました"
 fi
 
-# sudoers: Caddy 操作のみに限定（docker は docker グループで対応）
+# sudoers: Caddy 操作のみ（docker は docker グループで対応するため不要）
 cat > "/etc/sudoers.d/${DEPLOY_USER}" <<EOF
 ${DEPLOY_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart caddy
 ${DEPLOY_USER} ALL=(ALL) NOPASSWD: /bin/systemctl reload caddy
 EOF
 chmod 440 "/etc/sudoers.d/${DEPLOY_USER}"
-log_info "  -> sudoers: Caddy 操作のみ許可（docker は docker グループで対応）"
+log_info "  -> sudoers: Caddy 操作のみ許可"
 
 # SSH セキュリティ設定（ロックアウト防止のため事前確認）
 echo ""
@@ -135,11 +152,15 @@ log_info "  -> Docker: $(docker --version)"
 log_info "[3/5] Caddy インストール..."
 
 if ! command -v caddy &>/dev/null; then
-    apt-get install -y -q debian-keyring debian-archive-keyring apt-transport-https
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
-        | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    # GPG キーリングが未登録の場合のみ追加（冪等性を確保）
+    if [ ! -f "${CADDY_KEYRING}" ]; then
+        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+            | gpg --dearmor -o "${CADDY_KEYRING}"
+    fi
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
         | tee /etc/apt/sources.list.d/caddy-stable.list
+
+    # Caddy リポジトリ追加後に再更新（2回目: 新規リポジトリのパッケージリスト取得）
     apt-get update -q
     apt-get install -y -q caddy
     log_info "  -> Caddy をインストールしました"
@@ -152,21 +173,25 @@ mkdir -p /var/log/caddy
 chown caddy:caddy /var/log/caddy
 chmod 750 /var/log/caddy
 
-# Caddyfile 配置
-cat > /etc/caddy/Caddyfile <<CADDYFILE
+# Caddyfile をテンプレートから生成（DRY: スクリプト内でのハードコードを排除）
+CADDYFILE_TEMPLATE="${SCRIPT_DIR}/Caddyfile.template"
+if [ -f "${CADDYFILE_TEMPLATE}" ]; then
+    sed "s/YOUR_DOMAIN/${DOMAIN}/g" "${CADDYFILE_TEMPLATE}" > /etc/caddy/Caddyfile
+    log_info "  -> Caddyfile をテンプレートから生成しました"
+else
+    log_warn "  -> Caddyfile.template が見つかりません。デフォルト設定を使用します。"
+    cat > /etc/caddy/Caddyfile <<CADDYFILE
 ${DOMAIN} {
     reverse_proxy localhost:3001 {
-        health_uri /health
+        health_uri      /health
         health_interval 30s
     }
-
     log {
         output file /var/log/caddy/access.log {
             roll_size 10mb
             roll_keep 5
         }
     }
-
     header {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
@@ -176,11 +201,11 @@ ${DOMAIN} {
     }
 }
 CADDYFILE
+fi
 
 # Caddy 起動・設定検証・リロード
 systemctl enable --now caddy
 
-# 起動完了を確認してからリロード
 if ! systemctl is-active --quiet caddy; then
     log_error "Caddy の起動に失敗しました"
     journalctl -u caddy --no-pager -n 20
@@ -213,8 +238,9 @@ SECRETS_DIR="${APP_DIR}/secrets"
 mkdir -p "${SECRETS_DIR}"
 chmod 700 "${SECRETS_DIR}"
 
+# URL-safe な文字のみ使用（MySQL URL・envファイル内での特殊文字エスケープ不要）
 generate_secret() {
-    python3 -c "import secrets; print(secrets.token_hex(32))"
+    python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 }
 
 # シークレットファイル生成（既存の場合は上書きしない）
@@ -231,20 +257,28 @@ done
 # .env.production 作成
 # NOTE: シークレットは現在ファイルから直接参照しています。
 #       issue #86 (docker-compose.prod.yml 更新) 完了後、
-#       Docker Secrets (secret_file: ...) を使用する方式に移行してください。
+#       Docker Secrets (secrets: / secret_file: ...) を使用する方式に移行してください。
+# NOTE: DATABASE_URL のホスト名は docker-compose.prod.yml の構成次第で変更が必要です。
+#       - バックエンドが Docker Compose 内で動く場合: サービス名（例: database）
+#       - バックエンドがホスト上で直接動く場合: localhost
+#       issue #86 完了後に確認・修正してください。
 ENV_FILE="${APP_DIR}/app/cooking-cost-system/.env.production"
 if [ ! -f "${ENV_FILE}" ]; then
+    MYSQL_PASS=$(cat "${SECRETS_DIR}/mysql_password.txt")
+    JWT_SECRET=$(cat "${SECRETS_DIR}/jwt_secret.txt")
+    SECRET_KEY=$(cat "${SECRETS_DIR}/secret_key.txt")
     cat > "${ENV_FILE}" <<ENV
 FLASK_ENV=production
 PORT=3001
-# NOTE: issue #86 完了後、Docker Secrets に移行予定
-DATABASE_URL_PRODUCTION=mysql+pymysql://cooking_user:$(cat "${SECRETS_DIR}/mysql_password.txt")@localhost:3306/cooking_cost_system
-JWT_SECRET=$(cat "${SECRETS_DIR}/jwt_secret.txt")
-SECRET_KEY=$(cat "${SECRETS_DIR}/secret_key.txt")
+# NOTE: issue #86 完了後、Docker Secrets に移行予定。ホスト名も要確認。
+DATABASE_URL_PRODUCTION=mysql+pymysql://cooking_user:${MYSQL_PASS}@localhost:3306/cooking_cost_system
+JWT_SECRET=${JWT_SECRET}
+SECRET_KEY=${SECRET_KEY}
 # 本番の Cloudflare Pages ドメインに書き換えてください
 CORS_ORIGIN=https://your-project.pages.dev
 ENV
     chmod 600 "${ENV_FILE}"
+    unset MYSQL_PASS JWT_SECRET SECRET_KEY
     log_info "  -> .env.production を作成しました"
     log_warn "  !! CORS_ORIGIN を正しいドメインに書き換えてください: ${ENV_FILE}"
 else
