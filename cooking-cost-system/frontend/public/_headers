@@ -1,9 +1,12 @@
+# NOTE: connect-src は本番APIドメイン確定後に https: から具体的なドメインへ絞り込む
+# 例: connect-src 'self' https://api.your-actual-domain.com;
+# 参照: issue #94 (本番環境の環境変数管理)
 /*
   X-Frame-Options = SAMEORIGIN
   X-Content-Type-Options = nosniff
   Referrer-Policy = strict-origin-when-cross-origin
-  Cache-Control = public, max-age=3600
-  Content-Security-Policy = default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.yourdomain.com; worker-src 'self'
+  Cache-Control = no-cache
+  Content-Security-Policy = default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https:; connect-src 'self' https:; worker-src 'self'
   Permissions-Policy = microphone=(), geolocation=()
 
 /assets/*
