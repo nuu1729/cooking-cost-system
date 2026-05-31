@@ -62,7 +62,9 @@ jobs:
         run: |
           PR_NUMBER=${{ steps.pr_info.outputs.pr_number }}
           REVIEW=$(cat /tmp/review.txt)
-          COMMENT=$(printf '## 🤖 Claude によるコードレビュー\n\n%s\n\n---\n*このレビューは Claude AI によって自動生成されました*' "$REVIEW")
+          HEADER="## 🤖 Claude によるコードレビュー"
+          FOOTER="*このレビューは Claude AI によって自動生成されました*"
+          COMMENT=$(printf '%s\n\n%s\n\n---\n%s' "$HEADER" "$REVIEW" "$FOOTER")
 
           gh pr comment $PR_NUMBER \
             --repo ${{ github.repository }} \
