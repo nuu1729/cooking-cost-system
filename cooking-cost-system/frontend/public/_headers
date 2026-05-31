@@ -1,6 +1,8 @@
 # NOTE: connect-src は本番APIドメイン確定後に https: から具体的なドメインへ絞り込む
 # 例: connect-src 'self' https://api.your-actual-domain.com;
 # 参照: issue #94 (本番環境の環境変数管理)
+# TODO: style-src 'unsafe-inline' は Vite/React のインラインスタイル対応のため現状許容。
+#       将来的に nonce または hash ベースへの移行を検討する。
 /*
   X-Frame-Options = SAMEORIGIN
   X-Content-Type-Options = nosniff
