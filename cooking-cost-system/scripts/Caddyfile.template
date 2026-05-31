@@ -1,0 +1,29 @@
+# Caddyfile テンプレート
+# /etc/caddy/Caddyfile に配置して使用
+# setup-vps.sh が自動生成するが、手動で調整する場合はこのテンプレートを参照
+#
+# 使用法:
+#   YOUR_DOMAIN を実際のAPIドメインに置き換える（例: api.example.com）
+#   caddy reload --config /etc/caddy/Caddyfile
+
+YOUR_DOMAIN {
+    # Flask バックエンド（Gunicorn, ポート 3001）へリバースプロキシ
+    reverse_proxy localhost:3001
+
+    # アクセスログ（ローテーションあり）
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+
+    # セキュリティヘッダー
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
