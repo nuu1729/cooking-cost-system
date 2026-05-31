@@ -76,9 +76,9 @@ out/
 # Nuxt.js build / generate output
 .nuxt/
 
-# Gatsby files
+# Gatsby files (Vite uses dist/ not public/ for output, so public/ is not ignored)
 .cache/
-public/
+# public/
 
 # Storybook build outputs
 .out/
