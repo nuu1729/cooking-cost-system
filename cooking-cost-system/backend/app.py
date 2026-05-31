@@ -34,7 +34,16 @@ def create_app():
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
     _configure_logging(log_dir)
 
-    cors_origins = [o.strip() for o in os.environ.get('CORS_ORIGIN', 'http://localhost:3000').split(',')]
+    env = os.environ.get('FLASK_ENV', 'development')
+    if env == 'production':
+        app.config.from_object('config_production.ProductionConfig')
+    elif env == 'staging':
+        app.config.from_object('config_staging.StagingConfig')
+    else:
+        app.config.from_object('config.DevelopmentConfig')
+
+    cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',')]
+    logging.getLogger(__name__).info('CORS origins: %s', cors_origins)
     CORS(app, resources={r'/api/*': {'origins': cors_origins}, r'/uploads/*': {'origins': cors_origins}})
 
     Talisman(
@@ -46,14 +55,6 @@ def create_app():
         x_content_type_options=True,
         referrer_policy='strict-origin-when-cross-origin',
     )
-
-    env = os.environ.get('FLASK_ENV', 'development')
-    if env == 'production':
-        app.config.from_object('config_production.ProductionConfig')
-    elif env == 'staging':
-        app.config.from_object('config_staging.StagingConfig')
-    else:
-        app.config.from_object('config.DevelopmentConfig')
 
     # 本番では REDIS_URL があれば Redis、なければメモリストレージを使用
     redis_url = os.environ.get('REDIS_URL')

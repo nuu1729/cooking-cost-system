@@ -45,22 +45,13 @@ jobs:
           DIFF=$(cat /tmp/pr_diff.txt)
           TITLE=$(cat /tmp/pr_title.txt)
 
+          PROMPT=$(printf 'PR タイトル: %s\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n%s\n```' "$TITLE" "$DIFF")
+
           RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -H "content-type: application/json" \
-            -d "$(jq -n \
-              --arg diff "$DIFF" \
-              --arg title "$TITLE" \
-              '{
-                model: "claude-opus-4-5",
-                max_tokens: 4096,
-                messages: [{
-                  role: "user",
-                  content: ("PR タイトル: " + $title + "\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n\`\`\`diff\n" + $diff + "\n\`\`\`")
-                }]
-              }')"
-          )
+            -d "$(jq -n --arg content "$PROMPT" '{model:"claude-opus-4-5",max_tokens:4096,messages:[{role:"user",content:$content}]}')")
 
           REVIEW=$(echo "$RESPONSE" | jq -r '.content[0].text // "レビューの取得に失敗しました"')
           echo "$REVIEW" > /tmp/review.txt
