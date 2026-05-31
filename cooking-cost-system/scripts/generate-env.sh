@@ -43,31 +43,19 @@ check_prerequisites() {
 # 既存 .env.production の検証
 # ────────────────────────────────────────────
 validate_env_file() {
-    local env_file="$1"
-    local required_keys=(
-        FLASK_ENV
-        PORT
-        DATABASE_URL_PRODUCTION
-        JWT_SECRET
-        SECRET_KEY
-        CORS_ORIGIN
-    )
+    local required_keys=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
     local missing=()
 
-    while IFS= read -r line; do
-        [[ "${line}" =~ ^#|^$ ]] && continue
-        key="${line%%=*}"
-        export "__VALIDATE_${key}=1"
-    done < "${env_file}"
-
+    # --validate モードでは呼び出し前に source 済みのため、変数を直接確認する
     for key in "${required_keys[@]}"; do
-        if [[ -z "${!key:-}" ]]; then
+        local value="${!key:-}"
+        if [[ -z "${value}" || "${value}" == "your-"* || "${value}" == "<"*">" ]]; then
             missing+=("${key}")
         fi
     done
 
     if [ ${#missing[@]} -gt 0 ]; then
-        log_warn "以下の必須キーが未設定です: ${missing[*]}"
+        log_warn "以下の必須キーが未設定またはプレースホルダーのままです: ${missing[*]}"
         return 1
     fi
 
@@ -134,8 +122,12 @@ ENV_HEADER
 
     chmod 600 "${ENV_FILE}"
     log_info ".env.production を生成しました: ${ENV_FILE}"
-    log_warn "DB パスワード: ${db_password}"
-    log_warn "  → MySQL 側でも同じパスワードを設定してください"
+    echo ""
+    echo -e "${YELLOW}[WARN]${NC}  DB パスワード（この画面を閉じると再表示できません）:"
+    echo "  ${db_password}"
+    echo ""
+    read -r -p "  MySQL 側にも同じパスワードを設定した後、Enter を押してください: "
+    unset db_password
 }
 
 # ────────────────────────────────────────────
@@ -155,9 +147,14 @@ rotate_secrets() {
     jwt_secret="$(generate_secret)"
     secret_key="$(generate_secret)"
 
-    # sed でインプレース置換
-    sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${jwt_secret}|" "${ENV_FILE}"
-    sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${secret_key}|" "${ENV_FILE}"
+    # sed でインプレース置換（macOS と Linux でオプションが異なる）
+    if [[ "${OSTYPE}" == "darwin"* ]]; then
+        sed -i '' "s|^JWT_SECRET=.*|JWT_SECRET=${jwt_secret}|" "${ENV_FILE}"
+        sed -i '' "s|^SECRET_KEY=.*|SECRET_KEY=${secret_key}|" "${ENV_FILE}"
+    else
+        sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${jwt_secret}|" "${ENV_FILE}"
+        sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${secret_key}|" "${ENV_FILE}"
+    fi
 
     log_info "JWT_SECRET と SECRET_KEY をローテーションしました"
     log_warn "アプリを再起動して新しいシークレットを反映してください"
