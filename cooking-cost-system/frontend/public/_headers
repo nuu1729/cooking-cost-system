@@ -1,11 +1,13 @@
-[/*]
+/*
   X-Frame-Options = SAMEORIGIN
   X-Content-Type-Options = nosniff
   Referrer-Policy = strict-origin-when-cross-origin
   Cache-Control = public, max-age=3600
+  Content-Security-Policy = default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.yourdomain.com; worker-src 'self'
+  Permissions-Policy = microphone=(), geolocation=()
 
-[/assets/*]
+/assets/*
   Cache-Control = public, max-age=31536000, immutable
 
-[/*.html]
+/*.html
   Cache-Control = no-cache, no-store, must-revalidate
