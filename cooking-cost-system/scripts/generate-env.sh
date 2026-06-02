@@ -42,7 +42,7 @@ check_prerequisites() {
 # ────────────────────────────────────────────
 # 既存 .env.production の検証
 # ────────────────────────────────────────────
-validate_env_file() {
+validate_env_file() {  # 引数なし: 呼び出し前に source 済みの変数を直接参照する
     local required_keys=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
     local missing=()
 
@@ -122,12 +122,16 @@ ENV_HEADER
 
     chmod 600 "${ENV_FILE}"
     log_info ".env.production を生成しました: ${ENV_FILE}"
-    echo ""
-    echo -e "${YELLOW}[WARN]${NC}  DB パスワード（この画面を閉じると再表示できません）:"
-    echo "  ${db_password}"
-    echo ""
-    read -r -p "  MySQL 側にも同じパスワードを設定した後、Enter を押してください: "
+
+    # DB パスワードを一時ファイルに書き出す（画面・ログに残さないため）
+    local password_file="${PROJECT_DIR}/.db_password_temp"
+    printf '%s\n' "${db_password}" > "${password_file}"
+    chmod 600 "${password_file}"
     unset db_password
+
+    log_warn "DB パスワードを一時ファイルに保存しました: ${password_file}"
+    log_warn "MySQL 側に同じパスワードを設定後、以下のコマンドで削除してください:"
+    echo "  rm -f ${password_file}"
 }
 
 # ────────────────────────────────────────────
@@ -143,18 +147,24 @@ rotate_secrets() {
     read -r -p "続行しますか? [y/N]: " confirm
     [[ "${confirm}" == "y" || "${confirm}" == "Y" ]] || { log_info "キャンセルしました"; exit 0; }
 
-    local jwt_secret secret_key
-    jwt_secret="$(generate_secret)"
-    secret_key="$(generate_secret)"
+    # 既存の値を保持してからファイル全体を再生成（sed インジェクション回避）
+    # shellcheck disable=SC1090
+    set -a; source "${ENV_FILE}"; set +a
+    local current_db="${DATABASE_URL_PRODUCTION}"
+    local current_cors="${CORS_ORIGIN}"
+    local current_port="${PORT:-3001}"
 
-    # sed でインプレース置換（macOS と Linux でオプションが異なる）
-    if [[ "${OSTYPE}" == "darwin"* ]]; then
-        sed -i '' "s|^JWT_SECRET=.*|JWT_SECRET=${jwt_secret}|" "${ENV_FILE}"
-        sed -i '' "s|^SECRET_KEY=.*|SECRET_KEY=${secret_key}|" "${ENV_FILE}"
-    else
-        sed -i "s|^JWT_SECRET=.*|JWT_SECRET=${jwt_secret}|" "${ENV_FILE}"
-        sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${secret_key}|" "${ENV_FILE}"
-    fi
+    {
+        printf "# 本番環境変数 - generate-env.sh --rotate で更新 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+        printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
+        printf "FLASK_ENV=production\n"
+        printf "PORT=%s\n"                        "${current_port}"
+        printf "DATABASE_URL_PRODUCTION=%s\n"     "${current_db}"
+        printf "JWT_SECRET=%s\n"                  "$(generate_secret)"
+        printf "SECRET_KEY=%s\n"                  "$(generate_secret)"
+        printf "CORS_ORIGIN=%s\n"                 "${current_cors}"
+    } > "${ENV_FILE}"
+    chmod 600 "${ENV_FILE}"
 
     log_info "JWT_SECRET と SECRET_KEY をローテーションしました"
     log_warn "アプリを再起動して新しいシークレットを反映してください"
@@ -182,7 +192,7 @@ main() {
             fi
             # shellcheck disable=SC1090
             set -a; source "${ENV_FILE}"; set +a
-            validate_env_file "${ENV_FILE}"
+            validate_env_file
             ;;
         "")
             if [ -f "${ENV_FILE}" ]; then
