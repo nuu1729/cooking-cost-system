@@ -29,8 +29,8 @@ jobs:
 
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d)
           # GITHUB_ENV 経由でジョブ内の全後続ステップに引き継ぐ（各ステップで env: を繰り返さなくてよい）
-          # mktemp の出力はパスであり改行を含まないため固定区切り文字で十分
-          printf 'CLAUDE_REVIEW_WORK_DIR<<EOF_WORK_DIR\n%s\nEOF_WORK_DIR\n' "$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
+          # mktemp の出力はパスであり改行・特殊文字を含まないためシンプルな代入形式で安全
+          echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
           PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
@@ -102,9 +102,9 @@ jobs:
       - name: クリーンアップ
         if: always()
         run: |
-          # pr_info が途中で失敗した場合は CLAUDE_REVIEW_WORK_DIR が未設定になるが、
-          # その場合は空文字チェックで Warning に流れるだけで安全（意図的な動作）
-          if [ -n "$CLAUDE_REVIEW_WORK_DIR" ] && [[ "$CLAUDE_REVIEW_WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$CLAUDE_REVIEW_WORK_DIR" ]; then
+          # pr_info が途中で失敗した場合は CLAUDE_REVIEW_WORK_DIR が未設定または空文字になるが、
+          # ${:-} で両方を安全に扱い Warning に流れるだけで実害なし（意図的な動作）
+          if [ -n "${CLAUDE_REVIEW_WORK_DIR:-}" ] && [[ "$CLAUDE_REVIEW_WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$CLAUDE_REVIEW_WORK_DIR" ]; then
             rm -rf "$CLAUDE_REVIEW_WORK_DIR"
           else
             echo "Warning: CLAUDE_REVIEW_WORK_DIR をスキップ: '${CLAUDE_REVIEW_WORK_DIR}'" >&2
