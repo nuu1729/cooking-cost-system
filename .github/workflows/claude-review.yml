@@ -23,14 +23,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
-          # pr_number: 後続ステップからテンプレート式で参照するため GITHUB_OUTPUT に残す
-          # CLAUDE_REVIEW_WORK_DIR: シェル変数として複数ステップで使うため GITHUB_ENV に書き込む
+
+          # --- GITHUB_OUTPUT（テンプレート式 steps.*.outputs.* で参照）---
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
-          CLAUDE_REVIEW_WORK_DIR=$(mktemp -d)
-          # GITHUB_ENV 経由でジョブ内の全後続ステップに引き継ぐ（各ステップで env: を繰り返さなくてよい）
-          # mktemp の出力はパスであり改行・特殊文字を含まないためシンプルな代入形式で安全
-          echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
+          # --- GITHUB_ENV（後続ステップの環境変数として自動展開）---
+          CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
+          # GitHub Actions 公式推奨のヒアドキュメント形式で書き込み
+          {
+            echo "CLAUDE_REVIEW_WORK_DIR<<EOF"
+            echo "$CLAUDE_REVIEW_WORK_DIR"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
           PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
@@ -103,9 +107,9 @@ jobs:
         if: always()
         run: |
           # pr_info が途中で失敗した場合は CLAUDE_REVIEW_WORK_DIR が未設定または空文字になるが、
-          # ${:-} で両方を安全に扱い Warning に流れるだけで実害なし（意図的な動作）
+          # ${CLAUDE_REVIEW_WORK_DIR:-} で両方を安全に扱い Warning に流れるだけで実害なし（意図的な動作）
           if [ -n "${CLAUDE_REVIEW_WORK_DIR:-}" ] && [[ "$CLAUDE_REVIEW_WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$CLAUDE_REVIEW_WORK_DIR" ]; then
             rm -rf "$CLAUDE_REVIEW_WORK_DIR"
           else
-            echo "Warning: CLAUDE_REVIEW_WORK_DIR をスキップ: '${CLAUDE_REVIEW_WORK_DIR}'" >&2
+            echo "Warning: CLAUDE_REVIEW_WORK_DIR をスキップ: '${CLAUDE_REVIEW_WORK_DIR:-}'" >&2
           fi
