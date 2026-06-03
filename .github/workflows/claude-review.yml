@@ -46,8 +46,6 @@ jobs:
           # GITHUB_ENV への書き込みは次ステップ以降にしか反映されないため、
           # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
-          # ステップ内で失敗した場合の in-step クリーンアップ（GITHUB_ENV が反映される前の保険）
-          trap 'rm -rf "$CLAUDE_REVIEW_WORK_DIR"' EXIT
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
