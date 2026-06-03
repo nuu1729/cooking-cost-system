@@ -34,7 +34,8 @@ jobs:
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
           # --- GITHUB_ENV（後続ステップの環境変数として自動展開）---
-          # 同一ステップ内ではローカル変数として参照し、次ステップ以降では GITHUB_ENV から展開される
+          # GITHUB_ENV への書き込みは次ステップ以降にしか反映されないため、
+          # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
           # mktemp のパスは改行・等号を含まないため KEY=VALUE 形式で安全に書き込める
           # ヒアドキュメントが必要なのは値に改行が入る場合のみ（パスには不要）
@@ -118,7 +119,7 @@ jobs:
           fi
           if ! REAL_DIR=$(realpath "$CLAUDE_REVIEW_WORK_DIR" 2>/dev/null); then
             echo "Warning: realpath 失敗: '$CLAUDE_REVIEW_WORK_DIR'" >&2
-            exit 0
+            exit 0  # pr_info 失敗時はディレクトリ未作成の場合があるため正常扱い
           fi
           # Linux: /tmp/tmp.XXX、macOS: /private/tmp/tmp.XXX の両パターンに対応
           if [[ "$REAL_DIR" =~ ^(/private)?/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
