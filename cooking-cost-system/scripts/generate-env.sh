@@ -161,12 +161,19 @@ prompt_values() {
     echo "本番環境の設定を入力してください。"
     echo ""
 
-    # CORS_ORIGIN
-    read -r -p "CORS_ORIGIN（Cloudflare Pages のURL, 例: https://your-project.pages.dev）: " cors_origin
-    if [[ -z "${cors_origin}" ]]; then
-        cors_origin="https://your-project.pages.dev"
-        log_warn "CORS_ORIGIN が未入力です。後から ${ENV_FILE} を編集してください。"
-    fi
+    # CORS_ORIGIN（入力ループで形式を検証）
+    while true; do
+        read -r -p "CORS_ORIGIN（Cloudflare Pages のURL, 例: https://your-project.pages.dev）: " cors_origin
+        if [[ -z "${cors_origin}" ]]; then
+            cors_origin="https://your-project.pages.dev"
+            log_warn "CORS_ORIGIN が未入力です。後から ${ENV_FILE} を編集してください。"
+            break
+        elif validate_cors_origins "${cors_origin}"; then
+            break
+        else
+            log_error "https:// で始まる URL を入力してください。"
+        fi
+    done
 
     # DATABASE_URL_PRODUCTION
     read -r -p "DB ホスト（デフォルト: ${DEFAULT_DB_HOST}）: " db_host
@@ -177,7 +184,10 @@ prompt_values() {
 
     read -r -p "DB 名（デフォルト: ${DEFAULT_DB_NAME}）: " db_name
     db_name="${db_name:-${DEFAULT_DB_NAME}}"
-    validate_db_name "${db_name}"
+    if ! validate_db_name "${db_name}"; then
+        log_error "DB 名が無効です。再入力してください。"
+        exit 1
+    fi
 
     # DB パスワード: 既存パスワードを入力するか自動生成かを選択（グローバル変数に格納）
     read -r -s -p "DB パスワード（空 Enter で自動生成）: " db_password
@@ -224,7 +234,12 @@ ENV_HEADER
 
     # DB パスワードを mktemp で作成した一時ファイルに書き出す（固定名の競合を防止）
     local password_file
-    password_file="$(mktemp "${PROJECT_DIR}/.db_password_XXXXXX")"
+    # /dev/shm (RAM ファイルシステム) を優先してディスクへの書き込みを回避
+    if [[ -d /dev/shm ]]; then
+        password_file="$(mktemp /dev/shm/.db_password_XXXXXX)"
+    else
+        password_file="$(mktemp)"
+    fi
     printf '%s\n' "${db_password}" > "${password_file}"
     chmod 600 "${password_file}"
     db_password=""  # メモリから即座にクリア
