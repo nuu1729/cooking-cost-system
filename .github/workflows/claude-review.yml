@@ -42,14 +42,13 @@ jobs:
           # GITHUB_ENV への書き込みは次ステップ以降にしか反映されないため、
           # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
-          # mktemp のパスに改行・等号が含まれないことを明示的に確認してから書き込む
+          # クリーンアップが確実に動くよう、バリデーション前に GITHUB_ENV へ書き込む
+          echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
+          # mktemp のパスに改行・等号が含まれないことを明示的に確認
           if [[ "$CLAUDE_REVIEW_WORK_DIR" =~ $'\n' ]] || [[ "$CLAUDE_REVIEW_WORK_DIR" == *=* ]]; then
             echo "Error: mktemp の出力が想定外の形式です: '$CLAUDE_REVIEW_WORK_DIR'" >&2
             exit 1
           fi
-          # 注意: pr_info ステップがここより後で失敗した場合、GITHUB_ENV は後続ステップに反映されず
-          # mktemp で作成した一時ディレクトリがクリーンアップされない可能性がある（GitHub Actions の仕様上の制約）
-          echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
           PR_DATA=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}")
@@ -120,20 +119,20 @@ jobs:
 
       - name: クリーンアップ
         if: always()
+        continue-on-error: true
         run: |
           # if: always() で動くため pr_info 失敗時は未設定の可能性あり
-          # exit 0: クリーンアップは補助的なステップのためワークフロー全体の成否に影響させない
           if [ -z "${CLAUDE_REVIEW_WORK_DIR:-}" ]; then
             echo "Info: CLAUDE_REVIEW_WORK_DIR が未設定のためクリーンアップをスキップします" >&2
             exit 0
           fi
           if ! REAL_DIR=$(realpath "$CLAUDE_REVIEW_WORK_DIR" 2>/dev/null); then
             echo "Warning: realpath 失敗: '$CLAUDE_REVIEW_WORK_DIR'" >&2
-            exit 0  # pr_info 失敗時はディレクトリ未作成の場合があるため正常扱い
+            exit 0
           fi
           # Linux: /tmp/tmp.XXX、macOS: /private/tmp/tmp.XXX の両パターンに対応
           if [[ "$REAL_DIR" =~ ^(/private)?/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
-            rm -rf "$REAL_DIR" || echo "Warning: rm -rf 失敗: '$REAL_DIR'" >&2
+            rm -rf --one-file-system "$REAL_DIR" || echo "Warning: rm -rf 失敗: '$REAL_DIR'" >&2
           else
             echo "Warning: CLAUDE_REVIEW_WORK_DIR の形式が不正です: '${REAL_DIR}'" >&2
           fi
