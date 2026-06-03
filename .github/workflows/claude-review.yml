@@ -23,6 +23,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Error: PR番号を取得できませんでした" >&2
+            exit 1
+          fi
 
           # --- GITHUB_OUTPUT（テンプレート式 steps.*.outputs.* で参照）---
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
@@ -30,10 +34,11 @@ jobs:
           # --- GITHUB_ENV（後続ステップの環境変数として自動展開）---
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
           # GitHub Actions 公式推奨のヒアドキュメント形式で書き込み
+          # デリミタを一意な文字列にしてデリミタ衝突を防止
           {
-            echo "CLAUDE_REVIEW_WORK_DIR<<EOF"
+            echo "CLAUDE_REVIEW_WORK_DIR<<GITHUB_ENV_EOF_DELIMITER"
             echo "$CLAUDE_REVIEW_WORK_DIR"
-            echo "EOF"
+            echo "GITHUB_ENV_EOF_DELIMITER"
           } >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
@@ -49,6 +54,7 @@ jobs:
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
       - name: Claude にレビューを依頼
+        # CLAUDE_REVIEW_WORK_DIR は GITHUB_ENV 経由で pr_info ステップから引き継ぐ
         id: claude_review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -90,6 +96,7 @@ jobs:
           printf '%s' "$REVIEW" > "$CLAUDE_REVIEW_WORK_DIR/review.txt"
 
       - name: レビューをPRにコメント投稿
+        # CLAUDE_REVIEW_WORK_DIR は GITHUB_ENV 経由で pr_info ステップから引き継ぐ
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -104,10 +111,10 @@ jobs:
             --body-file "$CLAUDE_REVIEW_WORK_DIR/comment.txt"
 
       - name: クリーンアップ
+        # CLAUDE_REVIEW_WORK_DIR は GITHUB_ENV 経由で pr_info ステップから引き継ぐ
+        # if: always() で動くため、pr_info 失敗時は未設定の可能性あり
         if: always()
         run: |
-          # pr_info が途中で失敗した場合は CLAUDE_REVIEW_WORK_DIR が未設定または空文字になるが、
-          # ${CLAUDE_REVIEW_WORK_DIR:-} で両方を安全に扱い Warning に流れるだけで実害なし（意図的な動作）
           if [ -n "${CLAUDE_REVIEW_WORK_DIR:-}" ] && [[ "$CLAUDE_REVIEW_WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$CLAUDE_REVIEW_WORK_DIR" ]; then
             rm -rf "$CLAUDE_REVIEW_WORK_DIR"
           else
