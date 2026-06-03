@@ -47,7 +47,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # クリーンアップ（EXIT トラップ）
 # ────────────────────────────────────────────
 cleanup() {
-    rm -f "${PROJECT_DIR}"/.db_password_* 2>/dev/null || true
+    # password_file_path で個別管理した一時ファイルを削除
     [[ -n "${password_file_path}" ]] && rm -f "${password_file_path}" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -68,7 +68,11 @@ show_usage() {
 
 # URL-safe base64 のシークレットキーを生成（${SECRET_LENGTH} バイト）
 generate_secret() {
-    python3 -c "import secrets; print(secrets.token_urlsafe(${SECRET_LENGTH}))"
+    local secret
+    secret="$(python3 -c "import secrets; print(secrets.token_urlsafe(${SECRET_LENGTH}))")" \
+        || { log_error "シークレット生成に失敗しました"; exit 1; }
+    [[ -n "${secret}" ]] || { log_error "シークレットが空です"; exit 1; }
+    echo "${secret}"
 }
 
 check_prerequisites() {
@@ -82,15 +86,20 @@ check_prerequisites() {
 # 既知のキー（ALLOWED_ENV_KEYS）のみを export する
 parse_env_file() {
     local file="$1"
-    while IFS='=' read -r key value; do
-        [[ -z "${key}" || "${key}" =~ ^[[:space:]]*# ]] && continue
+    # IFS= read で行全体を読み込み、= を最初の1つだけで分割する
+    # → 値に = が含まれる場合（BASE64 等）も正しく処理できる
+    while IFS= read -r line; do
+        [[ -z "${line}" || "${line}" =~ ^[[:space:]]*# ]] && continue
+        local key="${line%%=*}"
+        local value="${line#*=}"
         key="${key#"${key%%[![:space:]]*}"}"  # key 前後の空白除去
-        value="${value%\"}"                   # ダブルクォート除去
-        value="${value#\"}"
-        value="${value%\'}"                   # シングルクォート除去
-        value="${value#\'}"
-        value="${value#"${value%%[![:space:]]*}"}"  # value 前後の空白除去
-        value="${value%"${value##*[![:space:]]}"}"
+        # 対称クォートのみ除去（開き・閉じが同じ場合のみ）
+        if [[ "${value}" =~ ^\"(.*)\"$ ]] || [[ "${value}" =~ ^\'(.*)\'$ ]]; then
+            value="${BASH_REMATCH[1]}"
+        else
+            value="${value#"${value%%[![:space:]]*}"}"  # value 前後の空白除去
+            value="${value%"${value##*[![:space:]]}"}"
+        fi
         local allowed=false
         for allowed_key in "${ALLOWED_ENV_KEYS[@]}"; do
             [[ "${key}" == "${allowed_key}" ]] && allowed=true && break
@@ -111,6 +120,11 @@ validate_cors_origins() {
         origin="${origin%"${origin##*[![:space:]]}"}"
         if [[ "${origin}" != "https://"* ]]; then
             log_warn "不正なオリジン: '${origin}' （https:// で始まる必要があります）"
+            return 1
+        fi
+        # プレースホルダー検知（https://your- で始まる場合は未設定とみなす）
+        if [[ "${origin}" == "https://your-"* ]]; then
+            log_warn "プレースホルダーのオリジン: '${origin}'（実際のドメインに変更してください）"
             return 1
         fi
     done
@@ -168,7 +182,7 @@ validate_env_file() {
         return 1
     fi
 
-    # 本番環境では全オリジンが https:// であることを確認
+    # 本番環境では全オリジンが https:// であることを確認（プレースホルダー検知含む）
     if [[ "${FLASK_ENV:-}" == "production" ]]; then
         if ! validate_cors_origins "${CORS_ORIGIN:-}"; then
             log_warn "本番環境では CORS_ORIGIN の全オリジンが https:// である必要があります"
@@ -188,17 +202,15 @@ prompt_values() {
     echo "本番環境の設定を入力してください。"
     echo ""
 
-    # CORS_ORIGIN（入力ループで形式を検証）
+    # CORS_ORIGIN（入力ループで形式・プレースホルダーを検証）
     while true; do
-        read -r -p "CORS_ORIGIN（Cloudflare Pages のURL, 例: https://your-project.pages.dev）: " cors_origin
+        read -r -p "CORS_ORIGIN（Cloudflare Pages のURL, 例: https://app.pages.dev）: " cors_origin
         if [[ -z "${cors_origin}" ]]; then
-            cors_origin="https://your-project.pages.dev"
-            log_warn "CORS_ORIGIN が未入力です。後から ${ENV_FILE} を編集してください。"
-            break
+            log_error "CORS_ORIGIN は必須です。Ctrl+C で中断して後から ${ENV_FILE} を編集することもできます。"
         elif validate_cors_origins "${cors_origin}"; then
             break
         else
-            log_error "https:// で始まる URL を入力してください。"
+            log_error "https:// で始まる有効な URL を入力してください。"
         fi
     done
 
@@ -235,7 +247,7 @@ prompt_values() {
 }
 
 # ────────────────────────────────────────────
-# .env.production 生成
+# .env.production 生成（アトミックな一括書き込み）
 # ────────────────────────────────────────────
 generate_env() {
     prompt_values
@@ -246,20 +258,18 @@ generate_env() {
 
     log_info "シークレットを生成しました"
 
-    cat > "${ENV_FILE}" <<ENV_HEADER
-# 本番環境変数 - generate-env.sh で生成 ($(date '+%Y-%m-%d %H:%M:%S'))
-# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）
-FLASK_ENV=production
-PORT=3001
-ENV_HEADER
-
+    # cat と >> を分離せず一度のブロックで書き込む（割り込みリスクを排除）
     {
+        printf "# 本番環境変数 - generate-env.sh で生成 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+        printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
+        printf "FLASK_ENV=production\n"
+        printf "PORT=3001\n"
         printf "DATABASE_URL_PRODUCTION=mysql+pymysql://%s:%s@%s:3306/%s\n" \
             "${db_user}" "${db_password}" "${db_host}" "${db_name}"
         printf "JWT_SECRET=%s\n"  "${jwt_secret}"
         printf "SECRET_KEY=%s\n"  "${secret_key}"
         printf "CORS_ORIGIN=%s\n" "${cors_origin}"
-    } >> "${ENV_FILE}"
+    } > "${ENV_FILE}"
 
     chmod 600 "${ENV_FILE}"
     log_info ".env.production を生成しました: ${ENV_FILE}"
@@ -282,6 +292,7 @@ ENV_HEADER
     echo ""
     read -r -p "MySQL へのパスワード設定が完了したら Enter を押してください（その後ファイルを削除します）: "
     rm -f "${password_file}"
+    password_file_path=""
     log_info "一時ファイルを削除しました"
 }
 
@@ -317,6 +328,14 @@ rotate_secrets() {
     chmod 600 "${ENV_FILE}"
 
     log_info "JWT_SECRET と SECRET_KEY をローテーションしました"
+
+    # ローテーション後に整合性を確認
+    parse_env_file "${ENV_FILE}"
+    if ! validate_env_file; then
+        log_error "ローテーション後の検証に失敗しました"
+        exit 1
+    fi
+
     log_warn "アプリを再起動して新しいシークレットを反映してください"
     log_warn "既存の JWT トークンはすべて無効化されます"
 }
@@ -326,6 +345,9 @@ rotate_secrets() {
 # ────────────────────────────────────────────
 main() {
     check_prerequisites
+
+    # 引数は最大1つ
+    [[ $# -gt 1 ]] && { log_error "引数は1つまでです"; show_usage; exit 1; }
 
     local mode="${1:-}"
 
