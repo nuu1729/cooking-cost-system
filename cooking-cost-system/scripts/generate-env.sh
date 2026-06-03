@@ -26,7 +26,7 @@ readonly ENV_FILE="${PROJECT_DIR}/backend/.env.production"
 readonly DEFAULT_DB_HOST="database"
 readonly DEFAULT_DB_USER="cooking_user"
 readonly DEFAULT_DB_NAME="cooking_cost_system"
-readonly SECRET_LENGTH=32  # 32バイトのランダム性（base64url エンコード後は約43文字）
+declare -ri SECRET_LENGTH=32  # 整数型を明示・32バイトのランダム性（base64url エンコード後は約43文字）
 
 # 許可する環境変数キー（parse_env_file での既知キー制限に使用）
 readonly -a ALLOWED_ENV_KEYS=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
@@ -103,9 +103,10 @@ parse_env_file() {
         local value="${line#*=}"
         key="${key#"${key%%[![:space:]]*}"}"  # key 前後の空白除去
         # 対称クォートのみ除去（if/elif で分離して BASH_REMATCH の曖昧さを回避）
-        if [[ "${value}" =~ ^\"(.*)\"$ ]]; then
+        # [^\"]*・[^\']*: 非貪欲に対称クォート内のみ除去（不正な KEY="val"extra" 等はマッチしない）
+        if [[ "${value}" =~ ^\"([^\"]*)\"$ ]]; then
             value="${BASH_REMATCH[1]}"
-        elif [[ "${value}" =~ ^\'(.*)\'$ ]]; then
+        elif [[ "${value}" =~ ^\'([^\']*)\'$ ]]; then
             value="${BASH_REMATCH[1]}"
         else
             value="${value#"${value%%[![:space:]]*}"}"  # value 前後の空白除去
@@ -134,6 +135,7 @@ validate_cors_origins() {
             return 1
         fi
         # プレースホルダー検知（https://your- で始まる場合は未設定とみなす）
+        # 注意: 大文字の https://YOUR- や非標準プレースホルダーは検知対象外
         if [[ "${origin}" == "https://your-"* ]]; then
             log_warn "プレースホルダーのオリジン: '${origin}'（実際のドメインに変更してください）"
             return 1
@@ -185,6 +187,9 @@ validate_env_file() {
         local value="${!key:-}"
         if [[ -z "${value}" || "${value}" == "your-"* || "${value}" == "<"*">" ]]; then
             missing+=("${key}")
+        # DATABASE_URL_PRODUCTION はURL全体なので "<"*">" ではなく URL中の<>を検知
+        elif [[ "${key}" == "DATABASE_URL_PRODUCTION" && "${value}" == *"<"*">"* ]]; then
+            missing+=("${key}")
         fi
     done
 
@@ -225,24 +230,27 @@ prompt_values() {
         fi
     done
 
-    # DATABASE_URL_PRODUCTION
-    read -r -p "DB ホスト（デフォルト: ${DEFAULT_DB_HOST}）: " db_host
-    db_host="${db_host:-${DEFAULT_DB_HOST}}"
-    if ! validate_db_host "${db_host}"; then
-        exit 1
-    fi
+    # DATABASE_URL_PRODUCTION（CORS_ORIGIN と同様にループで再入力を促す）
+    while true; do
+        read -r -p "DB ホスト（デフォルト: ${DEFAULT_DB_HOST}）: " db_host
+        db_host="${db_host:-${DEFAULT_DB_HOST}}"
+        validate_db_host "${db_host}" && break
+        log_error "再入力してください"
+    done
 
-    read -r -p "DB ユーザー名（デフォルト: ${DEFAULT_DB_USER}）: " db_user
-    db_user="${db_user:-${DEFAULT_DB_USER}}"
-    if ! validate_db_user "${db_user}"; then
-        exit 1
-    fi
+    while true; do
+        read -r -p "DB ユーザー名（デフォルト: ${DEFAULT_DB_USER}）: " db_user
+        db_user="${db_user:-${DEFAULT_DB_USER}}"
+        validate_db_user "${db_user}" && break
+        log_error "再入力してください"
+    done
 
-    read -r -p "DB 名（デフォルト: ${DEFAULT_DB_NAME}）: " db_name
-    db_name="${db_name:-${DEFAULT_DB_NAME}}"
-    if ! validate_db_name "${db_name}"; then
-        exit 1
-    fi
+    while true; do
+        read -r -p "DB 名（デフォルト: ${DEFAULT_DB_NAME}）: " db_name
+        db_name="${db_name:-${DEFAULT_DB_NAME}}"
+        validate_db_name "${db_name}" && break
+        log_error "再入力してください"
+    done
 
     # DB パスワード: 既存パスワードを入力するか自動生成かを選択（グローバル変数に格納）
     # ※ 手動入力する場合、@ / : / / などの URL 特殊文字はパーセントエンコードが必要
@@ -300,7 +308,7 @@ generate_env() {
     password_file_path="${password_file}"  # cleanup で確実に削除するためグローバルに記録
     printf '%s\n' "${db_password}" > "${password_file}"
     chmod 600 "${password_file}"
-    db_password=""  # メモリから即座にクリア
+    db_password=""  # Bash グローバル変数を空文字で上書き（プロセスメモリ上に残る可能性は bash の限界）
 
     log_warn "DB パスワードを一時ファイルに保存しました: ${password_file}"
     log_warn "MySQL 側に同じパスワードを設定してください。"
@@ -334,7 +342,7 @@ rotate_secrets() {
     log_info "バックアップを作成しました: ${backup}"
 
     # 安全なパーサーで既存値を読み込む（source によるコード実行リスクを回避）
-    parse_env_file "${ENV_FILE}"
+    parse_env_file "${ENV_FILE}"  # 1回目: 既存の DB・CORS・PORT 値を取得
     local current_db="${DATABASE_URL_PRODUCTION}"
     local current_cors="${CORS_ORIGIN}"
     local current_port="${PORT:-3001}"
@@ -356,7 +364,7 @@ rotate_secrets() {
 
     log_info "JWT_SECRET と SECRET_KEY をローテーションしました"
 
-    # ローテーション後に整合性を確認
+    # 2回目: ローテーション後の新ファイルを読み込み直し整合性を確認（1回目とは別ファイル内容）
     parse_env_file "${ENV_FILE}"
     if ! validate_env_file; then
         log_error "ローテーション後の検証に失敗しました"
