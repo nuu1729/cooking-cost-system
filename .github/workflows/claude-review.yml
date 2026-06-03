@@ -36,14 +36,9 @@ jobs:
           # --- GITHUB_ENV（後続ステップの環境変数として自動展開）---
           # 同一ステップ内ではローカル変数として参照し、次ステップ以降では GITHUB_ENV から展開される
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
-          CLAUDE_REVIEW_WORK_DIR="${CLAUDE_REVIEW_WORK_DIR//$'\n'/}"  # 念のため改行を除去
-          # GitHub Actions 公式推奨: ランダムデリミタのヒアドキュメント形式で書き込み
-          EOF_DELIMITER="EOF_$(openssl rand -hex 8)" || { echo "openssl rand failed" >&2; exit 1; }
-          {
-            echo "CLAUDE_REVIEW_WORK_DIR<<${EOF_DELIMITER}"
-            echo "$CLAUDE_REVIEW_WORK_DIR"
-            echo "${EOF_DELIMITER}"
-          } >> "$GITHUB_ENV"
+          # mktemp のパスは改行・等号を含まないため KEY=VALUE 形式で安全に書き込める
+          # ヒアドキュメントが必要なのは値に改行が入る場合のみ（パスには不要）
+          echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
           PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
@@ -123,7 +118,7 @@ jobs:
             echo "Warning: realpath 失敗: $REAL_DIR" >&2
             exit 0
           fi
-          if [[ "$REAL_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
+          if [[ "$REAL_DIR" == /tmp/* ]] && [ -d "$REAL_DIR" ]; then
             rm -rf "$REAL_DIR"
           else
             echo "Warning: CLAUDE_REVIEW_WORK_DIR の形式が不正です: '${REAL_DIR}'" >&2
