@@ -1,4 +1,8 @@
 name: Claude PR Review
+# CLAUDE_REVIEW_WORK_DIR: pr_info ステップで mktemp -d して作成し、
+# GITHUB_ENV 経由でジョブ内の全後続ステップに次ステップ以降から自動展開される一時作業ディレクトリ
+# - GITHUB_OUTPUT: テンプレート式 steps.*.outputs.* で参照する値（pr_number）
+# - GITHUB_ENV: 後続ステップで環境変数として透過的に使いたい値（CLAUDE_REVIEW_WORK_DIR）
 
 on:
   pull_request:
@@ -15,32 +19,44 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+    env:
+      ANTHROPIC_MODEL: claude-sonnet-4-6
 
     steps:
       - name: PR の差分を取得
         id: pr_info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
-          # pr_number: 後続ステップからテンプレート式で参照するため GITHUB_OUTPUT に残す
-          # CLAUDE_REVIEW_WORK_DIR: シェル変数として複数ステップで使うため GITHUB_ENV に書き込む
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Error: PR番号が不正です: '$PR_NUMBER'" >&2
+            exit 1
+          fi
+          if ! [[ "$GH_REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "Error: GH_REPO の形式が不正です: '$GH_REPO'" >&2
+            exit 1
+          fi
+
+          # --- GITHUB_OUTPUT（テンプレート式 steps.*.outputs.* で参照）---
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
-          CLAUDE_REVIEW_WORK_DIR=$(mktemp -d)
-          # GITHUB_ENV 経由でジョブ内の全後続ステップに引き継ぐ（各ステップで env: を繰り返さなくてよい）
-          # mktemp の出力はパスであり改行を含まないため固定区切り文字で十分
-          printf 'CLAUDE_REVIEW_WORK_DIR<<EOF_WORK_DIR\n%s\nEOF_WORK_DIR\n' "$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
+          # --- GITHUB_ENV（後続ステップの環境変数として自動展開）---
+          # GITHUB_ENV への書き込みは次ステップ以降にしか反映されないため、
+          # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
+          CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
+          echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
-          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          PR_DATA=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}")
           TITLE=$(echo "$PR_DATA" | jq -r '.title')
 
-          # タイトルをファイルに保存（特殊文字・日本語が GITHUB_OUTPUT を壊すのを回避）
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
           # 差分を取得（最大100KB）。マルチバイト文字の切り捨て問題は issue #109 で追跡中
-          DIFF=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER \
+          # 注意: タイトル取得と差分取得で同じエンドポイントを2回呼んでいる（差分は Accept ヘッダが異なるため回避困難）
+          DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
@@ -48,7 +64,6 @@ jobs:
         id: claude_review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: claude-sonnet-4-6
         run: |
           DIFF=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt")
           TITLE=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt")
@@ -71,7 +86,8 @@ jobs:
 
           if [[ ! "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
             echo "Anthropic API Error: HTTP ${HTTP_STATUS:-(no response)}" >&2
-            cat "$CLAUDE_REVIEW_WORK_DIR/response.json" >&2
+            jq '{error, type}' "$CLAUDE_REVIEW_WORK_DIR/response.json" 2>/dev/null >&2 \
+              || echo "Warning: レスポンスのパース失敗（詳細はログを確認）" >&2
             exit 1
           fi
 
@@ -88,8 +104,8 @@ jobs:
       - name: レビューをPRにコメント投稿
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr_info.outputs.pr_number }}
         run: |
-          PR_NUMBER=${{ steps.pr_info.outputs.pr_number }}
           REVIEW=$(cat "$CLAUDE_REVIEW_WORK_DIR/review.txt")
           HEADER="## 🤖 Claude によるコードレビュー"
           FOOTER="*このレビューは Claude AI によって自動生成されました*"
@@ -101,11 +117,20 @@ jobs:
 
       - name: クリーンアップ
         if: always()
+        continue-on-error: true
         run: |
-          # pr_info が途中で失敗した場合は CLAUDE_REVIEW_WORK_DIR が未設定になるが、
-          # その場合は空文字チェックで Warning に流れるだけで安全（意図的な動作）
-          if [ -n "$CLAUDE_REVIEW_WORK_DIR" ] && [[ "$CLAUDE_REVIEW_WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$CLAUDE_REVIEW_WORK_DIR" ]; then
-            rm -rf "$CLAUDE_REVIEW_WORK_DIR"
+          # if: always() で動くため pr_info 失敗時は未設定の可能性あり
+          if [ -z "${CLAUDE_REVIEW_WORK_DIR:-}" ]; then
+            echo "Info: CLAUDE_REVIEW_WORK_DIR が未設定のためクリーンアップをスキップします" >&2
+            exit 0
+          fi
+          if ! REAL_DIR=$(realpath "$CLAUDE_REVIEW_WORK_DIR" 2>/dev/null); then
+            echo "Warning: realpath 失敗: '$CLAUDE_REVIEW_WORK_DIR'" >&2
+            exit 0
+          fi
+          # Linux: /tmp/tmp.XXX、macOS: /private/tmp/tmp.XXX の両パターンに対応
+          if [[ "$REAL_DIR" =~ ^(/private)?/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
+            rm -rf --one-file-system "$REAL_DIR" || echo "Warning: rm -rf 失敗: '$REAL_DIR'" >&2
           else
-            echo "Warning: CLAUDE_REVIEW_WORK_DIR をスキップ: '${CLAUDE_REVIEW_WORK_DIR}'" >&2
+            echo "Warning: CLAUDE_REVIEW_WORK_DIR の形式が不正です: '${REAL_DIR}'" >&2
           fi
