@@ -8,6 +8,13 @@
 
 set -euo pipefail
 
+# bash 4.0+ が必要（readonly -a / BASH_REMATCH 等を使用）
+if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
+    echo "Error: bash 4.0 以上が必要です（現在: ${BASH_VERSION}）" >&2
+    echo "macOS の場合: brew install bash" >&2
+    exit 1
+fi
+
 # ────────────────────────────────────────────
 # 定数
 # ────────────────────────────────────────────
@@ -72,6 +79,8 @@ generate_secret() {
     secret="$(python3 -c "import secrets; print(secrets.token_urlsafe(${SECRET_LENGTH}))")" \
         || { log_error "シークレット生成に失敗しました"; exit 1; }
     [[ -n "${secret}" ]] || { log_error "シークレットが空です"; exit 1; }
+    # token_urlsafe(32) は少なくとも 43 文字を返す
+    [[ ${#secret} -ge 40 ]] || { log_error "シークレットが短すぎます（${#secret}文字）"; exit 1; }
     echo "${secret}"
 }
 
@@ -93,8 +102,10 @@ parse_env_file() {
         local key="${line%%=*}"
         local value="${line#*=}"
         key="${key#"${key%%[![:space:]]*}"}"  # key 前後の空白除去
-        # 対称クォートのみ除去（開き・閉じが同じ場合のみ）
-        if [[ "${value}" =~ ^\"(.*)\"$ ]] || [[ "${value}" =~ ^\'(.*)\'$ ]]; then
+        # 対称クォートのみ除去（if/elif で分離して BASH_REMATCH の曖昧さを回避）
+        if [[ "${value}" =~ ^\"(.*)\"$ ]]; then
+            value="${BASH_REMATCH[1]}"
+        elif [[ "${value}" =~ ^\'(.*)\'$ ]]; then
             value="${BASH_REMATCH[1]}"
         else
             value="${value#"${value%%[![:space:]]*}"}"  # value 前後の空白除去
@@ -234,6 +245,8 @@ prompt_values() {
     fi
 
     # DB パスワード: 既存パスワードを入力するか自動生成かを選択（グローバル変数に格納）
+    # ※ 手動入力する場合、@ / : / / などの URL 特殊文字はパーセントエンコードが必要
+    #    （例: p@ss → p%40ss）。自動生成（token_urlsafe）は URL 安全な文字のみ使用
     read -r -s -p "DB パスワード（空 Enter で自動生成）: " db_password
     echo ""
     if [[ -z "${db_password}" ]]; then
@@ -258,7 +271,10 @@ generate_env() {
 
     log_info "シークレットを生成しました"
 
-    # cat と >> を分離せず一度のブロックで書き込む（割り込みリスクを排除）
+    # 一時ファイル経由でアトミックに書き込む（chmod → mv で隙間なく保護）
+    local tmp_env
+    tmp_env="$(mktemp "${ENV_FILE}.XXXXXX")"
+    chmod 600 "${tmp_env}"
     {
         printf "# 本番環境変数 - generate-env.sh で生成 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
         printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
@@ -269,9 +285,8 @@ generate_env() {
         printf "JWT_SECRET=%s\n"  "${jwt_secret}"
         printf "SECRET_KEY=%s\n"  "${secret_key}"
         printf "CORS_ORIGIN=%s\n" "${cors_origin}"
-    } > "${ENV_FILE}"
-
-    chmod 600 "${ENV_FILE}"
+    } > "${tmp_env}"
+    mv "${tmp_env}" "${ENV_FILE}"
     log_info ".env.production を生成しました: ${ENV_FILE}"
 
     # DB パスワードを mktemp で作成した一時ファイルに書き出す（固定名の競合を防止）
@@ -305,9 +320,18 @@ rotate_secrets() {
         exit 1
     fi
 
+    # NOTE: --rotate は JWT_SECRET と SECRET_KEY のみ対象。
+    #       DB パスワードのローテーションは DATABASE_URL_PRODUCTION を手動更新すること。
     log_warn "以下のシークレットを再生成します: JWT_SECRET, SECRET_KEY"
+    log_warn "（DB パスワードはローテーション対象外。変更する場合は ${ENV_FILE} を直接編集してください）"
     read -r -p "続行しますか? [y/N]: " confirm
     [[ "${confirm}" == "y" || "${confirm}" == "Y" ]] || { log_info "キャンセルしました"; exit 0; }
+
+    # ローテーション前にバックアップを作成（失敗時に既存シークレットを復元可能にする）
+    local backup="${ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)"
+    cp "${ENV_FILE}" "${backup}"
+    chmod 600 "${backup}"
+    log_info "バックアップを作成しました: ${backup}"
 
     # 安全なパーサーで既存値を読み込む（source によるコード実行リスクを回避）
     parse_env_file "${ENV_FILE}"
@@ -315,6 +339,9 @@ rotate_secrets() {
     local current_cors="${CORS_ORIGIN}"
     local current_port="${PORT:-3001}"
 
+    local tmp_env
+    tmp_env="$(mktemp "${ENV_FILE}.XXXXXX")"
+    chmod 600 "${tmp_env}"
     {
         printf "# 本番環境変数 - generate-env.sh --rotate で更新 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
         printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
@@ -324,8 +351,8 @@ rotate_secrets() {
         printf "JWT_SECRET=%s\n"              "$(generate_secret)"
         printf "SECRET_KEY=%s\n"              "$(generate_secret)"
         printf "CORS_ORIGIN=%s\n"             "${current_cors}"
-    } > "${ENV_FILE}"
-    chmod 600 "${ENV_FILE}"
+    } > "${tmp_env}"
+    mv "${tmp_env}" "${ENV_FILE}"
 
     log_info "JWT_SECRET と SECRET_KEY をローテーションしました"
 
