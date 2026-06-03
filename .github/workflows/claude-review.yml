@@ -52,6 +52,7 @@ jobs:
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
       - name: Claude にレビューを依頼
+        # CLAUDE_REVIEW_WORK_DIR は pr_info ステップで GITHUB_ENV に設定済み（自動で環境変数として利用可能）
         id: claude_review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -114,11 +115,11 @@ jobs:
             echo "Info: CLAUDE_REVIEW_WORK_DIR が未設定のためクリーンアップをスキップします" >&2
             exit 0
           fi
-          if ! REAL_DIR=$(realpath "$CLAUDE_REVIEW_WORK_DIR" 2>&1); then
-            echo "Warning: realpath 失敗: $REAL_DIR" >&2
+          if ! REAL_DIR=$(realpath "$CLAUDE_REVIEW_WORK_DIR" 2>/dev/null); then
+            echo "Warning: realpath 失敗: '$CLAUDE_REVIEW_WORK_DIR'" >&2
             exit 0
           fi
-          if [[ "$REAL_DIR" == /tmp/* ]] && [ -d "$REAL_DIR" ]; then
+          if [[ "$REAL_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
             rm -rf "$REAL_DIR"
           else
             echo "Warning: CLAUDE_REVIEW_WORK_DIR の形式が不正です: '${REAL_DIR}'" >&2
