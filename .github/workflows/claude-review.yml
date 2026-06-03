@@ -82,7 +82,7 @@ jobs:
 
           if [[ ! "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
             echo "Anthropic API Error: HTTP ${HTTP_STATUS:-(no response)}" >&2
-            jq '{error, type}' "$CLAUDE_REVIEW_WORK_DIR/response.json" 2>/dev/null \
+            jq '{error, type}' "$CLAUDE_REVIEW_WORK_DIR/response.json" 2>/dev/null >&2 \
               || cat "$CLAUDE_REVIEW_WORK_DIR/response.json" >&2
             exit 1
           fi
@@ -100,8 +100,8 @@ jobs:
       - name: レビューをPRにコメント投稿
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr_info.outputs.pr_number }}
         run: |
-          PR_NUMBER=${{ steps.pr_info.outputs.pr_number }}
           REVIEW=$(cat "$CLAUDE_REVIEW_WORK_DIR/review.txt")
           HEADER="## 🤖 Claude によるコードレビュー"
           FOOTER="*このレビューは Claude AI によって自動生成されました*"
