@@ -51,7 +51,7 @@ jobs:
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -H "content-type: application/json" \
-            -d "$(jq -n --arg content "$PROMPT" '{model:"claude-opus-4-5",max_tokens:4096,messages:[{role:"user",content:$content}]}')")
+            -d "$(jq -n --arg content "$PROMPT" '{model:"claude-sonnet-4-6",max_tokens:4096,messages:[{role:"user",content:$content}]}')")
 
           REVIEW=$(echo "$RESPONSE" | jq -r '.content[0].text // "レビューの取得に失敗しました"')
           echo "$REVIEW" > /tmp/review.txt
