@@ -28,8 +28,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
           if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
             echo "Error: PR番号が不正です: '$PR_NUMBER'" >&2
             exit 1
@@ -42,7 +42,11 @@ jobs:
           # GITHUB_ENV への書き込みは次ステップ以降にしか反映されないため、
           # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
-          # mktemp のパスは改行・等号を含まないため KEY=VALUE 形式で安全に書き込める
+          # mktemp のパスに改行・等号が含まれないことを明示的に確認してから書き込む
+          if [[ "$CLAUDE_REVIEW_WORK_DIR" =~ $'\n'|= ]]; then
+            echo "Error: mktemp の出力が想定外の形式です: '$CLAUDE_REVIEW_WORK_DIR'" >&2
+            exit 1
+          fi
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
