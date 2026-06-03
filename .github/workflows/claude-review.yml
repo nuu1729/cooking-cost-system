@@ -33,12 +33,12 @@ jobs:
           TITLE=$(echo "$PR_DATA" | jq -r '.title')
 
           # タイトルをファイルに保存（特殊文字・日本語が GITHUB_OUTPUT を壊すのを回避）
-          echo "$TITLE" > "$WORK_DIR/pr_title.txt"
+          printf '%s' "$TITLE" > "$WORK_DIR/pr_title.txt"
 
           # 差分を取得（最大100KB）
           DIFF=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER \
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
-          echo "$DIFF" > "$WORK_DIR/pr_diff.txt"
+          printf '%s' "$DIFF" > "$WORK_DIR/pr_diff.txt"
 
       - name: Claude にレビューを依頼
         id: claude_review
@@ -62,8 +62,8 @@ jobs:
             -d "$(jq -n --arg content "$PROMPT" --arg model "$ANTHROPIC_MODEL" \
                 '{model:$model,max_tokens:4096,messages:[{role:"user",content:$content}]}')")
 
-          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            echo "Anthropic API Error: HTTP $HTTP_STATUS" >&2
+          if ! [[ "$HTTP_STATUS" =~ ^[0-9]+$ ]] || [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Anthropic API Error: HTTP ${HTTP_STATUS:-'(no response)'}" >&2
             cat "$WORK_DIR/response.json" >&2
             exit 1
           fi
@@ -97,4 +97,8 @@ jobs:
         env:
           WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
         run: |
-          rm -rf "$WORK_DIR"
+          if [ -n "$WORK_DIR" ] && [[ "$WORK_DIR" == /tmp/tmp.* ]]; then
+            rm -rf "$WORK_DIR"
+          else
+            echo "Warning: WORK_DIR をスキップ: '${WORK_DIR}'" >&2
+          fi
