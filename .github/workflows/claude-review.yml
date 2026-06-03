@@ -43,10 +43,12 @@ jobs:
           # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
           # mktemp のパスに改行・等号が含まれないことを明示的に確認してから書き込む
-          if [[ "$CLAUDE_REVIEW_WORK_DIR" =~ $'\n'|= ]]; then
+          if [[ "$CLAUDE_REVIEW_WORK_DIR" =~ $'\n' ]] || [[ "$CLAUDE_REVIEW_WORK_DIR" == *=* ]]; then
             echo "Error: mktemp の出力が想定外の形式です: '$CLAUDE_REVIEW_WORK_DIR'" >&2
             exit 1
           fi
+          # 注意: pr_info ステップがここより後で失敗した場合、GITHUB_ENV は後続ステップに反映されず
+          # mktemp で作成した一時ディレクトリがクリーンアップされない可能性がある（GitHub Actions の仕様上の制約）
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
@@ -56,6 +58,7 @@ jobs:
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
           # 差分を取得（最大100KB）。マルチバイト文字の切り捨て問題は issue #109 で追跡中
+          # 注意: タイトル取得と差分取得で同じエンドポイントを2回呼んでいる（差分は Accept ヘッダが異なるため回避困難）
           DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
