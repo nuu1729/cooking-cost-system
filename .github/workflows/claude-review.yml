@@ -97,7 +97,7 @@ jobs:
         env:
           WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
         run: |
-          if [ -n "$WORK_DIR" ] && [[ "$WORK_DIR" == /tmp/tmp.* ]]; then
+          if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
             rm -rf "$WORK_DIR"
           else
             echo "Warning: WORK_DIR をスキップ: '${WORK_DIR}'" >&2
