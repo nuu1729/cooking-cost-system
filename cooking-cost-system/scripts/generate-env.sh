@@ -4,6 +4,7 @@
 #   bash generate-env.sh            # 新規生成
 #   bash generate-env.sh --rotate   # シークレットのみ再生成
 #   bash generate-env.sh --validate # 必須キーの存在を確認
+#   bash generate-env.sh --help     # ヘルプを表示
 
 set -euo pipefail
 
@@ -18,10 +19,17 @@ readonly ENV_FILE="${PROJECT_DIR}/backend/.env.production"
 readonly DEFAULT_DB_HOST="database"
 readonly DEFAULT_DB_USER="cooking_user"
 readonly DEFAULT_DB_NAME="cooking_cost_system"
-readonly SECRET_LENGTH=32
+readonly SECRET_LENGTH=32  # 32バイト = 256ビットのエントロピー
+
+# 許可する環境変数キー（parse_env_file での既知キー制限に使用）
+readonly -a ALLOWED_ENV_KEYS=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
 
 # グローバル変数（prompt_values → generate_env 間で共有）
 declare db_password=""
+declare db_host=""
+declare db_user=""
+declare db_name=""
+declare cors_origin=""
 
 # ────────────────────────────────────────────
 # ログ
@@ -35,8 +43,26 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # ────────────────────────────────────────────
+# クリーンアップ（EXIT トラップ）
+# ────────────────────────────────────────────
+cleanup() {
+    rm -f "${PROJECT_DIR}"/.db_password_* 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# ────────────────────────────────────────────
 # ユーティリティ
 # ────────────────────────────────────────────
+
+show_usage() {
+    echo "使用法: bash generate-env.sh [オプション]"
+    echo ""
+    echo "オプション:"
+    echo "  （引数なし） : .env.production を新規生成（対話形式）"
+    echo "  --rotate    : JWT_SECRET / SECRET_KEY のみ再生成"
+    echo "  --validate  : 必須キーの存在・形式を確認"
+    echo "  --help, -h  : このヘルプを表示"
+}
 
 # URL-safe base64 のシークレットキーを生成（${SECRET_LENGTH} バイト）
 generate_secret() {
@@ -50,6 +76,23 @@ check_prerequisites() {
     fi
 }
 
+# source の代わりに安全なパーサーを使用（任意コード実行を防止）
+# 既知のキー（ALLOWED_ENV_KEYS）のみを export する
+parse_env_file() {
+    local file="$1"
+    while IFS='=' read -r key value; do
+        [[ -z "${key}" || "${key}" =~ ^[[:space:]]*# ]] && continue
+        key="${key#"${key%%[![:space:]]*}"}"  # 前後の空白除去
+        value="${value%\"}"                   # ダブルクォート除去
+        value="${value#\"}"
+        local allowed=false
+        for allowed_key in "${ALLOWED_ENV_KEYS[@]}"; do
+            [[ "${key}" == "${allowed_key}" ]] && allowed=true && break
+        done
+        "${allowed}" && export "${key}=${value}"
+    done < "${file}"
+}
+
 # ────────────────────────────────────────────
 # CORS_ORIGIN の検証（カンマ区切り複数オリジン対応）
 # ────────────────────────────────────────────
@@ -58,7 +101,6 @@ validate_cors_origins() {
     local IFS=','
     read -ra origin_array <<< "${origins}"
     for origin in "${origin_array[@]}"; do
-        # 前後の空白を除去
         origin="${origin#"${origin%%[![:space:]]*}"}"
         origin="${origin%"${origin##*[![:space:]]}"}"
         if [[ "${origin}" != "https://"* ]]; then
@@ -69,11 +111,20 @@ validate_cors_origins() {
     return 0
 }
 
+# DB名のバリデーション（英数字とアンダースコアのみ）
+validate_db_name() {
+    local name="$1"
+    if [[ ! "${name}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+        log_error "無効な DB 名: '${name}'（英数字とアンダースコアのみ使用可能）"
+        return 1
+    fi
+}
+
 # ────────────────────────────────────────────
 # 既存 .env.production の検証
 # ────────────────────────────────────────────
 
-# 呼び出し前に source 済みの変数を直接参照する（引数なし）
+# 呼び出し前に parse_env_file 済みの変数を直接参照する（引数なし）
 validate_env_file() {
     local required_keys=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
     local missing=()
@@ -126,6 +177,7 @@ prompt_values() {
 
     read -r -p "DB 名（デフォルト: ${DEFAULT_DB_NAME}）: " db_name
     db_name="${db_name:-${DEFAULT_DB_NAME}}"
+    validate_db_name "${db_name}"
 
     # DB パスワード: 既存パスワードを入力するか自動生成かを選択（グローバル変数に格納）
     read -r -s -p "DB パスワード（空 Enter で自動生成）: " db_password
@@ -198,10 +250,8 @@ rotate_secrets() {
     read -r -p "続行しますか? [y/N]: " confirm
     [[ "${confirm}" == "y" || "${confirm}" == "Y" ]] || { log_info "キャンセルしました"; exit 0; }
 
-    # ⚠️ 信頼できるファイルのみ source すること（chmod 600 で保護されている前提）
-    # 既存の値を保持してからファイル全体を再生成（sed インジェクション回避）
-    # shellcheck disable=SC1090
-    set -a; source "${ENV_FILE}"; set +a
+    # 安全なパーサーで既存値を読み込む（source によるコード実行リスクを回避）
+    parse_env_file "${ENV_FILE}"
     local current_db="${DATABASE_URL_PRODUCTION}"
     local current_cors="${CORS_ORIGIN}"
     local current_port="${PORT:-3001}"
@@ -242,9 +292,7 @@ main() {
                 log_error "${ENV_FILE} が存在しません"
                 exit 1
             fi
-            # ⚠️ 信頼できるファイルのみ source すること（chmod 600 で保護されている前提）
-            # shellcheck disable=SC1090
-            set -a; source "${ENV_FILE}"; set +a
+            parse_env_file "${ENV_FILE}"
             validate_env_file
             ;;
         "")
@@ -255,11 +303,13 @@ main() {
             fi
             generate_env
             ;;
+        --help|-h)
+            show_usage
+            exit 0
+            ;;
         *)
-            echo "使用法: bash generate-env.sh [--rotate|--validate]"
-            echo "  （引数なし） : .env.production を新規生成"
-            echo "  --rotate    : JWT_SECRET / SECRET_KEY のみ再生成"
-            echo "  --validate  : 必須キーの存在を確認"
+            log_error "不明なオプション: ${mode}"
+            show_usage
             exit 1
             ;;
     esac
