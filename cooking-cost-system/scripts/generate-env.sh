@@ -79,8 +79,9 @@ generate_secret() {
     secret="$(python3 -c "import secrets; print(secrets.token_urlsafe(${SECRET_LENGTH}))")" \
         || { log_error "シークレット生成に失敗しました"; exit 1; }
     [[ -n "${secret}" ]] || { log_error "シークレットが空です"; exit 1; }
-    # token_urlsafe(32) は少なくとも 43 文字を返す
-    [[ ${#secret} -ge 40 ]] || { log_error "シークレットが短すぎます（${#secret}文字）"; exit 1; }
+    # token_urlsafe(N) の出力長: base64url は 4/3 倍 → 32バイト×4/3≈43文字
+    local min_length=$(( SECRET_LENGTH * 4 / 3 ))
+    [[ ${#secret} -ge ${min_length} ]] || { log_error "シークレットが短すぎます（${#secret}文字）"; exit 1; }
     echo "${secret}"
 }
 
@@ -92,8 +93,12 @@ check_prerequisites() {
 }
 
 # URL パーセントエンコード（手動入力パスワードに含まれる特殊文字を DATABASE_URL 用にエスケープ）
+# stdin 経由で渡すことでプロセス引数（ps aux で見える）への漏洩を防止
 url_encode() {
-    python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"
+    python3 -c "
+import urllib.parse, sys
+print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))
+" <<< "$1"
 }
 
 # source の代わりに安全なパーサーを使用（任意コード実行を防止）
@@ -109,6 +114,7 @@ parse_env_file() {
         key="${key#"${key%%[![:space:]]*}"}"  # key 前後の空白除去
         # 対称クォートのみ除去（if/elif で分離して BASH_REMATCH の曖昧さを回避）
         # [^\"]*・[^\']*: 非貪欲に対称クォート内のみ除去（不正な KEY="val"extra" 等はマッチしない）
+        # 注意: クォートあり（KEY=" value "）の場合は内側の空白を保持する（意図的）
         if [[ "${value}" =~ ^\"([^\"]*)\"$ ]]; then
             value="${BASH_REMATCH[1]}"
         elif [[ "${value}" =~ ^\'([^\']*)\'$ ]]; then
@@ -190,8 +196,15 @@ validate_env_file() {
 
     for key in "${required_keys[@]}"; do
         local value="${!key:-}"
-        # *"<"*">"*: "your-" プレフィックス・URL 内の <placeholder> を統一して検知
-        if [[ -z "${value}" || "${value}" == "your-"* || "${value}" == *"<"*">"* ]]; then
+        # プレースホルダーパターンを網羅的に検知
+        # - your- プレフィックス: "your-jwt-secret-..." 形式
+        # - *your-*: URL 中などに your- が埋め込まれている場合
+        # - *replace-with*: "replace-with-random-string" などの説明テキスト
+        # - *<...>*: <user> / <password> 等の山括弧プレースホルダー
+        if [[ -z "${value}" \
+            || "${value}" == *"your-"* \
+            || "${value}" == *"replace-with"* \
+            || "${value}" == *"<"*">"* ]]; then
             missing+=("${key}")
         fi
     done
@@ -346,6 +359,7 @@ rotate_secrets() {
     cp "${ENV_FILE}" "${backup}"
     chmod 600 "${backup}"
     log_info "バックアップを作成しました: ${backup}"
+    log_warn "バックアップには旧シークレットが含まれます。不要になったら削除してください: rm -f ${backup}"
 
     # 安全なパーサーで既存値を読み込む（source によるコード実行リスクを回避）
     parse_env_file "${ENV_FILE}"  # 1回目: 既存の DB・CORS・PORT 値を取得
@@ -354,7 +368,11 @@ rotate_secrets() {
         log_error "既存の DATABASE_URL_PRODUCTION が読み取れませんでした"
         exit 1
     fi
-    local current_cors="${CORS_ORIGIN}"
+    local current_cors="${CORS_ORIGIN:-}"
+    if [[ -z "${current_cors}" ]]; then
+        log_error "既存の CORS_ORIGIN が読み取れませんでした"
+        exit 1
+    fi
     local current_port="${PORT:-3001}"
 
     local tmp_env
