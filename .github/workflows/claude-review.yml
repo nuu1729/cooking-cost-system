@@ -25,8 +25,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
-          if [ -z "$PR_NUMBER" ]; then
-            echo "Error: PR番号を取得できませんでした" >&2
+          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "Error: PR番号が不正です: '$PR_NUMBER'" >&2
             exit 1
           fi
 
@@ -34,7 +34,9 @@ jobs:
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
 
           # --- GITHUB_ENV（後続ステップの環境変数として自動展開）---
+          # 同一ステップ内ではローカル変数として参照し、次ステップ以降では GITHUB_ENV から展開される
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
+          CLAUDE_REVIEW_WORK_DIR="${CLAUDE_REVIEW_WORK_DIR//$'\n'/}"  # 念のため改行を除去
           # GitHub Actions 公式推奨: ランダムデリミタのヒアドキュメント形式で書き込み
           EOF_DELIMITER="EOF_$(openssl rand -hex 8)"
           {
@@ -117,8 +119,9 @@ jobs:
             echo "Info: CLAUDE_REVIEW_WORK_DIR が未設定のためクリーンアップをスキップします" >&2
             exit 0
           fi
-          if [[ "$CLAUDE_REVIEW_WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$CLAUDE_REVIEW_WORK_DIR" ]; then
-            rm -rf "$CLAUDE_REVIEW_WORK_DIR"
+          REAL_DIR=$(realpath "$CLAUDE_REVIEW_WORK_DIR" 2>/dev/null)
+          if [[ "$REAL_DIR" =~ ^/tmp/ ]] && [ -d "$REAL_DIR" ]; then
+            rm -rf "$REAL_DIR"
           else
             echo "Warning: CLAUDE_REVIEW_WORK_DIR の形式が不正です: '${CLAUDE_REVIEW_WORK_DIR}'" >&2
           fi
