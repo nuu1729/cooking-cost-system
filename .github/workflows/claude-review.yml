@@ -1,6 +1,8 @@
 name: Claude PR Review
 # CLAUDE_REVIEW_WORK_DIR: pr_info ステップで mktemp -d して作成し、
-# GITHUB_ENV 経由でジョブ内の全後続ステップに引き継ぐ一時作業ディレクトリ
+# GITHUB_ENV 経由でジョブ内の全後続ステップに次ステップ以降から自動展開される一時作業ディレクトリ
+# - GITHUB_OUTPUT: テンプレート式 steps.*.outputs.* で参照する値（pr_number）
+# - GITHUB_ENV: 後続ステップで環境変数として透過的に使いたい値（CLAUDE_REVIEW_WORK_DIR）
 
 on:
   pull_request:
@@ -23,6 +25,7 @@ jobs:
         id: pr_info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
           if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
@@ -38,22 +41,20 @@ jobs:
           # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
           # mktemp のパスは改行・等号を含まないため KEY=VALUE 形式で安全に書き込める
-          # ヒアドキュメントが必要なのは値に改行が入る場合のみ（パスには不要）
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
-          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
+          PR_DATA=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}")
           TITLE=$(echo "$PR_DATA" | jq -r '.title')
 
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
           # 差分を取得（最大100KB）。マルチバイト文字の切り捨て問題は issue #109 で追跡中
-          DIFF=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER \
+          DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
       - name: Claude にレビューを依頼
-        # CLAUDE_REVIEW_WORK_DIR は pr_info ステップで GITHUB_ENV に設定済み（自動で環境変数として利用可能）
         id: claude_review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -80,7 +81,7 @@ jobs:
 
           if [[ ! "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
             echo "Anthropic API Error: HTTP ${HTTP_STATUS:-(no response)}" >&2
-            cat "$CLAUDE_REVIEW_WORK_DIR/response.json" >&2
+            jq '{error, type}' "$CLAUDE_REVIEW_WORK_DIR/response.json" >&2
             exit 1
           fi
 
@@ -123,7 +124,7 @@ jobs:
           fi
           # Linux: /tmp/tmp.XXX、macOS: /private/tmp/tmp.XXX の両パターンに対応
           if [[ "$REAL_DIR" =~ ^(/private)?/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
-            rm -rf "$REAL_DIR"
+            rm -rf "$REAL_DIR" || echo "Warning: rm -rf 失敗: '$REAL_DIR'" >&2
           else
             echo "Warning: CLAUDE_REVIEW_WORK_DIR の形式が不正です: '${REAL_DIR}'" >&2
           fi
