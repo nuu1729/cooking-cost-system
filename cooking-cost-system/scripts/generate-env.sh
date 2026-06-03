@@ -3,6 +3,7 @@
 # 使用法:
 #   bash generate-env.sh            # 新規生成
 #   bash generate-env.sh --rotate   # シークレットのみ再生成
+#   bash generate-env.sh --validate # 必須キーの存在を確認
 
 set -euo pipefail
 
@@ -12,6 +13,15 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="${SCRIPT_DIR}/.."
 readonly ENV_FILE="${PROJECT_DIR}/backend/.env.production"
+
+# デフォルト値
+readonly DEFAULT_DB_HOST="database"
+readonly DEFAULT_DB_USER="cooking_user"
+readonly DEFAULT_DB_NAME="cooking_cost_system"
+readonly SECRET_LENGTH=32
+
+# グローバル変数（prompt_values → generate_env 間で共有）
+declare db_password=""
 
 # ────────────────────────────────────────────
 # ログ
@@ -27,8 +37,10 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # ────────────────────────────────────────────
 # ユーティリティ
 # ────────────────────────────────────────────
+
+# URL-safe base64 のシークレットキーを生成（${SECRET_LENGTH} バイト）
 generate_secret() {
-    python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+    python3 -c "import secrets; print(secrets.token_urlsafe(${SECRET_LENGTH}))"
 }
 
 check_prerequisites() {
@@ -39,13 +51,33 @@ check_prerequisites() {
 }
 
 # ────────────────────────────────────────────
+# CORS_ORIGIN の検証（カンマ区切り複数オリジン対応）
+# ────────────────────────────────────────────
+validate_cors_origins() {
+    local origins="${1:-}"
+    local IFS=','
+    read -ra origin_array <<< "${origins}"
+    for origin in "${origin_array[@]}"; do
+        # 前後の空白を除去
+        origin="${origin#"${origin%%[![:space:]]*}"}"
+        origin="${origin%"${origin##*[![:space:]]}"}"
+        if [[ "${origin}" != "https://"* ]]; then
+            log_warn "不正なオリジン: '${origin}' （https:// で始まる必要があります）"
+            return 1
+        fi
+    done
+    return 0
+}
+
+# ────────────────────────────────────────────
 # 既存 .env.production の検証
 # ────────────────────────────────────────────
-validate_env_file() {  # 引数なし: 呼び出し前に source 済みの変数を直接参照する
+
+# 呼び出し前に source 済みの変数を直接参照する（引数なし）
+validate_env_file() {
     local required_keys=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
     local missing=()
 
-    # --validate モードでは呼び出し前に source 済みのため、変数を直接確認する
     for key in "${required_keys[@]}"; do
         local value="${!key:-}"
         if [[ -z "${value}" || "${value}" == "your-"* || "${value}" == "<"*">" ]]; then
@@ -58,10 +90,12 @@ validate_env_file() {  # 引数なし: 呼び出し前に source 済みの変数
         return 1
     fi
 
-    # 本番環境では CORS_ORIGIN が https:// であることを確認
-    if [[ "${FLASK_ENV:-}" == "production" && "${CORS_ORIGIN:-}" != "https://"* ]]; then
-        log_warn "本番環境では CORS_ORIGIN は https:// で始まる必要があります（現在: ${CORS_ORIGIN:-未設定}）"
-        return 1
+    # 本番環境では全オリジンが https:// であることを確認
+    if [[ "${FLASK_ENV:-}" == "production" ]]; then
+        if ! validate_cors_origins "${CORS_ORIGIN:-}"; then
+            log_warn "本番環境では CORS_ORIGIN の全オリジンが https:// である必要があります"
+            return 1
+        fi
     fi
 
     log_info "すべての必須キーが設定されています"
@@ -84,17 +118,16 @@ prompt_values() {
     fi
 
     # DATABASE_URL_PRODUCTION
-    read -r -p "DB ホスト（Docker Composeサービス名 or IP, デフォルト: database）: " db_host
-    db_host="${db_host:-database}"
+    read -r -p "DB ホスト（デフォルト: ${DEFAULT_DB_HOST}）: " db_host
+    db_host="${db_host:-${DEFAULT_DB_HOST}}"
 
-    read -r -p "DB ユーザー名（デフォルト: cooking_user）: " db_user
-    db_user="${db_user:-cooking_user}"
+    read -r -p "DB ユーザー名（デフォルト: ${DEFAULT_DB_USER}）: " db_user
+    db_user="${db_user:-${DEFAULT_DB_USER}}"
 
-    read -r -p "DB 名（デフォルト: cooking_cost_system）: " db_name
-    db_name="${db_name:-cooking_cost_system}"
+    read -r -p "DB 名（デフォルト: ${DEFAULT_DB_NAME}）: " db_name
+    db_name="${db_name:-${DEFAULT_DB_NAME}}"
 
-    # DB パスワード: 既存パスワードを入力するか自動生成かを選択
-    # グローバルに設定（generate_env から参照するため）
+    # DB パスワード: 既存パスワードを入力するか自動生成かを選択（グローバル変数に格納）
     read -r -s -p "DB パスワード（空 Enter で自動生成）: " db_password
     echo ""
     if [[ -z "${db_password}" ]]; then
@@ -116,7 +149,6 @@ generate_env() {
     local jwt_secret secret_key
     jwt_secret="$(generate_secret)"
     secret_key="$(generate_secret)"
-    # db_password は prompt_values 内で設定済み
 
     log_info "シークレットを生成しました"
 
@@ -130,19 +162,20 @@ ENV_HEADER
     {
         printf "DATABASE_URL_PRODUCTION=mysql+pymysql://%s:%s@%s:3306/%s\n" \
             "${db_user}" "${db_password}" "${db_host}" "${db_name}"
-        printf "JWT_SECRET=%s\n"   "${jwt_secret}"
-        printf "SECRET_KEY=%s\n"   "${secret_key}"
-        printf "CORS_ORIGIN=%s\n"  "${cors_origin}"
+        printf "JWT_SECRET=%s\n"  "${jwt_secret}"
+        printf "SECRET_KEY=%s\n"  "${secret_key}"
+        printf "CORS_ORIGIN=%s\n" "${cors_origin}"
     } >> "${ENV_FILE}"
 
     chmod 600 "${ENV_FILE}"
     log_info ".env.production を生成しました: ${ENV_FILE}"
 
-    # DB パスワードを一時ファイルに書き出す（画面・ログに残さないため）
-    local password_file="${PROJECT_DIR}/.db_password_temp"
+    # DB パスワードを mktemp で作成した一時ファイルに書き出す（固定名の競合を防止）
+    local password_file
+    password_file="$(mktemp "${PROJECT_DIR}/.db_password_XXXXXX")"
     printf '%s\n' "${db_password}" > "${password_file}"
     chmod 600 "${password_file}"
-    unset db_password
+    db_password=""  # メモリから即座にクリア
 
     log_warn "DB パスワードを一時ファイルに保存しました: ${password_file}"
     log_warn "MySQL 側に同じパスワードを設定してください。"
@@ -165,6 +198,7 @@ rotate_secrets() {
     read -r -p "続行しますか? [y/N]: " confirm
     [[ "${confirm}" == "y" || "${confirm}" == "Y" ]] || { log_info "キャンセルしました"; exit 0; }
 
+    # ⚠️ 信頼できるファイルのみ source すること（chmod 600 で保護されている前提）
     # 既存の値を保持してからファイル全体を再生成（sed インジェクション回避）
     # shellcheck disable=SC1090
     set -a; source "${ENV_FILE}"; set +a
@@ -176,11 +210,11 @@ rotate_secrets() {
         printf "# 本番環境変数 - generate-env.sh --rotate で更新 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
         printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
         printf "FLASK_ENV=production\n"
-        printf "PORT=%s\n"                        "${current_port}"
-        printf "DATABASE_URL_PRODUCTION=%s\n"     "${current_db}"
-        printf "JWT_SECRET=%s\n"                  "$(generate_secret)"
-        printf "SECRET_KEY=%s\n"                  "$(generate_secret)"
-        printf "CORS_ORIGIN=%s\n"                 "${current_cors}"
+        printf "PORT=%s\n"                    "${current_port}"
+        printf "DATABASE_URL_PRODUCTION=%s\n" "${current_db}"
+        printf "JWT_SECRET=%s\n"              "$(generate_secret)"
+        printf "SECRET_KEY=%s\n"              "$(generate_secret)"
+        printf "CORS_ORIGIN=%s\n"             "${current_cors}"
     } > "${ENV_FILE}"
     chmod 600 "${ENV_FILE}"
 
@@ -208,6 +242,7 @@ main() {
                 log_error "${ENV_FILE} が存在しません"
                 exit 1
             fi
+            # ⚠️ 信頼できるファイルのみ source すること（chmod 600 で保護されている前提）
             # shellcheck disable=SC1090
             set -a; source "${ENV_FILE}"; set +a
             validate_env_file
