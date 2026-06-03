@@ -93,12 +93,13 @@ check_prerequisites() {
 }
 
 # URL パーセントエンコード（手動入力パスワードに含まれる特殊文字を DATABASE_URL 用にエスケープ）
-# stdin 経由で渡すことでプロセス引数（ps aux で見える）への漏洩を防止
+# 引数ではなく stdin から受け取る（引数はプロセスリストに表示され漏洩リスクがある）
+# 呼び出し方: printf '%s' "${password}" | url_encode
 url_encode() {
     python3 -c "
 import urllib.parse, sys
 print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))
-" <<< "$1"
+"
 }
 
 # source の代わりに安全なパーサーを使用（任意コード実行を防止）
@@ -136,8 +137,7 @@ parse_env_file() {
 # ────────────────────────────────────────────
 validate_cors_origins() {
     local origins="${1:-}"
-    local IFS=','
-    read -ra origin_array <<< "${origins}"
+    IFS=',' read -ra origin_array <<< "${origins}"
     for origin in "${origin_array[@]}"; do
         origin="${origin#"${origin%%[![:space:]]*}"}"
         origin="${origin%"${origin##*[![:space:]]}"}"
@@ -196,14 +196,11 @@ validate_env_file() {
 
     for key in "${required_keys[@]}"; do
         local value="${!key:-}"
-        # プレースホルダーパターンを網羅的に検知
-        # - your- プレフィックス: "your-jwt-secret-..." 形式
-        # - *your-*: URL 中などに your- が埋め込まれている場合
-        # - *replace-with*: "replace-with-random-string" などの説明テキスト
-        # - *<...>*: <user> / <password> 等の山括弧プレースホルダー
+        # プレースホルダーパターンを検知
+        # - "your-"*: 先頭が "your-" で始まる値（yourdomain.com 等との誤検知を防ぐため前方一致）
+        # - *"<"*">"*: <user> / <password> 等の山括弧プレースホルダー
         if [[ -z "${value}" \
-            || "${value}" == *"your-"* \
-            || "${value}" == *"replace-with"* \
+            || "${value}" == "your-"* \
             || "${value}" == *"<"*">"* ]]; then
             missing+=("${key}")
         fi
@@ -306,7 +303,7 @@ generate_env() {
         printf "PORT=3001\n"
         # 手動入力パスワードの特殊文字（@/:/ 等）を URL エンコード
         local db_password_encoded
-        db_password_encoded="$(url_encode "${db_password}")"
+        db_password_encoded="$(printf '%s' "${db_password}" | url_encode)"
         printf "DATABASE_URL_PRODUCTION=mysql+pymysql://%s:%s@%s:3306/%s\n" \
             "${db_user}" "${db_password_encoded}" "${db_host}" "${db_name}"
         printf "JWT_SECRET=%s\n"  "${jwt_secret}"
@@ -328,6 +325,8 @@ generate_env() {
     printf '%s\n' "${db_password}" > "${password_file}"
     chmod 600 "${password_file}"
     db_password=""  # Bash グローバル変数を空文字で上書き（プロセスメモリ上に残る可能性は bash の限界）
+    # 注意: jwt_secret・secret_key はローカル変数のため関数終了時にスコープ外になるが、
+    # メモリ上に残る可能性は db_password 同様 bash の限界として許容している
 
     log_warn "DB パスワードを一時ファイルに保存しました: ${password_file}"
     log_warn "MySQL 側に同じパスワードを設定してください。"
@@ -378,14 +377,18 @@ rotate_secrets() {
     local tmp_env
     tmp_env="$(mktemp "${ENV_FILE}.XXXXXX")"
     chmod 600 "${tmp_env}"
+    # シークレットを事前生成してから書き込む（途中で失敗してもファイルが壊れない）
+    local new_jwt new_secret_key
+    new_jwt="$(generate_secret)"
+    new_secret_key="$(generate_secret)"
     {
         printf "# 本番環境変数 - generate-env.sh --rotate で更新 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
         printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
         printf "FLASK_ENV=production\n"
         printf "PORT=%s\n"                    "${current_port}"
         printf "DATABASE_URL_PRODUCTION=%s\n" "${current_db}"
-        printf "JWT_SECRET=%s\n"              "$(generate_secret)"
-        printf "SECRET_KEY=%s\n"              "$(generate_secret)"
+        printf "JWT_SECRET=%s\n"              "${new_jwt}"
+        printf "SECRET_KEY=%s\n"              "${new_secret_key}"
         printf "CORS_ORIGIN=%s\n"             "${current_cors}"
     } > "${tmp_env}"
     mv "${tmp_env}" "${ENV_FILE}"
