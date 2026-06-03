@@ -23,14 +23,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
+          # pr_number は後続ステップから steps.pr_info.outputs.pr_number で参照するため outputs に残す
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d)
-          # pr_number は後続ステップの ${{ steps.pr_info.outputs.pr_number }} で参照するため outputs に残す
-          # CLAUDE_REVIEW_WORK_DIR は全後続ステップで共有するため GITHUB_ENV 経由で引き継ぐ
-          # （各ステップで env: を繰り返す必要がなくなる。WORK_DIR ではなくプレフィックス付きの名前で衝突を回避）
-          # ヒアドキュメント区切り文字形式で書き込み（改行を含む値によるインジェクションを防止）
-          DELIM="delim_${RANDOM}_${RANDOM}"
+          # GITHUB_ENV 経由でジョブ内の全後続ステップに引き継ぐ（各ステップで env: を繰り返さなくてよい）
+          # ヒアドキュメント区切り文字形式で書き込み（改行インジェクション防止）
+          # openssl 非依存の bash 組み込み $RANDOM を使用
+          DELIM="delim_${RANDOM}${RANDOM}"
           printf 'CLAUDE_REVIEW_WORK_DIR<<%s\n%s\n%s\n' "$DELIM" "$CLAUDE_REVIEW_WORK_DIR" "$DELIM" >> $GITHUB_ENV
 
           # PR の基本情報を取得
@@ -106,5 +106,5 @@ jobs:
           if [ -n "$CLAUDE_REVIEW_WORK_DIR" ] && [[ "$CLAUDE_REVIEW_WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$CLAUDE_REVIEW_WORK_DIR" ]; then
             rm -rf "$CLAUDE_REVIEW_WORK_DIR"
           else
-            echo "Warning: WORK_DIR をスキップ: '${CLAUDE_REVIEW_WORK_DIR}'" >&2
+            echo "Warning: CLAUDE_REVIEW_WORK_DIR をスキップ: '${CLAUDE_REVIEW_WORK_DIR}'" >&2
           fi
