@@ -12,7 +12,6 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_DIR="${SCRIPT_DIR}/.."
 readonly ENV_FILE="${PROJECT_DIR}/backend/.env.production"
-readonly ENV_EXAMPLE="${PROJECT_DIR}/backend/.env.example"
 
 # ────────────────────────────────────────────
 # ログ
@@ -59,6 +58,12 @@ validate_env_file() {  # 引数なし: 呼び出し前に source 済みの変数
         return 1
     fi
 
+    # 本番環境では CORS_ORIGIN が https:// であることを確認
+    if [[ "${FLASK_ENV:-}" == "production" && "${CORS_ORIGIN:-}" != "https://"* ]]; then
+        log_warn "本番環境では CORS_ORIGIN は https:// で始まる必要があります（現在: ${CORS_ORIGIN:-未設定}）"
+        return 1
+    fi
+
     log_info "すべての必須キーが設定されています"
     return 0
 }
@@ -69,7 +74,6 @@ validate_env_file() {  # 引数なし: 呼び出し前に source 済みの変数
 prompt_values() {
     echo ""
     echo "本番環境の設定を入力してください。"
-    echo "（空のままEnterで .env.example のコメントを参照）"
     echo ""
 
     # CORS_ORIGIN
@@ -89,6 +93,17 @@ prompt_values() {
     read -r -p "DB 名（デフォルト: cooking_cost_system）: " db_name
     db_name="${db_name:-cooking_cost_system}"
 
+    # DB パスワード: 既存パスワードを入力するか自動生成かを選択
+    # グローバルに設定（generate_env から参照するため）
+    read -r -s -p "DB パスワード（空 Enter で自動生成）: " db_password
+    echo ""
+    if [[ -z "${db_password}" ]]; then
+        db_password="$(generate_secret)"
+        log_warn "DB パスワードを自動生成しました。MySQL 側にも同じパスワードを設定してください。"
+    else
+        log_info "入力したパスワードを使用します。"
+    fi
+
     echo ""
 }
 
@@ -98,10 +113,10 @@ prompt_values() {
 generate_env() {
     prompt_values
 
-    local jwt_secret secret_key db_password
+    local jwt_secret secret_key
     jwt_secret="$(generate_secret)"
     secret_key="$(generate_secret)"
-    db_password="$(generate_secret)"
+    # db_password は prompt_values 内で設定済み
 
     log_info "シークレットを生成しました"
 
@@ -130,8 +145,11 @@ ENV_HEADER
     unset db_password
 
     log_warn "DB パスワードを一時ファイルに保存しました: ${password_file}"
-    log_warn "MySQL 側に同じパスワードを設定後、以下のコマンドで削除してください:"
-    echo "  rm -f ${password_file}"
+    log_warn "MySQL 側に同じパスワードを設定してください。"
+    echo ""
+    read -r -p "MySQL へのパスワード設定が完了したら Enter を押してください（その後ファイルを削除します）: "
+    rm -f "${password_file}"
+    log_info "一時ファイルを削除しました"
 }
 
 # ────────────────────────────────────────────
