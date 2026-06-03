@@ -91,6 +91,11 @@ check_prerequisites() {
     fi
 }
 
+# URL パーセントエンコード（手動入力パスワードに含まれる特殊文字を DATABASE_URL 用にエスケープ）
+url_encode() {
+    python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1"
+}
+
 # source の代わりに安全なパーサーを使用（任意コード実行を防止）
 # 既知のキー（ALLOWED_ENV_KEYS）のみを export する
 parse_env_file() {
@@ -134,9 +139,9 @@ validate_cors_origins() {
             log_warn "不正なオリジン: '${origin}' （https:// で始まる必要があります）"
             return 1
         fi
-        # プレースホルダー検知（https://your- で始まる場合は未設定とみなす）
-        # 注意: 大文字の https://YOUR- や非標準プレースホルダーは検知対象外
-        if [[ "${origin}" == "https://your-"* ]]; then
+        # プレースホルダー検知（大文字小文字を問わず https://your- または <...> を検知）
+        local lower_origin="${origin,,}"
+        if [[ "${lower_origin}" == "https://your-"* || "${lower_origin}" == *"<"*">"* ]]; then
             log_warn "プレースホルダーのオリジン: '${origin}'（実際のドメインに変更してください）"
             return 1
         fi
@@ -185,10 +190,8 @@ validate_env_file() {
 
     for key in "${required_keys[@]}"; do
         local value="${!key:-}"
-        if [[ -z "${value}" || "${value}" == "your-"* || "${value}" == "<"*">" ]]; then
-            missing+=("${key}")
-        # DATABASE_URL_PRODUCTION はURL全体なので "<"*">" ではなく URL中の<>を検知
-        elif [[ "${key}" == "DATABASE_URL_PRODUCTION" && "${value}" == *"<"*">"* ]]; then
+        # *"<"*">"*: "your-" プレフィックス・URL 内の <placeholder> を統一して検知
+        if [[ -z "${value}" || "${value}" == "your-"* || "${value}" == *"<"*">"* ]]; then
             missing+=("${key}")
         fi
     done
@@ -288,8 +291,11 @@ generate_env() {
         printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
         printf "FLASK_ENV=production\n"
         printf "PORT=3001\n"
+        # 手動入力パスワードの特殊文字（@/:/ 等）を URL エンコード
+        local db_password_encoded
+        db_password_encoded="$(url_encode "${db_password}")"
         printf "DATABASE_URL_PRODUCTION=mysql+pymysql://%s:%s@%s:3306/%s\n" \
-            "${db_user}" "${db_password}" "${db_host}" "${db_name}"
+            "${db_user}" "${db_password_encoded}" "${db_host}" "${db_name}"
         printf "JWT_SECRET=%s\n"  "${jwt_secret}"
         printf "SECRET_KEY=%s\n"  "${secret_key}"
         printf "CORS_ORIGIN=%s\n" "${cors_origin}"
@@ -343,7 +349,11 @@ rotate_secrets() {
 
     # 安全なパーサーで既存値を読み込む（source によるコード実行リスクを回避）
     parse_env_file "${ENV_FILE}"  # 1回目: 既存の DB・CORS・PORT 値を取得
-    local current_db="${DATABASE_URL_PRODUCTION}"
+    local current_db="${DATABASE_URL_PRODUCTION:-}"
+    if [[ -z "${current_db}" ]]; then
+        log_error "既存の DATABASE_URL_PRODUCTION が読み取れませんでした"
+        exit 1
+    fi
     local current_cors="${CORS_ORIGIN}"
     local current_port="${PORT:-3001}"
 
