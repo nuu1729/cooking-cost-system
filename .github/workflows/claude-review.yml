@@ -25,63 +25,76 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number || github.event.issue.number }}
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
-          TMPDIR=$(mktemp -d)
-          echo "tmpdir=$TMPDIR" >> $GITHUB_OUTPUT
+          WORK_DIR=$(mktemp -d)
+          echo "work_dir=$WORK_DIR" >> $GITHUB_OUTPUT
 
           # PR の基本情報を取得
           PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
           TITLE=$(echo "$PR_DATA" | jq -r '.title')
 
           # タイトルをファイルに保存（特殊文字・日本語が GITHUB_OUTPUT を壊すのを回避）
-          echo "$TITLE" > "$TMPDIR/pr_title.txt"
+          echo "$TITLE" > "$WORK_DIR/pr_title.txt"
 
           # 差分を取得（最大100KB）
           DIFF=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER \
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
-          echo "$DIFF" > "$TMPDIR/pr_diff.txt"
+          echo "$DIFF" > "$WORK_DIR/pr_diff.txt"
 
       - name: Claude にレビューを依頼
         id: claude_review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          CLAUDE_MODEL: claude-sonnet-4-6
+          ANTHROPIC_MODEL: claude-sonnet-4-6
+          WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
         run: |
-          TMPDIR=${{ steps.pr_info.outputs.tmpdir }}
-          DIFF=$(cat "$TMPDIR/pr_diff.txt")
-          TITLE=$(cat "$TMPDIR/pr_title.txt")
+          DIFF=$(cat "$WORK_DIR/pr_diff.txt")
+          TITLE=$(cat "$WORK_DIR/pr_title.txt")
 
           PROMPT=$(printf 'PR タイトル: %s\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n%s\n```' "$TITLE" "$DIFF")
 
-          if ! RESPONSE=$(curl -sf https://api.anthropic.com/v1/messages \
+          HTTP_STATUS=$(curl -s \
+            -o "$WORK_DIR/response.json" \
+            -w "%{http_code}" \
+            https://api.anthropic.com/v1/messages \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
             -H "content-type: application/json" \
-            -d "$(jq -n --arg content "$PROMPT" --arg model "$CLAUDE_MODEL" \
-                '{model:$model,max_tokens:4096,messages:[{role:"user",content:$content}]}')"); then
-            echo "curl failed" >&2
+            -d "$(jq -n --arg content "$PROMPT" --arg model "$ANTHROPIC_MODEL" \
+                '{model:$model,max_tokens:4096,messages:[{role:"user",content:$content}]}')")
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Anthropic API Error: HTTP $HTTP_STATUS" >&2
+            cat "$WORK_DIR/response.json" >&2
             exit 1
           fi
 
-          ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
+          ERROR=$(jq -r '.error.message // empty' "$WORK_DIR/response.json")
           if [ -n "$ERROR" ]; then
             echo "Anthropic API Error: $ERROR" >&2
             exit 1
           fi
 
-          REVIEW=$(echo "$RESPONSE" | jq -r '.content[0].text // "レビューの取得に失敗しました"')
-          echo "$REVIEW" > "$TMPDIR/review.txt"
+          REVIEW=$(jq -r '.content[0].text // "レビューの取得に失敗しました"' "$WORK_DIR/response.json")
+          echo "$REVIEW" > "$WORK_DIR/review.txt"
 
       - name: レビューをPRにコメント投稿
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
         run: |
           PR_NUMBER=${{ steps.pr_info.outputs.pr_number }}
-          TMPDIR=${{ steps.pr_info.outputs.tmpdir }}
-          REVIEW=$(cat "$TMPDIR/review.txt")
+          REVIEW=$(cat "$WORK_DIR/review.txt")
           HEADER="## 🤖 Claude によるコードレビュー"
           FOOTER="*このレビューは Claude AI によって自動生成されました*"
-          printf '%s\n\n%s\n\n---\n%s' "$HEADER" "$REVIEW" "$FOOTER" > "$TMPDIR/comment.txt"
+          printf '%s\n\n%s\n\n---\n%s' "$HEADER" "$REVIEW" "$FOOTER" > "$WORK_DIR/comment.txt"
 
           gh pr comment "$PR_NUMBER" \
             --repo "${{ github.repository }}" \
-            --body-file "$TMPDIR/comment.txt"
+            --body-file "$WORK_DIR/comment.txt"
+
+      - name: クリーンアップ
+        if: always()
+        env:
+          WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
+        run: |
+          rm -rf "$WORK_DIR"
