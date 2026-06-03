@@ -26,7 +26,8 @@ jobs:
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
 
           WORK_DIR=$(mktemp -d)
-          echo "work_dir=$WORK_DIR" >> $GITHUB_OUTPUT
+          # GITHUB_ENV 経由でジョブ内の全後続ステップに引き継ぐ（各ステップで env: を繰り返さなくてよい）
+          echo "WORK_DIR=$WORK_DIR" >> $GITHUB_ENV
 
           # PR の基本情報を取得
           PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER)
@@ -45,7 +46,6 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
-          WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
         run: |
           DIFF=$(cat "$WORK_DIR/pr_diff.txt")
           TITLE=$(cat "$WORK_DIR/pr_title.txt")
@@ -85,7 +85,6 @@ jobs:
       - name: レビューをPRにコメント投稿
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
         run: |
           PR_NUMBER=${{ steps.pr_info.outputs.pr_number }}
           REVIEW=$(cat "$WORK_DIR/review.txt")
@@ -99,8 +98,6 @@ jobs:
 
       - name: クリーンアップ
         if: always()
-        env:
-          WORK_DIR: ${{ steps.pr_info.outputs.work_dir }}
         run: |
           if [ -n "$WORK_DIR" ] && [[ "$WORK_DIR" =~ ^/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$WORK_DIR" ]; then
             rm -rf "$WORK_DIR"
