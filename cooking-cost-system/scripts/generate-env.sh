@@ -300,6 +300,10 @@ main() {
                 log_warn "${ENV_FILE} は既に存在します"
                 read -r -p "上書きしますか? [y/N]: " confirm
                 [[ "${confirm}" == "y" || "${confirm}" == "Y" ]] || { log_info "キャンセルしました"; exit 0; }
+                local backup="${ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)"
+                cp "${ENV_FILE}" "${backup}"
+                chmod 600 "${backup}"
+                log_info "既存ファイルをバックアップしました: ${backup}"
             fi
             generate_env
             ;;
