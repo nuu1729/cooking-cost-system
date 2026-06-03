@@ -1,6 +1,8 @@
 # ⚠️  本番デプロイ前に connect-src を必ず絞り込むこと（現在は https: で広すぎる）
 #     CORS_ORIGIN と同じドメインを指定する（generate-env.sh 参照）
 #     例: connect-src 'self' https://api.your-domain.com;
+# NOTE: img-src は外部画像（CDN等）を使用しないため 'self' data: のみに絞り込んでいる。
+#       外部画像が必要になった場合は img-src に対象ドメインを追加すること（issue #106 参照）。
 # TODO: style-src 'unsafe-inline' は Vite/React のインラインスタイル対応のため現状許容。
 #       将来的に nonce または hash ベースへの移行を検討する。
 /*

@@ -23,7 +23,9 @@ lerna-debug.log*
 .env.production.local
 backend/.env
 backend/.env.production
+backend/.env.production.backup.*
 backend/.env.staging
+backend/.env.staging.backup.*
 frontend/.env
 
 # =================================

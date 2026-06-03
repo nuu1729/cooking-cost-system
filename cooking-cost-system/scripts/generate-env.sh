@@ -19,7 +19,7 @@ readonly ENV_FILE="${PROJECT_DIR}/backend/.env.production"
 readonly DEFAULT_DB_HOST="database"
 readonly DEFAULT_DB_USER="cooking_user"
 readonly DEFAULT_DB_NAME="cooking_cost_system"
-readonly SECRET_LENGTH=32  # 32バイト = 256ビットのエントロピー
+readonly SECRET_LENGTH=32  # 32バイトのランダム性（base64url エンコード後は約43文字）
 
 # 許可する環境変数キー（parse_env_file での既知キー制限に使用）
 readonly -a ALLOWED_ENV_KEYS=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
@@ -30,6 +30,7 @@ declare db_host=""
 declare db_user=""
 declare db_name=""
 declare cors_origin=""
+declare password_file_path=""  # cleanup で削除するためパスを記録
 
 # ────────────────────────────────────────────
 # ログ
@@ -47,6 +48,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # ────────────────────────────────────────────
 cleanup() {
     rm -f "${PROJECT_DIR}"/.db_password_* 2>/dev/null || true
+    [[ -n "${password_file_path}" ]] && rm -f "${password_file_path}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -82,9 +84,13 @@ parse_env_file() {
     local file="$1"
     while IFS='=' read -r key value; do
         [[ -z "${key}" || "${key}" =~ ^[[:space:]]*# ]] && continue
-        key="${key#"${key%%[![:space:]]*}"}"  # 前後の空白除去
+        key="${key#"${key%%[![:space:]]*}"}"  # key 前後の空白除去
         value="${value%\"}"                   # ダブルクォート除去
         value="${value#\"}"
+        value="${value%\'}"                   # シングルクォート除去
+        value="${value#\'}"
+        value="${value#"${value%%[![:space:]]*}"}"  # value 前後の空白除去
+        value="${value%"${value##*[![:space:]]}"}"
         local allowed=false
         for allowed_key in "${ALLOWED_ENV_KEYS[@]}"; do
             [[ "${key}" == "${allowed_key}" ]] && allowed=true && break
@@ -118,6 +124,27 @@ validate_db_name() {
         log_error "無効な DB 名: '${name}'（英数字とアンダースコアのみ使用可能）"
         return 1
     fi
+    return 0
+}
+
+# DB ホスト名のバリデーション（英数字・ドット・ハイフン・アンダースコアのみ）
+validate_db_host() {
+    local host="$1"
+    if [[ ! "${host}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+        log_error "無効な DB ホスト名: '${host}'"
+        return 1
+    fi
+    return 0
+}
+
+# DB ユーザー名のバリデーション（英数字とアンダースコアのみ）
+validate_db_user() {
+    local user="$1"
+    if [[ ! "${user}" =~ ^[a-zA-Z0-9_]+$ ]]; then
+        log_error "無効な DB ユーザー名: '${user}'"
+        return 1
+    fi
+    return 0
 }
 
 # ────────────────────────────────────────────
@@ -178,14 +205,19 @@ prompt_values() {
     # DATABASE_URL_PRODUCTION
     read -r -p "DB ホスト（デフォルト: ${DEFAULT_DB_HOST}）: " db_host
     db_host="${db_host:-${DEFAULT_DB_HOST}}"
+    if ! validate_db_host "${db_host}"; then
+        exit 1
+    fi
 
     read -r -p "DB ユーザー名（デフォルト: ${DEFAULT_DB_USER}）: " db_user
     db_user="${db_user:-${DEFAULT_DB_USER}}"
+    if ! validate_db_user "${db_user}"; then
+        exit 1
+    fi
 
     read -r -p "DB 名（デフォルト: ${DEFAULT_DB_NAME}）: " db_name
     db_name="${db_name:-${DEFAULT_DB_NAME}}"
     if ! validate_db_name "${db_name}"; then
-        log_error "DB 名が無効です。再入力してください。"
         exit 1
     fi
 
@@ -240,6 +272,7 @@ ENV_HEADER
     else
         password_file="$(mktemp)"
     fi
+    password_file_path="${password_file}"  # cleanup で確実に削除するためグローバルに記録
     printf '%s\n' "${db_password}" > "${password_file}"
     chmod 600 "${password_file}"
     db_password=""  # メモリから即座にクリア
@@ -308,7 +341,9 @@ main() {
                 exit 1
             fi
             parse_env_file "${ENV_FILE}"
-            validate_env_file
+            if ! validate_env_file; then
+                exit 1
+            fi
             ;;
         "")
             if [ -f "${ENV_FILE}" ]; then
