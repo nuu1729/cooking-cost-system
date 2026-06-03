@@ -120,8 +120,8 @@ jobs:
             echo "Warning: realpath 失敗: '$CLAUDE_REVIEW_WORK_DIR'" >&2
             exit 0
           fi
-          # ^ アンカーなし: macOS では realpath が /private/tmp/... を返すため先頭を固定しない
-          if [[ "$REAL_DIR" =~ /tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
+          # Linux: /tmp/tmp.XXX、macOS: /private/tmp/tmp.XXX の両パターンに対応
+          if [[ "$REAL_DIR" =~ ^(/private)?/tmp/tmp\.[A-Za-z0-9]+$ ]] && [ -d "$REAL_DIR" ]; then
             rm -rf "$REAL_DIR"
           else
             echo "Warning: CLAUDE_REVIEW_WORK_DIR の形式が不正です: '${REAL_DIR}'" >&2
