@@ -53,6 +53,12 @@ jobs:
             -H "content-type: application/json" \
             -d "$(jq -n --arg content "$PROMPT" '{model:"claude-sonnet-4-6",max_tokens:4096,messages:[{role:"user",content:$content}]}')")
 
+          ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty')
+          if [ -n "$ERROR" ]; then
+            echo "Anthropic API Error: $ERROR" >&2
+            exit 1
+          fi
+
           REVIEW=$(echo "$RESPONSE" | jq -r '.content[0].text // "レビューの取得に失敗しました"')
           echo "$REVIEW" > /tmp/review.txt
 
@@ -64,8 +70,8 @@ jobs:
           REVIEW=$(cat /tmp/review.txt)
           HEADER="## 🤖 Claude によるコードレビュー"
           FOOTER="*このレビューは Claude AI によって自動生成されました*"
-          COMMENT=$(printf '%s\n\n%s\n\n---\n%s' "$HEADER" "$REVIEW" "$FOOTER")
+          printf '%s\n\n%s\n\n---\n%s' "$HEADER" "$REVIEW" "$FOOTER" > /tmp/comment.txt
 
-          gh pr comment $PR_NUMBER \
+          gh pr comment "$PR_NUMBER" \
             --repo ${{ github.repository }} \
-            --body "$COMMENT"
+            --body-file /tmp/comment.txt
