@@ -47,6 +47,9 @@ def create_app():
 
     # ProxyFix: 本番環境のみ適用（開発時はプロキシがなく X-Forwarded-* を偽装されるリスクがある）
     # x_for=1: Caddy 1段のみ信頼。VPS 構成が変わった場合はここを更新すること。
+    # x_prefix=1: Caddy が X-Forwarded-Prefix を送出している場合のみ有効。
+    #             Caddy がこのヘッダーを送らない構成では不要であり、ルーティングのプレフィックスずれを起こす可能性がある。
+    #             Phase2 の Caddy 設定確認後に不要であれば x_prefix=0 に変更すること。
     if is_production:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 

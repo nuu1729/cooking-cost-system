@@ -19,19 +19,19 @@ def _get_int_env(key: str, default: int) -> int:
     return result
 
 
-# モジュールレベルの設定エラーを sys.stderr + sys.exit(1) で報告する
-# ValueError を raise すると Gunicorn の内部例外として埋もれ原因が分かりにくいため
+# モジュールレベルの設定エラーを stderr に出力して raise で Gunicorn に伝播させる
+# sys.exit(1) は wsgi.py と方針矛盾（master プロセスへの例外伝播が望ましい）
 try:
     _port = _get_int_env('PORT', 3001)
     if not (1 <= _port <= 65535):
         print(f'[FATAL] PORT={_port} は 1–65535 の範囲である必要があります', file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f'PORT={_port} は 1–65535 の範囲外です')
 
     workers = _get_int_env('GUNICORN_WORKERS', 2)
     timeout = _get_int_env('GUNICORN_TIMEOUT', 120)
 except ValueError as e:
     print(f'[FATAL] Gunicorn 設定エラー: {e}', file=sys.stderr)
-    sys.exit(1)
+    raise
 
 bind = f"0.0.0.0:{_port}"  # コンテナ内では 0.0.0.0 でバインド（外部公開は docker-compose で 127.0.0.1 に制限）
 accesslog = '-'
@@ -41,13 +41,15 @@ errorlog = '-'
 worker_class = os.environ.get('GUNICORN_WORKER_CLASS', 'sync')
 
 # worker_connections は gevent/eventlet 専用設定（sync ワーカーでは使用されない）
-# sync の場合は Gunicorn デフォルト値（1000）に委ねるため定義を省略する
+# None をモジュールレベルで設定すると Gunicorn が設定値として読み込み予期しない動作をする可能性があるため
+# sync の場合は定義を省略して Gunicorn デフォルト値（1000）に委ねる
+# ※ if ブロック内でのみ定義されるが、Gunicorn はモジュールグローバルを参照するため動作に問題はない
 if worker_class != 'sync':
     try:
         worker_connections = _get_int_env('GUNICORN_WORKER_CONNECTIONS', 1000)
     except ValueError as e:
         print(f'[FATAL] Gunicorn 設定エラー: {e}', file=sys.stderr)
-        sys.exit(1)
+        raise
 
 # DB コネクションプール設計メモ:
 # workers × (pool_size + max_overflow) が MySQL の max_connections を超えないよう注意。

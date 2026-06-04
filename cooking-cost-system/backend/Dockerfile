@@ -11,7 +11,9 @@ WORKDIR /app
 
 # 依存関係を先にコピーしてキャッシュを活用
 COPY requirements.txt ./
-# pip を最新版にアップグレードしてから依存関係をインストール（古い pip での依存解決問題を回避）
+# pip をアップグレードしてから依存関係をインストール
+# ⚠️ --upgrade pip はサプライチェーンリスクがあるため、厳密な環境では pip==x.y.z でバージョン固定を検討
+# 全パッケージのバージョン固定は issue #117 (pip-tools 導入) で対応予定
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 

@@ -3,7 +3,8 @@ import sys
 
 # フォールバック設定: create_app() 内でロギングが設定される前に起動失敗した場合に備える
 # WARNING にすることで create_app() 内部の警告も捕捉できる（CRITICAL だと握りつぶす）
-# create_app() 内でロガーが設定されると basicConfig は上書きされる
+# create_app() 内の _configure_logging() が呼ばれると basicConfig は上書きされるため、
+# 起動成功後はこの設定は無効になる
 logging.basicConfig(level=logging.WARNING)
 
 try:
