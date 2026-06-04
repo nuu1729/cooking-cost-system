@@ -29,6 +29,8 @@ readonly DEFAULT_DB_NAME="cooking_cost_system"
 declare -ri SECRET_LENGTH=32  # 整数型を明示・32バイトのランダム性（base64url エンコード後は約43文字）
 
 # 許可する環境変数キー（parse_env_file での既知キー制限に使用）
+# DATABASE_URL（開発用）は意図的に除外。このスクリプトは本番用 .env.production のみを対象とする。
+# 開発環境の .env に対して --validate を実行した場合、DATABASE_URL はサイレントに無視される（仕様）。
 readonly -a ALLOWED_ENV_KEYS=(FLASK_ENV PORT DATABASE_URL_PRODUCTION JWT_SECRET SECRET_KEY CORS_ORIGIN)
 
 # グローバル変数（prompt_values → generate_env 間で共有）
@@ -82,8 +84,9 @@ generate_secret() {
     secret="$(python3 -c "import secrets; print(secrets.token_urlsafe(${SECRET_LENGTH}))")" \
         || { log_error "シークレット生成に失敗しました"; exit 1; }
     [[ -n "${secret}" ]] || { log_error "シークレットが空です"; exit 1; }
-    # token_urlsafe(N) の出力長: base64url は 4/3 倍 → 32バイト×4/3≈43文字
-    local min_length=$(( SECRET_LENGTH * 4 / 3 ))
+    # token_urlsafe(32) は実際には43文字生成するが、整数除算（32*4/3=42）で1文字分の余裕がなくなるため
+    # 将来の Python 実装変更に備えて保守的な定数を使用する
+    local min_length=40
     [[ ${#secret} -ge ${min_length} ]] || { log_error "シークレットが短すぎます（${#secret}文字）"; exit 1; }
     echo "${secret}"
 }
@@ -137,7 +140,7 @@ parse_env_file() {
         for allowed_key in "${ALLOWED_ENV_KEYS[@]}"; do
             [[ "${key}" == "${allowed_key}" ]] && allowed=true && break
         done
-        "${allowed}" && export "${key}=${value}"
+        [[ "${allowed}" == "true" ]] && export "${key}=${value}"
     done < "${file}"
 }
 
@@ -146,6 +149,7 @@ parse_env_file() {
 # ────────────────────────────────────────────
 validate_cors_origins() {
     local origins="${1:-}"
+    [[ -z "${origins}" ]] && { log_warn "CORS_ORIGIN が設定されていません"; return 1; }
     IFS=',' read -ra origin_array <<< "${origins}"
     for origin in "${origin_array[@]}"; do
         origin="${origin#"${origin%%[![:space:]]*}"}"
@@ -206,11 +210,14 @@ validate_env_file() {
 
     for key in "${required_keys[@]}"; do
         local value="${!key:-}"
-        # プレースホルダーパターンを検知
-        # - "your-"*: 先頭が "your-" で始まる値（yourdomain.com 等との誤検知を防ぐため前方一致）
+        # プレースホルダーパターンを大文字小文字を問わず検知
+        # - "your"*: your-xxx / yourdomain.com / Your-xxx 等（前方一致）
+        # - *"replace"*: your-jwt-secret-replace-with-random-string 等
         # - *"<"*">"*: <user> / <password> 等の山括弧プレースホルダー
+        local lower_value="${value,,}"
         if [[ -z "${value}" \
-            || "${value}" == "your-"* \
+            || "${lower_value}" == "your"* \
+            || "${lower_value}" == *"replace"* \
             || "${value}" == *"<"*">"* ]]; then
             missing+=("${key}")
         fi
@@ -278,14 +285,23 @@ prompt_values() {
     # DB パスワード: 既存パスワードを入力するか自動生成かを選択（グローバル変数に格納）
     # ※ 手動入力する場合、@ / : / / などの URL 特殊文字はパーセントエンコードが必要
     #    （例: p@ss → p%40ss）。自動生成（token_urlsafe）は URL 安全な文字のみ使用
-    read -r -s -p "DB パスワード（空 Enter で自動生成）: " db_password
-    echo ""
-    if [[ -z "${db_password}" ]]; then
-        db_password="$(generate_secret)"
-        log_warn "DB パスワードを自動生成しました。MySQL 側にも同じパスワードを設定してください。"
-    else
-        log_info "入力したパスワードを使用します。"
-    fi
+    while true; do
+        read -r -s -p "DB パスワード（空 Enter で自動生成）: " db_password
+        echo ""
+        if [[ -z "${db_password}" ]]; then
+            db_password="$(generate_secret)"
+            log_warn "DB パスワードを自動生成しました。MySQL 側にも同じパスワードを設定してください。"
+            break
+        fi
+        local db_password_confirm
+        read -r -s -p "DB パスワード（確認）: " db_password_confirm
+        echo ""
+        if [[ "${db_password}" == "${db_password_confirm}" ]]; then
+            log_info "入力したパスワードを使用します。"
+            break
+        fi
+        log_error "パスワードが一致しません。再入力してください。"
+    done
 
     echo ""
 }
@@ -366,14 +382,12 @@ rotate_secrets() {
     read -r -p "続行しますか? [y/N]: " confirm
     [[ "${confirm}" == "y" || "${confirm}" == "Y" ]] || { log_info "キャンセルしました"; exit 0; }
 
-    # ローテーション前にバックアップを作成（失敗時に既存シークレットを復元可能にする）
+    # ローテーション前にバックアップを作成（ローテーション中の失敗時のみ復元用途）
+    # ローテーション成功後は旧シークレットが平文で残存しないよう即削除する（下部参照）
     local backup="${ENV_FILE}.backup.$(date +%Y%m%d%H%M%S)"
     cp "${ENV_FILE}" "${backup}"
     chmod 600 "${backup}"
-    log_info "バックアップを作成しました: ${backup}"
-    log_warn "バックアップには旧シークレットが含まれます。不要になったら削除してください: rm -f ${backup}"
-    # 直近3世代より古いバックアップを自動削除（蓄積を防ぐ）
-    ls -t "${ENV_FILE}.backup."* 2>/dev/null | tail -n +4 | xargs -r rm -f
+    log_info "バックアップを作成しました（ローテーション失敗時の復元用）: ${backup}"
 
     # 安全なパーサーで既存値を読み込む（source によるコード実行リスクを回避）
     parse_env_file "${ENV_FILE}"  # 1回目: 既存の DB・CORS・PORT 値を取得
@@ -419,8 +433,13 @@ rotate_secrets() {
     parse_env_file "${ENV_FILE}"
     if ! validate_env_file; then
         log_error "ローテーション後の検証に失敗しました"
+        log_warn "バックアップから復元: cp -p ${backup} ${ENV_FILE}"
         exit 1
     fi
+
+    # ローテーション成功 → バックアップには旧シークレットが平文で残るため即削除
+    rm -f "${backup}"
+    log_info "バックアップを削除しました（旧シークレット除去済み）"
 
     log_warn "アプリを再起動して新しいシークレットを反映してください"
     log_warn "既存の JWT トークンはすべて無効化されます"
