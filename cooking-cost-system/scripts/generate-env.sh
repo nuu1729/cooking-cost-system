@@ -38,6 +38,7 @@ declare db_user=""
 declare db_name=""
 declare cors_origin=""
 declare password_file_path=""  # cleanup で削除するためパスを記録
+declare tmp_env_path=""        # generate_env/rotate_secrets の一時ファイルを cleanup で確実に削除
 
 # ────────────────────────────────────────────
 # ログ
@@ -56,6 +57,8 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 cleanup() {
     # password_file_path で個別管理した一時ファイルを削除
     [[ -n "${password_file_path}" ]] && rm -f "${password_file_path}" 2>/dev/null || true
+    # generate_env / rotate_secrets の途中失敗時に tmp_env が残存しないよう削除
+    [[ -n "${tmp_env_path}" ]] && rm -f "${tmp_env_path}" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -90,6 +93,8 @@ check_prerequisites() {
         log_error "python3 が必要です"
         exit 1
     fi
+    # jq は claude-review.yml（CI）で使用するが、このスクリプト自体は不要。
+    # 将来 jq を使う拡張をする場合はここに追加すること。
 }
 
 # URL パーセントエンコード（手動入力パスワードに含まれる特殊文字を DATABASE_URL 用にエスケープ）
@@ -98,7 +103,7 @@ check_prerequisites() {
 url_encode() {
     python3 -c "
 import urllib.parse, sys
-print(urllib.parse.quote(sys.stdin.read().rstrip('\n'), safe=''))
+print(urllib.parse.quote(sys.stdin.read().rstrip('\r\n'), safe=''))
 "
 }
 
@@ -116,6 +121,10 @@ parse_env_file() {
         # 対称クォートのみ除去（if/elif で分離して BASH_REMATCH の曖昧さを回避）
         # [^\"]*・[^\']*: 非貪欲に対称クォート内のみ除去（不正な KEY="val"extra" 等はマッチしない）
         # 注意: クォートあり（KEY=" value "）の場合は内側の空白を保持する（意図的）
+        # BASE64 等の = 含む値:
+        #   KEY=abc==     → key=KEY, value=abc==           ✅（clamp なし）
+        #   KEY="abc=="   → BASH_REMATCH[1] で abc== を取得 ✅
+        #   KEY='abc=='   → 同様                            ✅
         if [[ "${value}" =~ ^\"([^\"]*)\"$ ]]; then
             value="${BASH_REMATCH[1]}"
         elif [[ "${value}" =~ ^\'([^\']*)\'$ ]]; then
@@ -145,9 +154,10 @@ validate_cors_origins() {
             log_warn "不正なオリジン: '${origin}' （https:// で始まる必要があります）"
             return 1
         fi
-        # プレースホルダー検知（大文字小文字を問わず https://your- または <...> を検知）
+        # プレースホルダー検知（大文字小文字を問わず https://your* または <...> を検知）
+        # "your-" だけでなく "yourdomain.com" のような形式も含めて検知するため "your" の前方一致にする
         local lower_origin="${origin,,}"
-        if [[ "${lower_origin}" == "https://your-"* || "${lower_origin}" == *"<"*">"* ]]; then
+        if [[ "${lower_origin}" == "https://your"* || "${lower_origin}" == *"<"*">"* ]]; then
             log_warn "プレースホルダーのオリジン: '${origin}'（実際のドメインに変更してください）"
             return 1
         fi
@@ -293,8 +303,10 @@ generate_env() {
     log_info "シークレットを生成しました"
 
     # 一時ファイル経由でアトミックに書き込む（chmod → mv で隙間なく保護）
+    # tmp_env_path にグローバル登録して cleanup トラップで確実に削除（途中失敗時の残存を防ぐ）
     local tmp_env
     tmp_env="$(mktemp "${ENV_FILE}.XXXXXX")"
+    tmp_env_path="${tmp_env}"
     chmod 600 "${tmp_env}"
     {
         printf "# 本番環境変数 - generate-env.sh で生成 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
@@ -311,6 +323,7 @@ generate_env() {
         printf "CORS_ORIGIN=%s\n" "${cors_origin}"
     } > "${tmp_env}"
     mv "${tmp_env}" "${ENV_FILE}"
+    tmp_env_path=""  # mv 成功後は cleanup 対象から外す
     log_info ".env.production を生成しました: ${ENV_FILE}"
 
     # DB パスワードを mktemp で作成した一時ファイルに書き出す（固定名の競合を防止）
@@ -359,6 +372,8 @@ rotate_secrets() {
     chmod 600 "${backup}"
     log_info "バックアップを作成しました: ${backup}"
     log_warn "バックアップには旧シークレットが含まれます。不要になったら削除してください: rm -f ${backup}"
+    # 直近3世代より古いバックアップを自動削除（蓄積を防ぐ）
+    ls -t "${ENV_FILE}.backup."* 2>/dev/null | tail -n +4 | xargs -r rm -f
 
     # 安全なパーサーで既存値を読み込む（source によるコード実行リスクを回避）
     parse_env_file "${ENV_FILE}"  # 1回目: 既存の DB・CORS・PORT 値を取得
@@ -374,17 +389,21 @@ rotate_secrets() {
     fi
     local current_port="${PORT:-3001}"
 
+    # tmp_env_path にグローバル登録して cleanup トラップで確実に削除
     local tmp_env
     tmp_env="$(mktemp "${ENV_FILE}.XXXXXX")"
+    tmp_env_path="${tmp_env}"
     chmod 600 "${tmp_env}"
     # シークレットを事前生成してから書き込む（途中で失敗してもファイルが壊れない）
     local new_jwt new_secret_key
     new_jwt="$(generate_secret)"
     new_secret_key="$(generate_secret)"
+    # FLASK_ENV は既存ファイルから引き継ぐ（開発環境で --rotate した際に production に上書きされるのを防ぐ）
+    local current_flask_env="${FLASK_ENV:-production}"
     {
         printf "# 本番環境変数 - generate-env.sh --rotate で更新 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
         printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
-        printf "FLASK_ENV=production\n"
+        printf "FLASK_ENV=%s\n"               "${current_flask_env}"
         printf "PORT=%s\n"                    "${current_port}"
         printf "DATABASE_URL_PRODUCTION=%s\n" "${current_db}"
         printf "JWT_SECRET=%s\n"              "${new_jwt}"
@@ -392,6 +411,7 @@ rotate_secrets() {
         printf "CORS_ORIGIN=%s\n"             "${current_cors}"
     } > "${tmp_env}"
     mv "${tmp_env}" "${ENV_FILE}"
+    tmp_env_path=""  # mv 成功後は cleanup 対象から外す
 
     log_info "JWT_SECRET と SECRET_KEY をローテーションしました"
 
@@ -442,6 +462,8 @@ main() {
                 cp "${ENV_FILE}" "${backup}"
                 chmod 600 "${backup}"
                 log_info "既存ファイルをバックアップしました: ${backup}"
+                # 直近3世代より古いバックアップを自動削除
+                ls -t "${ENV_FILE}.backup."* 2>/dev/null | tail -n +4 | xargs -r rm -f
             fi
             generate_env
             ;;
