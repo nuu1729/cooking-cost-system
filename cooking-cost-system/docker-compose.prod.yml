@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MySQL データベース
   database:
@@ -21,9 +19,14 @@ services:
       - mysql_root_password
       - mysql_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "cooking_user", "-p$$(cat /run/secrets/mysql_password)"]
+      # MYSQL_PWD 環境変数でパスワードを渡す
+      # --password= 引数はプロセスリスト（ps aux / docker top）に平文で現れるため MYSQL_PWD の方が安全
+      # MYSQL_PWD は非推奨だが、ヘルスチェックの一時的な環境変数としての使用は許容範囲
+      test: ["CMD-SHELL", "MYSQL_PWD=$(cat /run/secrets/mysql_password) mysqladmin ping -h localhost -u cooking_user"]
+      interval: 10s
       timeout: 20s
       retries: 10
+      start_period: 60s  # 初回起動（スキーマ適用含む）が retries × interval を超えるのを防ぐ
     deploy:
       resources:
         limits:
@@ -31,37 +34,42 @@ services:
         reservations:
           memory: 512M
 
-  # バックエンド API
+  # バックエンド API（Gunicorn + Flask）
+  # フロントエンドは Cloudflare Pages にデプロイするためここには含めない
+  # DB 接続情報（DATABASE_URL_PRODUCTION）は .env.production 経由で渡すため
+  # secrets から mysql_password を参照しない（secrets は DB コンテナ起動用のみ）
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: cooking-cost-backend-prod
     restart: unless-stopped
+    # ⚠️ env_file で読み込んだ環境変数は `docker inspect` で平文参照可能
+    # Phase2 以降で Docker Secrets + entrypoint.sh による DATABASE_URL 構築に移行予定（issue #119）
+    env_file:
+      - ./backend/.env.production
     environment:
-      NODE_ENV: production
       PORT: 3001
-      DB_HOST: database
-      DB_USER: cooking_user
-      DB_PASSWORD_FILE: /run/secrets/mysql_password
-      DB_NAME: cooking_cost_system
-      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      # GUNICORN_WORKERS: デフォルト 2（512MB 制限に適した値）
+      # 推奨値: (2 × CPU コア数) + 1 — 必要に応じて上書き可能
+      GUNICORN_WORKERS: 2
     volumes:
       - app_logs:/app/logs
       - app_uploads:/app/uploads
+    ports:
+      - "127.0.0.1:3001:3001"  # Caddy からのみアクセス可（外部に直接公開しない）
     networks:
       - cooking-network
     depends_on:
       database:
         condition: service_healthy
-    secrets:
-      - mysql_password
-      - jwt_secret
     healthcheck:
-      test: ["CMD", "node", "health-check.js"]
+      # healthcheck.py でステータスコード検証・エラーハンドリングを一元管理
+      test: ["CMD", "python3", "healthcheck.py"]
+      interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s  # Gunicorn 起動 + DB 接続初期化に余裕を持たせる
     deploy:
       resources:
         limits:
@@ -69,85 +77,13 @@ services:
         reservations:
           memory: 256M
 
-  # フロントエンド
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: cooking-cost-frontend-prod
-    restart: unless-stopped
-    ports:
-      - "80:8080"
-      - "443:8443"
-    networks:
-      - cooking-network
-    depends_on:
-      - backend
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-
-  # Redis (将来用キャッシュ)
-  redis:
-    image: redis:7-alpine
-    container_name: cooking-cost-redis-prod
-    restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass "$(cat /run/secrets/redis_password)"
-    volumes:
-      - redis_data:/data
-    networks:
-      - cooking-network
-    secrets:
-      - redis_password
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      timeout: 5s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-
-  # 監視 (将来用)
-  monitoring:
-    image: prom/node-exporter:latest
-    container_name: cooking-cost-monitoring
-    restart: unless-stopped
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    networks:
-      - cooking-network
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-
-# シークレット管理
+# file ベースのシークレット（Docker Compose 標準機能・Swarm 不要）
+# database コンテナの初期化のみに使用。backend は .env.production 経由で接続するため参照しない。
 secrets:
   mysql_root_password:
     file: ./secrets/mysql_root_password.txt
   mysql_password:
     file: ./secrets/mysql_password.txt
-  jwt_secret:
-    file: ./secrets/jwt_secret.txt
-  redis_password:
-    file: ./secrets/redis_password.txt
 
 # ボリューム
 volumes:
@@ -156,8 +92,6 @@ volumes:
   app_logs:
     driver: local
   app_uploads:
-    driver: local
-  redis_data:
     driver: local
 
 # ネットワーク

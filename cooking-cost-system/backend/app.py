@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_talisman import Talisman
+from werkzeug.middleware.proxy_fix import ProxyFix
 from api.database import db
 from api.extensions import limiter
 from api.error import register_error_handlers
@@ -42,15 +43,36 @@ def create_app():
     else:
         app.config.from_object('config.DevelopmentConfig')
 
+    is_production = (env == 'production')
+
+    # ProxyFix: 本番環境のみ適用（開発時はプロキシがなく X-Forwarded-* を偽装されるリスクがある）
+    # x_for=1: Caddy 1段のみ信頼。VPS 構成が変わった場合はここを更新すること。
+    # x_prefix=1: Caddy が X-Forwarded-Prefix を送出している場合のみ有効。
+    #             Caddy がこのヘッダーを送らない構成では不要であり、ルーティングのプレフィックスずれを起こす可能性がある。
+    #             Phase2 の Caddy 設定確認後に不要であれば x_prefix=0 に変更すること。
+    if is_production:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',')]
     logging.getLogger(__name__).info('CORS origins: %s', cors_origins)
     CORS(app, resources={r'/api/*': {'origins': cors_origins}, r'/uploads/*': {'origins': cors_origins}})
 
     Talisman(
         app,
+        # force_https=False: HTTPS 終端は Caddy が担う（Caddy → Flask 間は内部 HTTP）
+        # Flask-Talisman の HSTS ヘッダーは Caddy を経由してクライアントまで届く
+        # ⚠️ Caddy バイパス時（Flask に直接 HTTP 接続）でも HSTS ヘッダーが付与される点に注意
+        #    HSTS を Caddy 側のみで管理する場合は strict_transport_security=False に変更すること（Phase2 で判断）
         force_https=False,
-        strict_transport_security=False,
-        content_security_policy=False,
+        # 本番では HSTS を有効化（max-age=1年）
+        # preload は HSTS preload list への登録が必要なため現時点では無効
+        strict_transport_security=is_production,
+        # Flask-Talisman のバージョンによって is_production=False 時の挙動が異なる可能性があるため明示的に分岐
+        strict_transport_security_max_age=31536000 if is_production else 0,
+        # includeSubDomains はデフォルト False（同ドメインのサブドメインに HTTP のみのサービスがある場合にブロックされるリスクを避ける）
+        # VPS 上の全サービスが HTTPS 対応済みであることを確認した上で True に変更すること
+        strict_transport_security_include_subdomains=False,
+        content_security_policy=False,  # SPA のため CSP は Cloudflare Pages 側で管理
         frame_options='DENY',
         x_content_type_options=True,
         referrer_policy='strict-origin-when-cross-origin',

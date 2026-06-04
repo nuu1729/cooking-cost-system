@@ -1,0 +1,22 @@
+# シークレット・環境変数（コンテナイメージに含めない）
+.env
+.env.production
+.env.production.backup.*
+secrets/
+
+# 開発用ファイル
+Dockerfile.dev
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ログ・アップロード（ボリュームマウントで管理）
+logs/
+uploads/
+
+# エディタ・OS
+.vscode/
+.idea/
+.DS_Store
