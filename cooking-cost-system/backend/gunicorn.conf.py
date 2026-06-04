@@ -2,7 +2,12 @@ import os
 
 
 def _get_int_env(key: str, default: int) -> int:
-    """環境変数を整数として取得する。不正値の場合は明確なエラーで起動失敗させる。"""
+    """環境変数を正の整数として取得する。
+
+    制約: result > 0 を要求する（ゼロ・負数は不正）。
+    timeout に 0（無限待ち）が必要な場合はこの関数を使わず直接 os.environ.get() を使うこと。
+    不正値の場合は ValueError を送出し起動を失敗させる。
+    """
     value = os.environ.get(key, str(default))
     try:
         result = int(value)
@@ -29,8 +34,8 @@ errorlog = '-'
 worker_class = os.environ.get('GUNICORN_WORKER_CLASS', 'sync')
 
 # worker_connections は gevent/eventlet 専用設定（sync ワーカーでは使用されない）
-# None を明示することで将来 worker_class を変更した際の設定漏れを防ぐ
-worker_connections = None
+# None をモジュールレベルで設定すると Gunicorn が設定値として読み込み予期しない動作をする可能性があるため、
+# sync の場合は定義自体を省略して Gunicorn のデフォルト値に委ねる
 if worker_class != 'sync':
     worker_connections = _get_int_env('GUNICORN_WORKER_CONNECTIONS', 1000)
 

@@ -58,8 +58,10 @@ def create_app():
         app,
         # force_https=False: HTTPS 終端は Caddy が担う（Caddy → Flask 間は内部 HTTP）
         # Flask-Talisman の HSTS ヘッダーは Caddy を経由してクライアントまで届く
+        # ⚠️ Caddy バイパス時（Flask に直接 HTTP 接続）でも HSTS ヘッダーが付与される点に注意
+        #    HSTS を Caddy 側のみで管理する場合は strict_transport_security=False に変更すること（Phase2 で判断）
         force_https=False,
-        # 本番では HSTS を有効化（max-age=1年・サブドメイン含む）
+        # 本番では HSTS を有効化（max-age=1年）
         # preload は HSTS preload list への登録が必要なため現時点では無効
         strict_transport_security=is_production,
         # Flask-Talisman のバージョンによって is_production=False 時の挙動が異なる可能性があるため明示的に分岐

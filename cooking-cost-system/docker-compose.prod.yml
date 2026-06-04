@@ -19,9 +19,10 @@ services:
       - mysql_root_password
       - mysql_password
     healthcheck:
-      # --password= 形式を使用（MYSQL_PWD は非推奨のため）
-      # プロセス一覧に引数が現れる可能性はあるが、コンテナ内隔離環境かつヘルスチェック用途のため許容範囲
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u cooking_user --password=\"$(cat /run/secrets/mysql_password)\""]
+      # MYSQL_PWD 環境変数でパスワードを渡す
+      # --password= 引数はプロセスリスト（ps aux / docker top）に平文で現れるため MYSQL_PWD の方が安全
+      # MYSQL_PWD は非推奨だが、ヘルスチェックの一時的な環境変数としての使用は許容範囲
+      test: ["CMD-SHELL", "MYSQL_PWD=$(cat /run/secrets/mysql_password) mysqladmin ping -h localhost -u cooking_user"]
       interval: 10s
       timeout: 20s
       retries: 10
@@ -62,9 +63,9 @@ services:
       database:
         condition: service_healthy
     healthcheck:
+      # PORT env var からポートを取得（ハードコードを避ける）
       # ステータスコード 200 を明示確認（urlopen はリダイレクト等でも例外を投げない場合があるため）
-      # python の sys.exit() が正しく終了コードを返すため || exit 1 は不要
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request, sys; res = urllib.request.urlopen('http://localhost:3001/api/health'); sys.exit(0 if res.status == 200 else 1)\""]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request, os, sys; port=os.environ.get('PORT','3001'); res=urllib.request.urlopen(f'http://localhost:{port}/api/health'); sys.exit(0 if res.status==200 else 1)\""]
       interval: 30s
       timeout: 10s
       retries: 3
