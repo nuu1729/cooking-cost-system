@@ -47,11 +47,10 @@ def create_app():
 
     # ProxyFix: 本番環境のみ適用（開発時はプロキシがなく X-Forwarded-* を偽装されるリスクがある）
     # x_for=1: Caddy 1段のみ信頼。VPS 構成が変わった場合はここを更新すること。
-    # x_prefix=1: Caddy が X-Forwarded-Prefix を送出している場合のみ有効。
-    #             Caddy がこのヘッダーを送らない構成では不要であり、ルーティングのプレフィックスずれを起こす可能性がある。
-    #             Phase2 の Caddy 設定確認後に不要であれば x_prefix=0 に変更すること。
+    # x_prefix=0: Caddy が X-Forwarded-Prefix を送出しない構成のため無効（安全側デフォルト）
+    #             サブパスへのデプロイが必要になった場合は x_prefix=1 に変更すること。
     if is_production:
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=0)
 
     cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',')]
     logging.getLogger(__name__).info('CORS origins: %s', cors_origins)
