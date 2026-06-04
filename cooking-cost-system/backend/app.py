@@ -4,6 +4,7 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_talisman import Talisman
+from werkzeug.middleware.proxy_fix import ProxyFix
 from api.database import db
 from api.extensions import limiter
 from api.error import register_error_handlers
@@ -42,15 +43,24 @@ def create_app():
     else:
         app.config.from_object('config.DevelopmentConfig')
 
+    # Caddy がリバースプロキシとして X-Forwarded-* ヘッダーを付与するため ProxyFix を適用
+    # x_for=1: 1段のプロキシ（Caddy）を信頼
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',')]
     logging.getLogger(__name__).info('CORS origins: %s', cors_origins)
     CORS(app, resources={r'/api/*': {'origins': cors_origins}, r'/uploads/*': {'origins': cors_origins}})
 
+    is_production = (env == 'production')
     Talisman(
         app,
+        # HTTPS 終端は Caddy が担うため Flask 側では force_https=False
+        # （Caddy → Flask 間は内部 HTTP 通信）
         force_https=False,
-        strict_transport_security=False,
-        content_security_policy=False,
+        # 本番では HSTS・CSP を有効化（Caddy でも設定するが Flask 側でも二重で保護）
+        strict_transport_security=is_production,
+        strict_transport_security_max_age=31536000 if is_production else 0,
+        content_security_policy=False,  # SPA のため CSP は Cloudflare Pages 側で管理
         frame_options='DENY',
         x_content_type_options=True,
         referrer_policy='strict-origin-when-cross-origin',
