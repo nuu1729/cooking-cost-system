@@ -127,6 +127,8 @@ parse_env_file() {
         local key="${line%%=*}"
         local value="${line#*=}"
         key="${key#"${key%%[![:space:]]*}"}"  # key 前後の空白除去
+        # 不正なキー名（空文字・config[x] のような配列参照・記号含む）はスキップして変数汚染を防ぐ
+        [[ "${key}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || continue
         # 対称クォートのみ除去（if/elif で分離して BASH_REMATCH の曖昧さを回避）
         # [^\"]*・[^\']*: 非貪欲に対称クォート内のみ除去（不正な KEY="val"extra" 等はマッチしない）
         # 注意: クォートあり（KEY=" value "）の場合は内側の空白を保持する（意図的）
@@ -235,12 +237,11 @@ validate_env_file() {
         return 1
     fi
 
-    # 本番環境では全オリジンが https:// であることを確認（プレースホルダー検知含む）
-    if [[ "${FLASK_ENV:-}" == "production" ]]; then
-        if ! validate_cors_origins "${CORS_ORIGIN:-}"; then
-            log_warn "本番環境では CORS_ORIGIN の全オリジンが https:// である必要があります"
-            return 1
-        fi
+    # このスクリプトは .env.production 専用のため FLASK_ENV の値によらず常に CORS を検証する
+    # （FLASK_ENV が誤設定されていても検証をスキップしないようにする）
+    if ! validate_cors_origins "${CORS_ORIGIN:-}"; then
+        log_warn "CORS_ORIGIN の全オリジンが https:// である必要があります"
+        return 1
     fi
 
     log_info "すべての必須キーが設定されています"
@@ -361,10 +362,10 @@ generate_env() {
     password_file_path="${password_file}"  # cleanup で確実に削除するためグローバルに記録
     printf '%s\n' "${config[db_password]}" > "${password_file}"
     chmod 600 "${password_file}"
-    # db_password と db_password_encoded を unset（空文字代入より確実にメモリエントリを削除）
-    # 注意: jwt_secret・secret_key はローカル変数のため関数終了時にスコープ外になるが、
-    # メモリ上に残る可能性は bash の限界として許容している
-    unset 'config[db_password]' db_password_encoded
+    # config[db_password] を連想配列から削除（空文字代入より確実にエントリを除去）
+    # db_password_encoded はローカル変数のため関数終了時に自動破棄される（unset 不要）
+    # 注意: jwt_secret・secret_key も同様にローカル変数のため bash 側に委ねている
+    unset 'config[db_password]'
 
     log_warn "DB パスワードを一時ファイルに保存しました: ${password_file}"
     log_warn "MySQL 側に同じパスワードを設定してください。"
@@ -448,8 +449,13 @@ rotate_secrets() {
         exit 1
     fi
 
-    # ローテーション成功 → バックアップには旧シークレットが平文で残るため即削除
-    rm -f "${backup}"
+    # ローテーション成功 → バックアップには旧シークレットが平文で残るため安全削除
+    # shred が使える環境ではディスク上のデータを上書きしてから削除（より安全）
+    if command -v shred &>/dev/null; then
+        shred -u "${backup}"
+    else
+        rm -f "${backup}"
+    fi
     log_info "バックアップを削除しました（旧シークレット除去済み）"
     log_warn "ロールバックが必要な場合はバックアップが削除済みのため、新しいシークレットを手動で設定してください"
 
@@ -495,7 +501,16 @@ main() {
                 log_info "既存ファイルをバックアップしました: ${backup}"
                 # 直近3世代より古いバックアップを自動削除
                 # rotate_secrets が作成するバックアップも同じパターンのため混在することがある（設計上許容済み）
-                ls -t "${ENV_FILE}.backup."* 2>/dev/null | tail -n +4 | xargs -r rm -f
+                # find + mapfile で NUL 区切りを使いファイル名に空白・改行が含まれる場合も安全に処理
+                mapfile -d '' _backups < <(
+                    find "$(dirname "${ENV_FILE}")" -maxdepth 1 \
+                        -name "$(basename "${ENV_FILE}").backup.*" \
+                        -print0 | sort -z -r
+                )
+                for (( _i=3; _i<${#_backups[@]}; _i++ )); do
+                    rm -f -- "${_backups[$_i]}"
+                done
+                unset _backups _i
             fi
             generate_env
             ;;
