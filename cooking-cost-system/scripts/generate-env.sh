@@ -76,8 +76,11 @@ show_usage() {
     echo ""
     echo "オプション:"
     echo "  （引数なし） : .env.production を新規生成（対話形式）"
+    echo "                既存ファイルがある場合はバックアップを作成して上書き（直近3世代保持）"
     echo "  --rotate    : JWT_SECRET / SECRET_KEY のみ再生成"
-    echo "  --validate  : 必須キーの存在・形式を確認"
+    echo "                ローテーション前にバックアップを作成し、成功後に安全削除"
+    echo "                ロールバックが必要な場合は新シークレットを手動設定すること"
+    echo "  --validate  : 必須キーの存在・形式を確認（プレースホルダー検知含む）"
     echo "  --help, -h  : このヘルプを表示"
 }
 
@@ -120,6 +123,11 @@ print(urllib.parse.quote(''.join(raw.splitlines()), safe=''))
 # （export は子プロセスに環境変数が漏洩するため使用しない）
 parse_env_file() {
     local file="$1"
+    # 前回呼び出しで declare -g した値が残存しないよう事前にクリア
+    # （rotate_secrets で2回呼ぶ際に1回目の古い値が残るのを防ぐ）
+    for _clear_key in "${ALLOWED_ENV_KEYS[@]}"; do
+        unset "${_clear_key}"
+    done
     # IFS= read で行全体を読み込み、= を最初の1つだけで分割する
     # → 値に = が含まれる場合（BASE64 等）も正しく処理できる
     while IFS= read -r line; do
@@ -348,6 +356,8 @@ generate_env() {
     } > "${tmp_env}"
     mv "${tmp_env}" "${ENV_FILE}"
     tmp_env_path=""  # mv 成功後は cleanup 対象から外す
+    # ファイルへの書き込みが完了したらシークレットを即 unset（config[db_password] と同等の一貫性）
+    unset jwt_secret secret_key
     log_info ".env.production を生成しました: ${ENV_FILE}"
 
     # DB パスワードを mktemp で作成した一時ファイルに書き出す（固定名の競合を防止）
