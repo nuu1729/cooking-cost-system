@@ -19,8 +19,9 @@ services:
       - mysql_root_password
       - mysql_password
     healthcheck:
-      # MYSQL_PWD 環境変数でパスワードを渡す（-p 引数だと ps aux でプロセス一覧に露出するため）
-      test: ["CMD-SHELL", "MYSQL_PWD=$(cat /run/secrets/mysql_password) mysqladmin ping -h localhost -u cooking_user"]
+      # --defaults-extra-file で一時ファイルを経由（MYSQL_PWD は非推奨・-p 引数は ps aux に露出するため）
+      # 一時ファイルはコマンド終了後に削除し、パスワードがプロセス一覧・環境変数に残らないようにする
+      test: ["CMD-SHELL", "TMPF=$(mktemp) && printf '[client]\\npassword=%s\\n' \"$(cat /run/secrets/mysql_password)\" > \"$TMPF\" && mysqladmin --defaults-extra-file=\"$TMPF\" ping -h localhost -u cooking_user; R=$?; rm -f \"$TMPF\"; exit $R"]
       interval: 10s
       timeout: 20s
       retries: 10

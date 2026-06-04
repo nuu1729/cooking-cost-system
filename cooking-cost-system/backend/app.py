@@ -62,7 +62,8 @@ def create_app():
         # 本番では HSTS を有効化（max-age=1年・サブドメイン含む）
         # preload は HSTS preload list への登録が必要なため現時点では無効
         strict_transport_security=is_production,
-        strict_transport_security_max_age=31536000,  # is_production=False 時は無視される
+        # Flask-Talisman のバージョンによって is_production=False 時の挙動が異なる可能性があるため明示的に分岐
+        strict_transport_security_max_age=31536000 if is_production else 0,
         # includeSubDomains はデフォルト False（同ドメインのサブドメインに HTTP のみのサービスがある場合にブロックされるリスクを避ける）
         # VPS 上の全サービスが HTTPS 対応済みであることを確認した上で True に変更すること
         strict_transport_security_include_subdomains=False,

@@ -6,14 +6,20 @@ def _get_int_env(key: str, default: int) -> int:
     value = os.environ.get(key, str(default))
     try:
         result = int(value)
-        if result <= 0:
-            raise ValueError(f'{key} は正の整数である必要があります（指定値: {value!r}）')
-        return result
-    except ValueError as e:
-        raise ValueError(f'環境変数 {key}={value!r} が不正です: {e}') from e
+    except ValueError:
+        # int() 変換失敗と <=0 チェックを分離し、エラーメッセージの二重ネストを防ぐ
+        raise ValueError(f'環境変数 {key}={value!r} は整数である必要があります') from None
+    if result <= 0:
+        raise ValueError(f'環境変数 {key}={value!r} は正の整数である必要があります')
+    return result
 
 
-bind = f"0.0.0.0:{os.environ.get('PORT', '3001')}"
+# PORT バリデーション（不正値を Gunicorn 起動前に検出する）
+_port = _get_int_env('PORT', 3001)
+if not (1 <= _port <= 65535):
+    raise ValueError(f'PORT={_port} は 1–65535 の範囲である必要があります')
+bind = f"0.0.0.0:{_port}"
+
 workers = _get_int_env('GUNICORN_WORKERS', 2)
 timeout = _get_int_env('GUNICORN_TIMEOUT', 120)
 accesslog = '-'
