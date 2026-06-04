@@ -4,7 +4,9 @@
 |---|---|
 | 対象 DB | MySQL 8.0（Hetzner VPS 上の Docker コンテナ） |
 | 接続方法 | `docker compose -f docker-compose.prod.yml exec database mysql` |
-| スキーマ管理 | 手動 SQL + `setup.sql`（初回）、`db.create_all()`（テーブル追加） |
+| スキーマ管理 | 手動 SQL + `setup.sql`（初回）、`db.create_all()`（テーブル新規追加のみ） |
+
+> **注意**: `db.create_all()` は**新しいテーブルの作成のみ**行う。既存テーブルへのカラム追加・変更には ALTER TABLE が必要。
 
 ---
 
@@ -45,11 +47,17 @@ docker compose -f docker-compose.prod.yml exec database \
 
 ```bash
 # バックアップを取得（scripts/backup.sh）
-bash scripts/backup.sh
+bash scripts/backup.sh \
+  && echo "バックアップ成功" \
+  || { echo "バックアップ失敗。マイグレーションを中止します。"; exit 1; }
+
+# バックアップファイルの確認
+ls -lh /opt/cooking-cost/backups/ | tail -3
 
 # または手動でバックアップ
-docker compose -f docker-compose.prod.yml exec database \
-  mysqldump -u cooking_user -p cooking_cost_system \
+docker compose -f docker-compose.prod.yml exec -T \
+  -e MYSQL_PWD="$(cat secrets/mysql_password.txt)" \
+  database mysqldump -u cooking_user cooking_cost_system \
   | gzip > /opt/cooking-cost/backups/pre_migration_$(date +%Y%m%d%H%M%S).sql.gz
 ```
 
@@ -59,7 +67,7 @@ docker compose -f docker-compose.prod.yml exec database \
 
 ```
 scripts/migrations/
-  001_initial_schema.sql    # setup.sql と同内容（参考用）
+  001_initial_schema.sql    # 番号基準（実行不要・参照専用）
   002_add_column_xxx.sql    # 追加カラムなど
   003_add_index_yyy.sql
 ```
@@ -82,33 +90,53 @@ ALTER TABLE cooking_cost_system.items
 ### 2-3. マイグレーション実行
 
 ```bash
-# 1. バックアップ確認
-ls -lh /opt/cooking-cost/backups/
+# 1. バックアップ存在確認
+ls -lh /opt/cooking-cost/backups/ | tail -3
 
-# 2. ドライラン（--verbose で確認のみ）
-docker compose -f docker-compose.prod.yml exec database \
-  mysql -u cooking_user -p cooking_cost_system \
-  --verbose < scripts/migrations/002_add_column_xxx.sql
+# 2. SQL 内容を目視確認（実行前に必ず内容を確認すること）
+cat scripts/migrations/002_add_column_xxx.sql
 
-# 3. 本番実行
-docker compose -f docker-compose.prod.yml exec -T database \
-  mysql -u cooking_user -p cooking_cost_system \
+# 3. テスト DB で試し実行（staging 環境がある場合は必ず実施）
+# docker compose exec -T \
+#   -e MYSQL_PWD="$(cat secrets/mysql_password.txt)" \
+#   database mysql -u cooking_user cooking_cost_system_test \
+#   < scripts/migrations/002_add_column_xxx.sql
+
+# 4. 本番実行
+# ⚠️ -p（対話プロンプト）は stdin リダイレクトと競合するため MYSQL_PWD で渡す
+docker compose -f docker-compose.prod.yml exec -T \
+  -e MYSQL_PWD="$(cat secrets/mysql_password.txt)" \
+  database mysql -u cooking_user cooking_cost_system \
   < scripts/migrations/002_add_column_xxx.sql
 
-# 4. 適用確認
-docker compose -f docker-compose.prod.yml exec database \
-  mysql -u cooking_user -p cooking_cost_system \
+# 5. 適用確認
+docker compose -f docker-compose.prod.yml exec \
+  -e MYSQL_PWD="$(cat secrets/mysql_password.txt)" \
+  database mysql -u cooking_user cooking_cost_system \
   -e "DESCRIBE items;"
 ```
 
 ### 2-4. アプリケーション再起動
 
 ```bash
-# Flask モデルが db.create_all() で新カラムを認識するため再起動が必要
+# ALTER TABLE でスキーマが変更された後、バックエンドを再起動する
+# （db.create_all() はテーブル新規作成のみ・カラム変更には効果がない）
 docker compose -f docker-compose.prod.yml restart backend
 
 # ヘルスチェック確認
 curl http://localhost:3001/api/health
+```
+
+### 2-5. マイグレーション適用記録
+
+適用したマイグレーションを手動で記録しておく（将来の Alembic 移行まで）。
+
+```bash
+# 適用済みマイグレーションを記録（VPS 上のファイルに追記）
+echo "$(date '+%Y-%m-%d %H:%M:%S') applied: 002_add_column_xxx.sql" \
+  >> /opt/cooking-cost/migrations_applied.log
+
+cat /opt/cooking-cost/migrations_applied.log
 ```
 
 ---
@@ -120,9 +148,10 @@ curl http://localhost:3001/api/health
 ### パターン A: ALTER TABLE での逆操作
 
 ```bash
-# 各マイグレーション SQL ファイルに記載のロールバック SQL を実行
-docker compose -f docker-compose.prod.yml exec -T database \
-  mysql -u cooking_user -p cooking_cost_system \
+# 各マイグレーション SQL ファイルのコメントに記載のロールバック SQL を実行
+docker compose -f docker-compose.prod.yml exec -T \
+  -e MYSQL_PWD="$(cat secrets/mysql_password.txt)" \
+  database mysql -u cooking_user cooking_cost_system \
   -e "ALTER TABLE items DROP COLUMN selling_price;"
 ```
 
@@ -132,10 +161,11 @@ docker compose -f docker-compose.prod.yml exec -T database \
 # 1. アプリを停止
 docker compose -f docker-compose.prod.yml stop backend
 
-# 2. DB コンテナに接続してリストア
+# 2. DB コンテナにリストア
 gunzip -c /opt/cooking-cost/backups/pre_migration_YYYYMMDDHHMMSS.sql.gz \
-  | docker compose -f docker-compose.prod.yml exec -T database \
-    mysql -u cooking_user -p cooking_cost_system
+  | docker compose -f docker-compose.prod.yml exec -T \
+    -e MYSQL_PWD="$(cat secrets/mysql_password.txt)" \
+    database mysql -u cooking_user cooking_cost_system
 
 # 3. 確認後アプリを再起動
 docker compose -f docker-compose.prod.yml start backend
@@ -164,10 +194,10 @@ docker compose -f docker-compose.prod.yml start backend
 
 現在の手動 SQL 管理には以下のリスクがある。
 
-- どのマイグレーションが実行済みか追跡できない
-- 複数環境での適用漏れ
+- どのマイグレーションが実行済みか自動で追跡できない（`migrations_applied.log` は手動記録）
+- 複数環境での適用漏れが発生しやすい
 
-将来的には **Alembic**（Flask-Migrate）の導入を検討する。
+将来的には **Flask-Migrate（Alembic）** の導入を検討する（issue #125）。
 
 ```bash
 # Alembic 導入時のイメージ
@@ -177,8 +207,6 @@ flask db upgrade       # 本番に適用
 flask db downgrade     # ロールバック
 ```
 
-Alembic 導入は [issue #XX] として別途管理する。
-
 ---
 
 ## 6. チェックリスト
@@ -186,9 +214,10 @@ Alembic 導入は [issue #XX] として別途管理する。
 マイグレーション前後に確認すること。
 
 **実行前**
-- [ ] バックアップが正常に取得できている
-- [ ] マイグレーション SQL を staging 環境で動作確認済み
+- [ ] バックアップが正常に取得・確認できている
+- [ ] マイグレーション SQL の内容を目視確認した
 - [ ] ロールバック SQL が準備できている
+- [ ] staging 環境で動作確認済み（ある場合）
 - [ ] メンテナンス通知を送信済み（必要な場合）
 
 **実行後**
@@ -196,3 +225,4 @@ Alembic 導入は [issue #XX] として別途管理する。
 - [ ] ヘルスチェック（`/api/health`）が 200 を返す
 - [ ] アプリケーションの主要機能が動作する
 - [ ] エラーログ（`docker compose logs backend`）に異常がない
+- [ ] `migrations_applied.log` に適用記録を追記した
