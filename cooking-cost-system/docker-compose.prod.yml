@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MySQL データベース
   database:
@@ -21,7 +19,9 @@ services:
       - mysql_root_password
       - mysql_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "cooking_user", "-p$$(cat /run/secrets/mysql_password)"]
+      # CMD-SHELL でシェル展開を有効化（CMD では $(...) が展開されないため）
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u cooking_user -p$(cat /run/secrets/mysql_password)"]
+      interval: 10s
       timeout: 20s
       retries: 10
     deploy:
@@ -46,7 +46,7 @@ services:
     environment:
       PORT: 3001
       # GUNICORN_WORKERS: デフォルト 2（512MB 制限に適した値）
-      # CPU コア数に応じて上書き可能: GUNICORN_WORKERS=5
+      # 推奨値: (2 × CPU コア数) + 1 — 必要に応じて上書き可能
       GUNICORN_WORKERS: 2
     volumes:
       - app_logs:/app/logs

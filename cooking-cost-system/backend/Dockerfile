@@ -21,8 +21,6 @@ EXPOSE 3001
 
 # HEALTHCHECK は docker-compose.prod.yml 側で一元管理する（start_period 等の調整を一箇所に集約）
 
-# Gunicorn でマルチワーカー起動（wsgi.py 経由で create_app() を呼ぶ）
-# GUNICORN_WORKERS: デフォルト 2（512MB 制限コンテナ向け）
-#   推奨公式値: (2 × CPU コア数) + 1 — docker-compose.prod.yml の environment で上書き可能
-# GUNICORN_TIMEOUT: デフォルト 120 秒
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-3001} --workers ${GUNICORN_WORKERS:-2} --timeout ${GUNICORN_TIMEOUT:-120} --access-logfile - --error-logfile - wsgi:app"]
+# Gunicorn でマルチワーカー起動（gunicorn.conf.py で bind / workers / timeout を管理）
+# GUNICORN_WORKERS・GUNICORN_TIMEOUT は docker-compose.prod.yml の environment で上書き可能
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "wsgi:app"]
