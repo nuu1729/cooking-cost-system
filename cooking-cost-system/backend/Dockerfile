@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# .pyc ファイル生成を抑制・stdout/stderr バッファリングを無効化（ログがリアルタイムで出力される）
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 # 非 root ユーザーを作成（セキュリティ強化）
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
@@ -7,7 +11,9 @@ WORKDIR /app
 
 # 依存関係を先にコピーしてキャッシュを活用
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# pip を最新版にアップグレードしてから依存関係をインストール（古い pip での依存解決問題を回避）
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # アプリケーションコードをコピー（--chown でファイル所有者を直接指定）
 COPY --chown=appuser:appuser . .

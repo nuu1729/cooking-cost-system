@@ -26,6 +26,7 @@ services:
       interval: 10s
       timeout: 20s
       retries: 10
+      start_period: 60s  # 初回起動（スキーマ適用含む）が retries × interval を超えるのを防ぐ
     deploy:
       resources:
         limits:
@@ -63,9 +64,8 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      # PORT env var からポートを取得（ハードコードを避ける）
-      # ステータスコード 200 を明示確認（urlopen はリダイレクト等でも例外を投げない場合があるため）
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request, os, sys; port=os.environ.get('PORT','3001'); res=urllib.request.urlopen(f'http://localhost:{port}/api/health'); sys.exit(0 if res.status==200 else 1)\""]
+      # healthcheck.py でステータスコード検証・エラーハンドリングを一元管理
+      test: ["CMD", "python3", "healthcheck.py"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -1,4 +1,5 @@
 import os
+import sys
 
 
 def _get_int_env(key: str, default: int) -> int:
@@ -6,27 +7,33 @@ def _get_int_env(key: str, default: int) -> int:
 
     制約: result > 0 を要求する（ゼロ・負数は不正）。
     timeout に 0（無限待ち）が必要な場合はこの関数を使わず直接 os.environ.get() を使うこと。
-    不正値の場合は ValueError を送出し起動を失敗させる。
+    不正値の場合は ValueError を送出する。
     """
     value = os.environ.get(key, str(default))
     try:
         result = int(value)
     except ValueError:
-        # int() 変換失敗と <=0 チェックを分離し、エラーメッセージの二重ネストを防ぐ
         raise ValueError(f'環境変数 {key}={value!r} は整数である必要があります') from None
     if result <= 0:
         raise ValueError(f'環境変数 {key}={value!r} は正の整数である必要があります')
     return result
 
 
-# PORT バリデーション（不正値を Gunicorn 起動前に検出する）
-_port = _get_int_env('PORT', 3001)
-if not (1 <= _port <= 65535):
-    raise ValueError(f'PORT={_port} は 1–65535 の範囲である必要があります')
-bind = f"0.0.0.0:{_port}"  # コンテナ内では 0.0.0.0 でバインド（外部公開は docker-compose で 127.0.0.1 に制限）
+# モジュールレベルの設定エラーを sys.stderr + sys.exit(1) で報告する
+# ValueError を raise すると Gunicorn の内部例外として埋もれ原因が分かりにくいため
+try:
+    _port = _get_int_env('PORT', 3001)
+    if not (1 <= _port <= 65535):
+        print(f'[FATAL] PORT={_port} は 1–65535 の範囲である必要があります', file=sys.stderr)
+        sys.exit(1)
 
-workers = _get_int_env('GUNICORN_WORKERS', 2)
-timeout = _get_int_env('GUNICORN_TIMEOUT', 120)
+    workers = _get_int_env('GUNICORN_WORKERS', 2)
+    timeout = _get_int_env('GUNICORN_TIMEOUT', 120)
+except ValueError as e:
+    print(f'[FATAL] Gunicorn 設定エラー: {e}', file=sys.stderr)
+    sys.exit(1)
+
+bind = f"0.0.0.0:{_port}"  # コンテナ内では 0.0.0.0 でバインド（外部公開は docker-compose で 127.0.0.1 に制限）
 accesslog = '-'
 errorlog = '-'
 
@@ -34,10 +41,13 @@ errorlog = '-'
 worker_class = os.environ.get('GUNICORN_WORKER_CLASS', 'sync')
 
 # worker_connections は gevent/eventlet 専用設定（sync ワーカーでは使用されない）
-# None をモジュールレベルで設定すると Gunicorn が設定値として読み込み予期しない動作をする可能性があるため、
-# sync の場合は定義自体を省略して Gunicorn のデフォルト値に委ねる
+# sync の場合は Gunicorn デフォルト値（1000）に委ねるため定義を省略する
 if worker_class != 'sync':
-    worker_connections = _get_int_env('GUNICORN_WORKER_CONNECTIONS', 1000)
+    try:
+        worker_connections = _get_int_env('GUNICORN_WORKER_CONNECTIONS', 1000)
+    except ValueError as e:
+        print(f'[FATAL] Gunicorn 設定エラー: {e}', file=sys.stderr)
+        sys.exit(1)
 
 # DB コネクションプール設計メモ:
 # workers × (pool_size + max_overflow) が MySQL の max_connections を超えないよう注意。

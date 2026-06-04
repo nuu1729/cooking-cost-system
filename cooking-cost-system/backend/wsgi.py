@@ -1,8 +1,10 @@
 import logging
 import sys
 
-# create_app() 内でロギングが設定される前に起動失敗した場合もログを出力できるようフォールバックを設定
-logging.basicConfig(level=logging.CRITICAL)
+# フォールバック設定: create_app() 内でロギングが設定される前に起動失敗した場合に備える
+# WARNING にすることで create_app() 内部の警告も捕捉できる（CRITICAL だと握りつぶす）
+# create_app() 内でロガーが設定されると basicConfig は上書きされる
+logging.basicConfig(level=logging.WARNING)
 
 try:
     from app import create_app
