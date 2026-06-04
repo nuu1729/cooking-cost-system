@@ -11,9 +11,10 @@ WORKDIR /app
 
 # 依存関係を先にコピーしてキャッシュを活用
 COPY requirements.txt ./
-# pip をアップグレードしてから依存関係をインストール
-# ⚠️ --upgrade pip はサプライチェーンリスクがあるため、厳密な環境では pip==x.y.z でバージョン固定を検討
-# 全パッケージのバージョン固定は issue #117 (pip-tools 導入) で対応予定
+# requirements.txt は pip-compile (pip-tools) で生成したロックファイル
+# 依存関係を更新する場合: python -m piptools compile requirements.in --output-file requirements.txt
+# ⚠️ Python 3.11 (本番環境) で再生成すること（異なるバージョンで生成すると解決結果が変わる場合がある）
+#    Docker が使える場合: docker compose run --rm backend pip-compile requirements.in
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
