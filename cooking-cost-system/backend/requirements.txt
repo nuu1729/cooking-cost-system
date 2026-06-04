@@ -1,6 +1,6 @@
 Flask
 flask-cors
-gunicorn>=21.0.0
+gunicorn==21.2.0
 Flask-Limiter>=4.0.0
 SQLAlchemy
 Flask-SQLAlchemy

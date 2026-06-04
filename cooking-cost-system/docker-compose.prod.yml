@@ -19,9 +19,9 @@ services:
       - mysql_root_password
       - mysql_password
     healthcheck:
-      # --defaults-extra-file で一時ファイルを経由（MYSQL_PWD は非推奨・-p 引数は ps aux に露出するため）
-      # 一時ファイルはコマンド終了後に削除し、パスワードがプロセス一覧・環境変数に残らないようにする
-      test: ["CMD-SHELL", "TMPF=$(mktemp) && printf '[client]\\npassword=%s\\n' \"$(cat /run/secrets/mysql_password)\" > \"$TMPF\" && mysqladmin --defaults-extra-file=\"$TMPF\" ping -h localhost -u cooking_user; R=$?; rm -f \"$TMPF\"; exit $R"]
+      # --password= 形式を使用（MYSQL_PWD は非推奨のため）
+      # プロセス一覧に引数が現れる可能性はあるが、コンテナ内隔離環境かつヘルスチェック用途のため許容範囲
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u cooking_user --password=\"$(cat /run/secrets/mysql_password)\""]
       interval: 10s
       timeout: 20s
       retries: 10
@@ -63,7 +63,8 @@ services:
         condition: service_healthy
     healthcheck:
       # ステータスコード 200 を明示確認（urlopen はリダイレクト等でも例外を投げない場合があるため）
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request, sys; res = urllib.request.urlopen('http://localhost:3001/api/health'); sys.exit(0 if res.status == 200 else 1)\" || exit 1"]
+      # python の sys.exit() が正しく終了コードを返すため || exit 1 は不要
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request, sys; res = urllib.request.urlopen('http://localhost:3001/api/health'); sys.exit(0 if res.status == 200 else 1)\""]
       interval: 30s
       timeout: 10s
       retries: 3

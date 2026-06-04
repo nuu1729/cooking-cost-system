@@ -18,7 +18,7 @@ def _get_int_env(key: str, default: int) -> int:
 _port = _get_int_env('PORT', 3001)
 if not (1 <= _port <= 65535):
     raise ValueError(f'PORT={_port} は 1–65535 の範囲である必要があります')
-bind = f"0.0.0.0:{_port}"
+bind = f"0.0.0.0:{_port}"  # コンテナ内では 0.0.0.0 でバインド（外部公開は docker-compose で 127.0.0.1 に制限）
 
 workers = _get_int_env('GUNICORN_WORKERS', 2)
 timeout = _get_int_env('GUNICORN_TIMEOUT', 120)
@@ -29,7 +29,8 @@ errorlog = '-'
 worker_class = os.environ.get('GUNICORN_WORKER_CLASS', 'sync')
 
 # worker_connections は gevent/eventlet 専用設定（sync ワーカーでは使用されない）
-# worker_class を sync 以外に変更した場合のみ有効になる
+# None を明示することで将来 worker_class を変更した際の設定漏れを防ぐ
+worker_connections = None
 if worker_class != 'sync':
     worker_connections = _get_int_env('GUNICORN_WORKER_CONNECTIONS', 1000)
 
