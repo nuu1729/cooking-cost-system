@@ -14,7 +14,7 @@ try:
     port = int(port_str)
     if not (1 <= port <= 65535):
         raise ValueError(f'PORT={port} は 1–65535 の範囲外です')
-    with urllib.request.urlopen(f'http://localhost:{port}/api/health', timeout=5) as res:
+    with urllib.request.urlopen(f'http://localhost:{port}/health', timeout=5) as res:
         sys.exit(0 if res.status == 200 else 1)
 except urllib.error.HTTPError:
     # 4xx/5xx: HTTP エラーを明示的にキャッチして異常終了
