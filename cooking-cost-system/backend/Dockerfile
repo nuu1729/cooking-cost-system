@@ -17,12 +17,15 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# ディレクトリを先に作成（COPY 前に作ることで .dockerignore に logs/uploads が含まれていても
+# ホストのファイルで上書きされるリスクを防ぐ）
+RUN mkdir -p logs uploads
+
 # アプリケーションコードをコピー（--chown でファイル所有者を直接指定）
 COPY --chown=appuser:appuser . .
 
-# COPY より後にディレクトリ作成・所有者設定
-# （mkdir を COPY 前に行うと root 所有のまま残り appuser が書き込めない）
-RUN mkdir -p logs uploads && chown appuser:appuser logs uploads
+# COPY 後に所有者を確実に設定（COPY --chown は既存ディレクトリの所有者を変更しないため）
+RUN chown appuser:appuser logs uploads
 
 USER appuser
 

@@ -22,10 +22,11 @@ def _get_int_env(key: str, default: int) -> int:
 # モジュールレベルの設定エラーを stderr に出力して raise で Gunicorn に伝播させる
 # sys.exit(1) は wsgi.py と方針矛盾（master プロセスへの例外伝播が望ましい）
 try:
+    # _get_int_env で <=0 は弾かれる。ここでは上限（>65535）のみを追加でチェックする。
     _port = _get_int_env('PORT', 3001)
-    if not (1 <= _port <= 65535):
-        print(f'[FATAL] PORT={_port} は 1–65535 の範囲である必要があります', file=sys.stderr)
-        raise ValueError(f'PORT={_port} は 1–65535 の範囲外です')
+    if _port > 65535:
+        print(f'[FATAL] PORT={_port} は 65535 以下である必要があります', file=sys.stderr)
+        raise ValueError(f'PORT={_port} は 65535 以下である必要があります')
 
     workers = _get_int_env('GUNICORN_WORKERS', 2)
     timeout = _get_int_env('GUNICORN_TIMEOUT', 120)
