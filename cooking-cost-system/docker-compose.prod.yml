@@ -19,8 +19,8 @@ services:
       - mysql_root_password
       - mysql_password
     healthcheck:
-      # CMD-SHELL でシェル展開を有効化（CMD では $(...) が展開されないため）
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u cooking_user -p$(cat /run/secrets/mysql_password)"]
+      # MYSQL_PWD 環境変数でパスワードを渡す（-p 引数だと ps aux でプロセス一覧に露出するため）
+      test: ["CMD-SHELL", "MYSQL_PWD=$(cat /run/secrets/mysql_password) mysqladmin ping -h localhost -u cooking_user"]
       interval: 10s
       timeout: 20s
       retries: 10
@@ -59,11 +59,12 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3001/api/health')"]
+      # CMD-SHELL + exit 1 で接続エラー時の終了コードを確実に伝播させる
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request, sys; urllib.request.urlopen('http://localhost:3001/api/health')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s  # Gunicorn 起動 + DB 接続初期化に余裕を持たせる
     deploy:
       resources:
         limits:

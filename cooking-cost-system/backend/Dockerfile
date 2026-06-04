@@ -9,11 +9,11 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# アプリケーションコードをコピー
-COPY . .
+# ログ・アップロードディレクトリを事前作成（COPY より前に行うことで chown -R を不要にする）
+RUN mkdir -p logs uploads
 
-# ログ・アップロードディレクトリを作成し所有者を変更
-RUN mkdir -p logs uploads && chown -R appuser:appuser /app
+# COPY --chown でファイル所有者を直接指定（別途 chown -R するよりレイヤーサイズが小さい）
+COPY --chown=appuser:appuser . .
 
 USER appuser
 

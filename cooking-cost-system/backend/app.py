@@ -63,6 +63,8 @@ def create_app():
         # preload は HSTS preload list への登録が必要なため現時点では無効
         strict_transport_security=is_production,
         strict_transport_security_max_age=31536000,  # is_production=False 時は無視される
+        # includeSubDomains: VPS 上の全サービスが HTTPS 対応済みであることを前提とする
+        # HTTP のみのサブドメインが存在する場合はここを False に変更すること
         strict_transport_security_include_subdomains=True,
         content_security_policy=False,  # SPA のため CSP は Cloudflare Pages 側で管理
         frame_options='DENY',
