@@ -33,6 +33,8 @@ services:
 
   # バックエンド API（Gunicorn + Flask）
   # フロントエンドは Cloudflare Pages にデプロイするためここには含めない
+  # DB 接続情報（DATABASE_URL_PRODUCTION）は .env.production 経由で渡すため
+  # secrets から mysql_password を参照しない（secrets は DB コンテナ起動用のみ）
   backend:
     build:
       context: ./backend
@@ -43,6 +45,9 @@ services:
       - ./backend/.env.production
     environment:
       PORT: 3001
+      # GUNICORN_WORKERS: デフォルト 2（512MB 制限に適した値）
+      # CPU コア数に応じて上書き可能: GUNICORN_WORKERS=5
+      GUNICORN_WORKERS: 2
     volumes:
       - app_logs:/app/logs
       - app_uploads:/app/uploads
@@ -66,7 +71,8 @@ services:
         reservations:
           memory: 256M
 
-# Docker Swarm シークレット（mysql_root_password のみ Swarm で管理）
+# file ベースのシークレット（Docker Compose 標準機能・Swarm 不要）
+# database コンテナの初期化のみに使用。backend は .env.production 経由で接続するため参照しない。
 secrets:
   mysql_root_password:
     file: ./secrets/mysql_root_password.txt

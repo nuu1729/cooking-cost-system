@@ -43,23 +43,27 @@ def create_app():
     else:
         app.config.from_object('config.DevelopmentConfig')
 
-    # Caddy がリバースプロキシとして X-Forwarded-* ヘッダーを付与するため ProxyFix を適用
-    # x_for=1: 1段のプロキシ（Caddy）を信頼
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    is_production = (env == 'production')
+
+    # ProxyFix: 本番環境のみ適用（開発時はプロキシがなく X-Forwarded-* を偽装されるリスクがある）
+    # x_for=1: Caddy 1段のみ信頼。VPS 構成が変わった場合はここを更新すること。
+    if is_production:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',')]
     logging.getLogger(__name__).info('CORS origins: %s', cors_origins)
     CORS(app, resources={r'/api/*': {'origins': cors_origins}, r'/uploads/*': {'origins': cors_origins}})
 
-    is_production = (env == 'production')
     Talisman(
         app,
-        # HTTPS 終端は Caddy が担うため Flask 側では force_https=False
-        # （Caddy → Flask 間は内部 HTTP 通信）
+        # force_https=False: HTTPS 終端は Caddy が担う（Caddy → Flask 間は内部 HTTP）
+        # Flask-Talisman の HSTS ヘッダーは Caddy を経由してクライアントまで届く
         force_https=False,
-        # 本番では HSTS・CSP を有効化（Caddy でも設定するが Flask 側でも二重で保護）
+        # 本番では HSTS を有効化（max-age=1年・サブドメイン含む）
+        # preload は HSTS preload list への登録が必要なため現時点では無効
         strict_transport_security=is_production,
         strict_transport_security_max_age=31536000 if is_production else 0,
+        strict_transport_security_include_subdomains=is_production,
         content_security_policy=False,  # SPA のため CSP は Cloudflare Pages 側で管理
         frame_options='DENY',
         x_content_type_options=True,

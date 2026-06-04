@@ -19,14 +19,10 @@ USER appuser
 
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:3001/api/health')" || exit 1
+# HEALTHCHECK は docker-compose.prod.yml 側で一元管理する（start_period 等の調整を一箇所に集約）
 
 # Gunicorn でマルチワーカー起動（wsgi.py 経由で create_app() を呼ぶ）
-CMD ["gunicorn", \
-     "--bind", "0.0.0.0:3001", \
-     "--workers", "4", \
-     "--timeout", "120", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "wsgi:app"]
+# GUNICORN_WORKERS: デフォルト 2（512MB 制限コンテナ向け）
+#   推奨公式値: (2 × CPU コア数) + 1 — docker-compose.prod.yml の environment で上書き可能
+# GUNICORN_TIMEOUT: デフォルト 120 秒
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-3001} --workers ${GUNICORN_WORKERS:-2} --timeout ${GUNICORN_TIMEOUT:-120} --access-logfile - --error-logfile - wsgi:app"]
