@@ -41,6 +41,8 @@ services:
       dockerfile: Dockerfile
     container_name: cooking-cost-backend-prod
     restart: unless-stopped
+    # ⚠️ env_file で読み込んだ環境変数は `docker inspect` で平文参照可能
+    # Phase2 以降で Docker Secrets + entrypoint.sh による DATABASE_URL 構築に移行予定（issue #119）
     env_file:
       - ./backend/.env.production
     environment:
@@ -59,8 +61,8 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      # CMD-SHELL + exit 1 で接続エラー時の終了コードを確実に伝播させる
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request, sys; urllib.request.urlopen('http://localhost:3001/api/health')\" || exit 1"]
+      # ステータスコード 200 を明示確認（urlopen はリダイレクト等でも例外を投げない場合があるため）
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request, sys; res = urllib.request.urlopen('http://localhost:3001/api/health'); sys.exit(0 if res.status == 200 else 1)\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
