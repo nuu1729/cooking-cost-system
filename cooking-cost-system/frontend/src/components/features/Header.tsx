@@ -32,14 +32,20 @@ const Header: React.FC = () => {
     }, [drawerOpen]);
 
     // ドロワー展開中は背景スクロールを禁止
+    // paddingRight でスクロールバー消失時のレイアウトシフトを防止
     useEffect(() => {
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
         document.body.style.overflow = drawerOpen ? 'hidden' : '';
-        return () => { document.body.style.overflow = ''; };
+        document.body.style.paddingRight = drawerOpen ? `${scrollbarWidth}px` : '';
+        return () => {
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        };
     }, [drawerOpen]);
 
-    // アカウント画面へ遷移（ドロワーも閉じる）
+    // アカウント画面へ遷移（ドロワーが開いている場合のみ閉じる）
     const handleAccountNav = () => {
-        closeDrawer();
+        if (drawerOpen) closeDrawer();
         navigate('/account');
     };
 
@@ -98,7 +104,7 @@ const Header: React.FC = () => {
 
                 {/* Mobile: Title + Hamburger */}
                 <div className="sm:hidden ml-auto flex items-center gap-3 pr-4">
-                    <span className="text-base font-bold text-black tracking-tight">料理原価計算</span>
+                    <span className="text-sm font-bold text-black tracking-tight">料理原価計算システム</span>
                     <button
                         type="button"
                         onClick={() => setDrawerOpen(true)}

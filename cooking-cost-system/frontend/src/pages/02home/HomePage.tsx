@@ -31,7 +31,7 @@ const HomePage: React.FC = () => {
             </div>
 
             {/* Image area */}
-            <div className="w-full sm:w-[35%] h-[50vw] sm:h-full relative overflow-hidden">
+            <div className="w-full sm:w-[35%] h-[50vw] max-h-[300px] sm:h-full sm:max-h-none relative overflow-hidden">
                 {bgUrl ? (
                     <img
                         src={bgUrl}

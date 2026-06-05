@@ -53,6 +53,8 @@ $j-danger-bg       : #fff0ee;
   box-sizing: border-box;
   align-items: start;
 
+  // 641px〜900px はタブレット扱いとして2カラム維持（意図的）
+  // スマートフォン（≤640px）のみシングルカラムに切り替え
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
     padding-left: 0;
