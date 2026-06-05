@@ -21,10 +21,11 @@ const Header: React.FC = () => {
 
     const closeDrawer = () => setDrawerOpen(false);
 
-    // Esc キーでドロワーを閉じる
+    // Esc キーでドロワーを閉じる（open 時のみリスナー登録）
     useEffect(() => {
+        if (!drawerOpen) return;
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape' && drawerOpen) closeDrawer();
+            if (e.key === 'Escape') closeDrawer();
         };
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
@@ -122,15 +123,16 @@ const Header: React.FC = () => {
                 />
             )}
 
-            {/* Mobile Drawer — inert で閉じている間のフォーカスを完全にブロック */}
+            {/* Mobile Drawer
+                - inert: フォーカスを完全にブロック（モダンブラウザ）
+                - invisible: inert 非対応ブラウザでもフォーカスを排除 */}
             <div
                 id="mobile-drawer"
                 role="dialog"
                 aria-modal="true"
                 aria-label="ナビゲーションメニュー"
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                {...(!drawerOpen ? { inert: '' } : {}) as any}
-                className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                inert={drawerOpen ? undefined : ''}
+                className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0 visible' : 'translate-x-full invisible'}`}
             >
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
@@ -160,7 +162,9 @@ const Header: React.FC = () => {
                             }
                         >
                             <span className="flex-1">{item.label}</span>
-                            <span className="text-[10px] font-bold text-gray-400 tracking-widest">{item.subLabel}</span>
+                            {item.subLabel && (
+                                <span className="text-[10px] font-bold text-gray-400 tracking-widest">{item.subLabel}</span>
+                            )}
                         </NavLink>
                     ))}
                 </nav>
