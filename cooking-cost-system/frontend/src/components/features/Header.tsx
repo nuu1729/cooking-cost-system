@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import AccountIcon from './AccountIcon';
 
@@ -21,6 +21,27 @@ const Header: React.FC = () => {
 
     const closeDrawer = () => setDrawerOpen(false);
 
+    // Esc キーでドロワーを閉じる
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && drawerOpen) closeDrawer();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [drawerOpen]);
+
+    // ドロワー展開中は背景スクロールを禁止
+    useEffect(() => {
+        document.body.style.overflow = drawerOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [drawerOpen]);
+
+    // アカウント画面へ遷移（ドロワーも閉じる）
+    const handleAccountNav = () => {
+        closeDrawer();
+        navigate('/account');
+    };
+
     return (
         <>
             <header className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50 overflow-visible border-b border-gray-300">
@@ -29,7 +50,7 @@ const Header: React.FC = () => {
                     <div className="absolute top-0 left-0 z-50 flex items-center justify-center" style={{ height: '80px', width: '80px' }}>
                         <button
                             type="button"
-                            onClick={() => navigate('/account')}
+                            onClick={handleAccountNav}
                             style={{
                                 background: 'none',
                                 border: 'none',
@@ -41,7 +62,6 @@ const Header: React.FC = () => {
                                 borderRadius: '50%',
                                 transition: 'box-shadow 0.2s',
                             }}
-                            className="account-icon-btn"
                             title="アカウント情報"
                             aria-label="アカウント情報を表示"
                         >
@@ -82,6 +102,8 @@ const Header: React.FC = () => {
                         type="button"
                         onClick={() => setDrawerOpen(true)}
                         aria-label="メニューを開く"
+                        aria-expanded={drawerOpen}
+                        aria-controls="mobile-drawer"
                         className="flex flex-col justify-center items-center w-11 h-11 gap-[5px] rounded-lg hover:bg-black/10 transition-colors"
                     >
                         <span className="block w-6 h-0.5 bg-gray-700 rounded" />
@@ -89,12 +111,6 @@ const Header: React.FC = () => {
                         <span className="block w-6 h-0.5 bg-gray-700 rounded" />
                     </button>
                 </div>
-
-                <style>{`
-                    .account-icon-btn:hover .account-icon-wrapper {
-                        box-shadow: 0 0 0 3px rgba(0,0,0,0.18);
-                    }
-                `}</style>
             </header>
 
             {/* Mobile Drawer Overlay */}
@@ -106,10 +122,15 @@ const Header: React.FC = () => {
                 />
             )}
 
-            {/* Mobile Drawer */}
+            {/* Mobile Drawer — inert で閉じている間のフォーカスを完全にブロック */}
             <div
+                id="mobile-drawer"
+                role="dialog"
+                aria-modal="true"
+                aria-label="ナビゲーションメニュー"
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                {...(!drawerOpen ? { inert: '' } : {}) as any}
                 className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
-                aria-hidden={!drawerOpen}
             >
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
@@ -148,7 +169,7 @@ const Header: React.FC = () => {
                 <div className="border-t border-gray-200 p-4">
                     <button
                         type="button"
-                        onClick={() => { navigate('/account'); closeDrawer(); }}
+                        onClick={handleAccountNav}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
                     >
                         <AccountIcon size={28} />

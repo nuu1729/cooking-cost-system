@@ -345,9 +345,17 @@
             overflow-x: hidden;
 
             .custom-table {
-                // thead を非表示
+                // thead はスクリーンリーダー向けに残し、視覚的のみ非表示（sr-only）
                 thead {
-                    display: none;
+                    position: absolute;
+                    width: 1px;
+                    height: 1px;
+                    padding: 0;
+                    margin: -1px;
+                    overflow: hidden;
+                    clip: rect(0, 0, 0, 0);
+                    white-space: nowrap;
+                    border: 0;
                 }
 
                 // tbody tr をカード風に

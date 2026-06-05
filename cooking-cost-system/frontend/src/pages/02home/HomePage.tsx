@@ -32,9 +32,6 @@ const HomePage: React.FC = () => {
 
             {/* Image area */}
             <div className="w-full sm:w-[35%] h-[50vw] sm:h-full relative overflow-hidden">
-                <div className="absolute inset-0 sm:hidden">
-                    {/* Mobile: fixed height image strip */}
-                </div>
                 {bgUrl ? (
                     <img
                         src={bgUrl}

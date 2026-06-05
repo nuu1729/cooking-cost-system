@@ -8,7 +8,9 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
-    allowedHosts: true,
+    // DNS リバインディング攻撃を防ぐため localhost のみ許可
+    // トンネル使用時は環境変数で上書き: VITE_ALLOWED_HOSTS=xxx npx vite
+    allowedHosts: ['localhost', '127.0.0.1'],
     /* 
     proxy: {
       '/api': {
