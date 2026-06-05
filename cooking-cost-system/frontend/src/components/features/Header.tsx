@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import AccountIcon from './AccountIcon';
 
@@ -19,7 +19,7 @@ const Header: React.FC = () => {
     const navigate = useNavigate();
     const [drawerOpen, setDrawerOpen] = useState(false);
 
-    const closeDrawer = () => setDrawerOpen(false);
+    const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
     // Esc キーでドロワーを閉じる（open 時のみリスナー登録）
     useEffect(() => {
@@ -29,14 +29,16 @@ const Header: React.FC = () => {
         };
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [drawerOpen]);
+    }, [drawerOpen, closeDrawer]);
 
     // ドロワー展開中は背景スクロールを禁止
     // paddingRight でスクロールバー消失時のレイアウトシフトを防止
+    // cleanup は開いているときのみ解除し、他コンポーネントの body.overflow を上書きしない
     useEffect(() => {
+        if (!drawerOpen) return;
         const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-        document.body.style.overflow = drawerOpen ? 'hidden' : '';
-        document.body.style.paddingRight = drawerOpen ? `${scrollbarWidth}px` : '';
+        document.body.style.overflow = 'hidden';
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
         return () => {
             document.body.style.overflow = '';
             document.body.style.paddingRight = '';
