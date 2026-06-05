@@ -331,3 +331,65 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+// ─── スマートフォン対応（640px以下）────────────────────────────────
+@media (max-width: 640px) {
+    .account-page {
+        padding: 16px;
+        align-items: stretch;
+    }
+
+    .account-card {
+        padding: 24px 16px;
+
+        &__title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+    }
+
+    // 2カラム → 1カラム
+    .account-body {
+        grid-template-columns: 1fr;
+        gap: 0;
+
+        &__col {
+            gap: 24px;
+        }
+
+        &__footer {
+            flex-direction: column;
+            align-items: stretch;
+
+            button {
+                width: 100%;
+                padding: 12px;
+                font-size: 1rem;
+            }
+        }
+    }
+
+    // アイコンプレビューを縦積みに
+    .account-icon-preview {
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+
+        &__circle {
+            width: 80px;
+            height: 80px;
+        }
+    }
+
+    // モーダルのパディングを縮小・横幅を画面内に収める
+    .account-modal {
+        padding: 28px 24px;
+        margin: 16px;
+        width: calc(100% - 32px);
+        max-width: none;
+
+        &__text {
+            font-size: 1.05rem;
+        }
+    }
+}

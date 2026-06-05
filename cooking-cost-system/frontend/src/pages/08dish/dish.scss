@@ -32,11 +32,11 @@ $c-card-border : #e2e8f0;
   flex-direction: column;
   align-items: center;
 
-  @media (max-width: 768px) {
-    overflow-y: auto;
+  @media (max-width: 640px) {
+    overflow: visible;
     padding: 1rem;
     height: auto;
-    min-height: 100%;
+    min-height: unset;
   }
 }
 
@@ -56,7 +56,7 @@ $c-card-border : #e2e8f0;
   padding-left: 110px;
   box-sizing: border-box;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
     padding-left: 0;
     height: auto;
@@ -78,7 +78,7 @@ $c-card-border : #e2e8f0;
   padding-top: 65px;
   box-sizing: border-box;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     padding-top: 0;
     height: auto;
     overflow: visible;
@@ -306,7 +306,7 @@ $c-card-border : #e2e8f0;
   overflow: hidden;
   box-sizing: border-box;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     height: auto;
     overflow: visible;
     .dish-cards-area { min-height: 260px; }
@@ -431,12 +431,9 @@ $c-card-border : #e2e8f0;
   padding: 0 0 1.25rem 0;
   overflow: hidden;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     overflow: visible;
     padding-bottom: 0;
-  }
-
-  @media (max-width: 540px) {
     flex-direction: column;
     align-items: stretch;
   }
