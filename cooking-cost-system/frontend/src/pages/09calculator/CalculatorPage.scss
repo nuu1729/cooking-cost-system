@@ -36,7 +36,11 @@ $j-danger-bg       : #fff0ee;
   &::-webkit-scrollbar { width: 6px; }
   &::-webkit-scrollbar-thumb { background: #bbb; border-radius: 6px; }
 
-  @media (max-width: 768px) { padding: 1rem; }
+  @media (max-width: 640px) {
+    padding: 1rem;
+    height: auto;
+    overflow: visible;
+  }
 }
 
 .calc-layout {
@@ -49,7 +53,9 @@ $j-danger-bg       : #fff0ee;
   box-sizing: border-box;
   align-items: start;
 
-  @media (max-width: 900px) {
+  // 641px〜900px はタブレット扱いとして2カラム維持（意図的）
+  // スマートフォン（≤640px）のみシングルカラムに切り替え
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
     padding-left: 0;
   }
@@ -65,7 +71,7 @@ $j-danger-bg       : #fff0ee;
   position: sticky;
   top: 1rem;
 
-  @media (max-width: 900px) {
+  @media (max-width: 640px) {
     position: static;
   }
 }
