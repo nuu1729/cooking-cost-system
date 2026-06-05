@@ -15,7 +15,7 @@ const HomePage: React.FC = () => {
     }, []);
 
     return (
-        <div className="relative flex flex-col sm:flex-row h-full bg-white">
+        <div className="relative flex flex-col sm:flex-row h-auto sm:h-full bg-white">
             {/* Content area */}
             <div className="flex items-center justify-center p-8 sm:p-12 relative z-10 w-full sm:w-[65%] min-h-[40vh] sm:min-h-0">
                 <motion.div

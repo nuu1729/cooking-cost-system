@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import AccountIcon from './AccountIcon';
 
@@ -20,6 +20,12 @@ const Header: React.FC = () => {
     const [drawerOpen, setDrawerOpen] = useState(false);
 
     const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+    // ドロワーを開いたとき閉じるボタンにフォーカスを移動（WAI-ARIA dialog 要件）
+    useEffect(() => {
+        if (drawerOpen) closeButtonRef.current?.focus();
+    }, [drawerOpen]);
 
     // Esc キーでドロワーを閉じる（open 時のみリスナー登録）
     useEffect(() => {
@@ -146,6 +152,7 @@ const Header: React.FC = () => {
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                     <span className="font-bold text-gray-800">メニュー</span>
                     <button
+                        ref={closeButtonRef}
                         type="button"
                         onClick={closeDrawer}
                         aria-label="メニューを閉じる"
