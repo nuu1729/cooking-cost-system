@@ -36,4 +36,6 @@ EXPOSE 3001
 # HEALTHCHECK は docker-compose.prod.yml 側で一元管理する（start_period 等の調整を一箇所に集約）
 
 # entrypoint.sh が Docker secrets を読み込み DATABASE_URL_PRODUCTION を構築した後に Gunicorn を起動する
+# CMD を残すことでデバッグ時に docker run ... /bin/sh 等で上書き可能
 ENTRYPOINT ["./entrypoint.sh"]
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "wsgi:app"]
