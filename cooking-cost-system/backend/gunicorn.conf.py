@@ -22,8 +22,8 @@ def _get_int_env(key: str, default: int) -> int:
 # モジュールレベルの設定エラーを stderr に出力して raise で Gunicorn に伝播させる
 # sys.exit(1) は wsgi.py と方針矛盾（master プロセスへの例外伝播が望ましい）
 
-# try 失敗時に on_starting が NameError にならないよう事前宣言
-workers: int = 0
+# try 失敗時に on_starting が NameError にならないよう事前宣言（None のまま on_starting が呼ばれた場合は RuntimeError）
+workers: int | None = None
 
 try:
     # _get_int_env で <=0 は弾かれる。ここでは上限（>65535）のみを追加でチェックする。
@@ -63,6 +63,8 @@ if worker_class != 'sync':
 
 def on_starting(server):
     """Gunicorn master プロセス起動時に1回だけ呼ばれる（ワーカーフォーク前）"""
+    if not workers:
+        raise RuntimeError('workers が初期化されていません。Gunicorn 設定エラーを確認してください。')
     server.log.info(
         'Gunicorn starting | FLASK_ENV=%s workers=%d worker_class=%s bind=%s',
         os.environ.get('FLASK_ENV', 'development'),

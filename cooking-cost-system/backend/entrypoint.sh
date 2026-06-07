@@ -2,6 +2,7 @@
 # Docker secrets からパスワードを読み込み、DATABASE_URL_PRODUCTION を構築してから
 # Gunicorn を起動する。引数でシークレットをプロセスに渡さないことで漏洩を防ぐ。
 # pipefail は /bin/sh では非対応のため、パイプ内エラーは個別に確認する
+# ⚠️ set -x をデバッグ目的で有効にしないこと。DB_PASSWORD 等の変数値がログに平文で出力される。
 set -eu
 
 # --- ヘルパー関数 ---
@@ -40,6 +41,8 @@ DB_PASSWORD=$(sed -n '1{s/[[:space:]]*$//;p}' /run/secrets/mysql_password) || {
     exit 1
 }
 if [ -z "$DB_PASSWORD" ]; then
+    # check_secret はバイト数チェック（[ ! -s ]）のため whitespace-only を通過させる。
+    # sed 後の空文字列チェックで補完する。
     echo "Error: mysql_password secret is empty or whitespace-only." >&2
     exit 1
 fi
@@ -71,6 +74,7 @@ export SECRET_KEY
 DB_HOST="${DB_HOST:?DB_HOST must be set}"
 DB_USER="${DB_USER:?DB_USER must be set}"
 DB_NAME="${DB_NAME:?DB_NAME must be set}"
+DB_PORT="${DB_PORT:-3306}"
 
 # NOTE: DATABASE_URL_PRODUCTION 自体にパスワードが含まれるため /proc/<pid>/environ の
 #       漏洩リスクは残る。unset は DB_PASSWORD / DB_PASSWORD_ENCODED の残存を防ぐためのもの。
@@ -83,7 +87,7 @@ sys.stdout.write(urllib.parse.quote(sys.stdin.read(), safe=''))
     echo "Error: Failed to URL-encode password." >&2
     exit 1
 }
-export DATABASE_URL_PRODUCTION="mysql+pymysql://${DB_USER}:${DB_PASSWORD_ENCODED}@${DB_HOST}:3306/${DB_NAME}"
+export DATABASE_URL_PRODUCTION="mysql+pymysql://${DB_USER}:${DB_PASSWORD_ENCODED}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
 # パスワード変数をクリア（DATABASE_URL 構築済みの変数残存防止）
 unset DB_PASSWORD
