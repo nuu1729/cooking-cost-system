@@ -26,7 +26,8 @@ RUN mkdir -p logs uploads
 COPY --chown=appuser:appuser . .
 
 # COPY 後に所有者を確実に設定（COPY --chown は既存ディレクトリの所有者を変更しないため）
-RUN chown appuser:appuser logs uploads
+RUN chown appuser:appuser logs uploads \
+    && chmod +x entrypoint.sh
 
 USER appuser
 
@@ -34,6 +35,5 @@ EXPOSE 3001
 
 # HEALTHCHECK は docker-compose.prod.yml 側で一元管理する（start_period 等の調整を一箇所に集約）
 
-# Gunicorn でマルチワーカー起動（gunicorn.conf.py で bind / workers / timeout を管理）
-# GUNICORN_WORKERS・GUNICORN_TIMEOUT は docker-compose.prod.yml の environment で上書き可能
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "wsgi:app"]
+# entrypoint.sh が Docker secrets を読み込み DATABASE_URL_PRODUCTION を構築した後に Gunicorn を起動する
+ENTRYPOINT ["./entrypoint.sh"]
