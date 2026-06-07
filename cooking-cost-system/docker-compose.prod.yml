@@ -90,6 +90,8 @@ services:
 # file ベースのシークレット（Docker Compose 標準機能・Swarm 不要）
 # mysql_root_password は database コンテナの初期化のみに使用。
 # mysql_password・jwt_secret・secret_key は database 初期化と backend 双方から参照される。
+# ⚠️ secrets/*.txt のパーミッションを 600 に設定すること（owner read-only）
+#    例: chmod 600 secrets/*.txt
 secrets:
   mysql_root_password:
     file: ./secrets/mysql_root_password.txt
