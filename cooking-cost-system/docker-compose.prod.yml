@@ -54,6 +54,10 @@ services:
     env_file:
       - ./backend/.env.production
     environment:
+      # FLASK_ENV は Flask 3.0 で公式サポート廃止だが、app.py が os.environ.get('FLASK_ENV') で
+      # 独自に参照しているため引き続き必要（Flask フレームワーク自体は無視する）
+      FLASK_ENV: production
+      FLASK_DEBUG: "false"
       PORT: 3001
       # DB 接続パラメータ（非機密。パスワードのみ secrets 経由）
       DB_USER: cooking_user

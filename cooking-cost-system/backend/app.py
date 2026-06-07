@@ -52,7 +52,7 @@ def create_app():
     if is_production:
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=0)
 
-    cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',')]
+    cors_origins = [o.strip() for o in app.config['CORS_ORIGIN'].split(',') if o.strip()]
     logging.getLogger(__name__).info('CORS origins: %s', cors_origins)
     CORS(app, resources={r'/api/*': {'origins': cors_origins}, r'/uploads/*': {'origins': cors_origins}})
 
