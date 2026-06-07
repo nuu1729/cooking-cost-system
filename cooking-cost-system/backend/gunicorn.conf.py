@@ -63,7 +63,7 @@ if worker_class != 'sync':
 
 def on_starting(server):
     """Gunicorn master プロセス起動時に1回だけ呼ばれる（ワーカーフォーク前）"""
-    if not workers:
+    if workers is None:
         raise RuntimeError('workers が初期化されていません。Gunicorn 設定エラーを確認してください。')
     server.log.info(
         'Gunicorn starting | FLASK_ENV=%s workers=%d worker_class=%s bind=%s',
