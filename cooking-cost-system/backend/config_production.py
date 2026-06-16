@@ -3,10 +3,11 @@ import re
 from urllib.parse import quote_plus
 from config import Config, validate_cors_origins
 
-SECRETS_DIR = '/run/secrets'
+# テスト・非標準環境向けに環境変数で上書き可能
+SECRETS_DIR = os.environ.get('SECRETS_DIR', '/run/secrets')
 
 # DB_USER・DB_HOST・DB_NAME に許可する文字（URI を壊す `@` `:` `/` 等を排除）
-_DB_COMPONENT_RE = re.compile(r'[A-Za-z0-9_.\-]+')
+_DB_COMPONENT_RE = re.compile(r'[A-Za-z0-9_.-]+')
 
 
 def _require_env(name: str) -> str:
@@ -33,6 +34,8 @@ def _read_secret_file(name: str) -> str | None:
         raise RuntimeError(f'secrets ファイル {path} を読み込めませんでした: {e}') from e
     if not value:
         raise RuntimeError(f'secrets ファイル {path} が空です。設定を確認してください。')
+    if any(c in value for c in (' ', '\t', '\n', '\r')):
+        raise RuntimeError(f'secrets ファイル {path} に空白文字が含まれています。貼り付けミスの可能性があります。')
     return value
 
 
@@ -54,6 +57,8 @@ def _validate_db_component(value: str, env_name: str) -> str:
 
 
 def _validate_db_port(value: str) -> str:
+    if not value:
+        raise RuntimeError('DB_PORT が空です。')
     if not value.isdigit() or not (1 <= int(value) <= 65535):
         raise RuntimeError(f'DB_PORT が不正です（1-65535 の数値を指定してください）: {value!r}')
     return value
@@ -62,7 +67,10 @@ def _validate_db_port(value: str) -> str:
 def _build_database_uri() -> str:
     """mysql_password secrets ファイルが存在する場合は DB_USER/DB_HOST/DB_PORT/DB_NAME
     （非機密、デフォルト値あり）と組み合わせて URI を構築。
-    secrets ファイルが存在しない場合は DATABASE_URL_PRODUCTION 環境変数にフォールバック。"""
+    secrets ファイルが存在しない場合は DATABASE_URL_PRODUCTION 環境変数にフォールバック。
+    このフォールバックは setup-vps.sh 経由のデプロイでは到達しない
+    （setup_secrets() が secrets/mysql_password.txt を必ず生成するため）。
+    Docker secrets を使わない代替デプロイ環境専用のパス。"""
     password = _read_secret_file('mysql_password')
     if password is not None:
         user = _validate_db_component(os.environ.get('DB_USER', 'cooking_user'), 'DB_USER')
