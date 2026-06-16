@@ -2,6 +2,8 @@ import os
 from urllib.parse import quote_plus
 from config import Config, validate_cors_origins
 
+SECRETS_DIR = '/run/secrets'
+
 
 def _require_env(name: str) -> str:
     val = os.environ.get(name)
@@ -10,30 +12,43 @@ def _require_env(name: str) -> str:
     return val
 
 
-def _load_secret(name: str, env_fallback: str) -> str:
-    """Docker secrets ファイル (/run/secrets/<name>) を優先して読み込む。
-    ファイルが存在しない場合は env_fallback 環境変数にフォールバック
-    （Docker secrets 非対応のデプロイ環境との後方互換性のため）。"""
-    path = f'/run/secrets/{name}'
-    if os.path.exists(path):
+def _read_secret_file(name: str) -> str | None:
+    """Docker secrets ファイル ({SECRETS_DIR}/<name>) の内容を返す。
+    ファイルが存在しない場合は None（呼び出し側でフォールバック判断）。
+    ファイルが存在するが空の場合はエラー（設定ミスの可能性が高く、
+    フォールバックで隠さず早期に検知する）。"""
+    path = os.path.join(SECRETS_DIR, name)
+    try:
         with open(path) as f:
             value = f.read().strip()
-        if value:
-            return value
+    except FileNotFoundError:
+        return None
+    if not value:
+        raise RuntimeError(f'secrets ファイル {path} が空です。設定を確認してください。')
+    return value
+
+
+def _load_secret(name: str, env_fallback: str) -> str:
+    """secrets ファイルを優先して読み込む。
+    ファイルが存在しない場合は env_fallback 環境変数にフォールバック
+    （Docker secrets 非対応のデプロイ環境との後方互換性のため）。"""
+    value = _read_secret_file(name)
+    if value is not None:
+        return value
     return _require_env(env_fallback)
 
 
 def _build_database_uri() -> str:
-    """mysql_password secrets ファイルが存在する場合はそこから URI を構築。
-    存在しない場合は DATABASE_URL_PRODUCTION 環境変数にフォールバック。"""
-    secret_path = '/run/secrets/mysql_password'
-    if os.path.exists(secret_path):
-        with open(secret_path) as f:
-            password = f.read().strip()
+    """mysql_password secrets ファイルが存在する場合は DB_USER/DB_HOST/DB_PORT/DB_NAME
+    （非機密、デフォルト値あり）と組み合わせて URI を構築。
+    secrets ファイルが存在しない場合は DATABASE_URL_PRODUCTION 環境変数にフォールバック。"""
+    password = _read_secret_file('mysql_password')
+    if password is not None:
         user = os.environ.get('DB_USER', 'cooking_user')
         host = os.environ.get('DB_HOST', 'database')
+        port = os.environ.get('DB_PORT', '3306')
         name = os.environ.get('DB_NAME', 'cooking_cost_system')
-        return f'mysql+pymysql://{user}:{quote_plus(password)}@{host}:3306/{name}'
+        return f'mysql+pymysql://{user}:{quote_plus(password)}@{host}:{port}/{name}'
     return _require_env('DATABASE_URL_PRODUCTION')
 
 

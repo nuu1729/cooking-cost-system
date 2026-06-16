@@ -58,6 +58,7 @@ services:
       # DB 接続パラメータ（非機密。パスワードのみ secrets 経由）
       DB_USER: cooking_user
       DB_HOST: database
+      DB_PORT: 3306
       DB_NAME: cooking_cost_system
       # GUNICORN_WORKERS: デフォルト 2（512MB 制限に適した値）
       # 推奨値: (2 × CPU コア数) + 1 — 必要に応じて上書き可能

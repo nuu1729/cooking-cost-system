@@ -352,6 +352,9 @@ setup_env() {
 
     # JWT_SECRET・SECRET_KEY・DBパスワードは Docker secrets（secrets/*.txt）経由で
     # config_production.py が直接読み込むため、ここには平文で書かない（issue #119, #148）。
+    # setup_secrets() が直前に secrets/mysql_password.txt 等を必ず生成済みのため、
+    # config_production.py の DATABASE_URL_PRODUCTION 環境変数フォールバックは
+    # この setup-vps.sh 経由のデプロイでは使われない（secrets 非対応の代替デプロイ手段専用）。
     cat > "${env_file}" <<'ENV_HEADER'
 FLASK_ENV=production
 ENV_HEADER
