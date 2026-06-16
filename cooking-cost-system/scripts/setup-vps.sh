@@ -343,7 +343,6 @@ setup_secrets() {
 }
 
 setup_env() {
-    local secrets_dir="${APP_DIR}/secrets"
     local env_file="${APP_DIR}/app/cooking-cost-system/.env.production"
 
     if [ -f "${env_file}" ]; then
@@ -351,22 +350,14 @@ setup_env() {
         return
     fi
 
-    # NOTE: issue #86 (docker-compose.prod.yml 更新) 完了後、Docker Secrets に移行予定。
-    # NOTE: DATABASE_URL のホスト名は docker-compose.prod.yml の構成次第で変更が必要。
-    #   - バックエンドが Docker Compose 内で動く場合 → サービス名（例: database）
-    #   - バックエンドがホスト上で直接動く場合    → localhost
-    #   issue #86 完了後に必ず確認・修正してください。
+    # JWT_SECRET・SECRET_KEY・DBパスワードは Docker secrets（secrets/*.txt）経由で
+    # config_production.py が直接読み込むため、ここには平文で書かない（issue #119, #148）。
     cat > "${env_file}" <<'ENV_HEADER'
 FLASK_ENV=production
-# NOTE: issue #86 完了後 Docker Secrets に移行予定。ホスト名も要確認（#86 参照）。
 ENV_HEADER
 
-    # シークレットを直接 cat で展開し、シェル変数に保持しない
     {
         echo "PORT=${APP_PORT}"
-        echo "DATABASE_URL_PRODUCTION=mysql+pymysql://cooking_user:$(cat "${secrets_dir}/mysql_password.txt")@localhost:3306/cooking_cost_system"
-        echo "JWT_SECRET=$(cat "${secrets_dir}/jwt_secret.txt")"
-        echo "SECRET_KEY=$(cat "${secrets_dir}/secret_key.txt")"
         echo "# 本番の Cloudflare Pages ドメインに書き換えてください"
         echo "CORS_ORIGIN=https://your-project.pages.dev"
     } >> "${env_file}"

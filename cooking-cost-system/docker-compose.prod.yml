@@ -36,20 +36,29 @@ services:
 
   # バックエンド API（Gunicorn + Flask）
   # フロントエンドは Cloudflare Pages にデプロイするためここには含めない
-  # DB 接続情報（DATABASE_URL_PRODUCTION）は .env.production 経由で渡すため
-  # secrets から mysql_password を参照しない（secrets は DB コンテナ起動用のみ）
+  # JWT_SECRET・SECRET_KEY・DBパスワードは Docker secrets 経由で渡し、
+  # config_production.py が /run/secrets/* を直接読み込む（環境変数を経由しないため docker inspect で露出しない）
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: cooking-cost-backend-prod
     restart: unless-stopped
-    # ⚠️ env_file で読み込んだ環境変数は `docker inspect` で平文参照可能
-    # Phase2 以降で Docker Secrets + entrypoint.sh による DATABASE_URL 構築に移行予定（issue #119）
+    secrets:
+      - mysql_password
+      - jwt_secret
+      - secret_key
+    # env_file には FLASK_ENV・PORT・CORS_ORIGIN など非機密値のみを置く
+    # （JWT_SECRET 等が残っていても config_production.py は secrets ファイルを優先するため安全だが、
+    #   docker inspect での露出を避けるため新規生成時は記載しないこと）
     env_file:
       - ./backend/.env.production
     environment:
       PORT: 3001
+      # DB 接続パラメータ（非機密。パスワードのみ secrets 経由）
+      DB_USER: cooking_user
+      DB_HOST: database
+      DB_NAME: cooking_cost_system
       # GUNICORN_WORKERS: デフォルト 2（512MB 制限に適した値）
       # 推奨値: (2 × CPU コア数) + 1 — 必要に応じて上書き可能
       GUNICORN_WORKERS: 2
@@ -78,12 +87,17 @@ services:
           memory: 256M
 
 # file ベースのシークレット（Docker Compose 標準機能・Swarm 不要）
-# database コンテナの初期化のみに使用。backend は .env.production 経由で接続するため参照しない。
+# mysql_root_password は database コンテナの初期化のみに使用。
+# mysql_password・jwt_secret・secret_key は database 初期化と backend 双方から参照される。
 secrets:
   mysql_root_password:
     file: ./secrets/mysql_root_password.txt
   mysql_password:
     file: ./secrets/mysql_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt
+  secret_key:
+    file: ./secrets/secret_key.txt
 
 # ボリューム
 volumes:
