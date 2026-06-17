@@ -23,6 +23,7 @@ def _get_int_env(key: str, default: int) -> int:
 # sys.exit(1) は wsgi.py と方針矛盾（master プロセスへの例外伝播が望ましい）
 
 # try 失敗時に on_starting が NameError にならないよう事前宣言（None のまま on_starting が呼ばれた場合は RuntimeError）
+# NOTE: int | None 構文は Python 3.10+。Dockerfile が python:3.11-slim のため問題なし。
 workers: int | None = None
 
 try:

@@ -6,20 +6,6 @@
 set -eu
 
 # --- ヘルパー関数 ---
-check_secret() {
-    if [ ! -f "/run/secrets/$1" ]; then
-        echo "Error: Docker secret '/run/secrets/$1' not found." >&2
-        echo "  Check the 'secrets' section in docker-compose.prod.yml and secrets/*.txt files." >&2
-        exit 1
-    fi
-    # [ ! -s ] はバイト数チェックのため whitespace-only ファイルを通過させる。
-    # 実際の内容チェックは read_secret 内の [ -n ] で補完する（2段階設計）。
-    if [ ! -s "/run/secrets/$1" ]; then
-        echo "Error: Docker secret '/run/secrets/$1' is empty." >&2
-        exit 1
-    fi
-}
-
 check_python3() {
     if ! command -v python3 > /dev/null 2>&1; then
         echo "Error: python3 not found. Required for URL encoding." >&2
@@ -29,10 +15,19 @@ check_python3() {
 
 read_secret() {
     # $1: シークレット名（/run/secrets/$1 を読み込む）
-    # 先頭1行のみ取得し末尾 whitespace・CRLF を除去して stdout に返す。
-    # 複数行ファイルで内部改行が URL エンコード（%0A）されて接続失敗するのを防ぐ。
-    # 失敗・whitespace-only の場合は stderr にメッセージを出力して exit 1。
+    # ファイルの存在・非空・先頭1行取得・末尾 whitespace 除去を一括で行い stdout に返す。
+    # check_secret を廃止してこの関数に統合することで TOCTOU 競合状態を排除している。
+    # NOTE: local は POSIX 非標準だが ash/dash/bash で広くサポートされている。
+    #       python:3.11-slim の /bin/sh（dash）でも動作確認済み。
     local _name="$1" _val
+    if [ ! -f "/run/secrets/${_name}" ]; then
+        echo "Error: Docker secret '/run/secrets/${_name}' not found." >&2
+        echo "  Check the 'secrets' section in docker-compose.prod.yml and secrets/*.txt files." >&2
+        exit 1
+    fi
+    # 先頭1行のみ取得し末尾 whitespace・CRLF を除去する。
+    # 複数行ファイルで内部改行が URL エンコード（%0A）されて接続失敗するのを防ぐ。
+    # [ ! -s ] はバイト数チェックのため whitespace-only を通過させる。[ -n ] で補完する。
     _val=$(sed -n '1{s/[[:space:]]*$//;p}' "/run/secrets/${_name}") || {
         echo "Error: Failed to read ${_name} secret." >&2
         exit 1
@@ -46,9 +41,6 @@ read_secret() {
 
 # --- 前提チェック ---
 check_python3
-check_secret mysql_password
-check_secret jwt_secret
-check_secret secret_key
 
 # --- Docker secrets を読み込む ---
 # DB_PASSWORD は意図的に export しない（DATABASE_URL_PRODUCTION 構築後に unset する）
@@ -68,14 +60,15 @@ DB_HOST="${DB_HOST:?DB_HOST must be set}"
 DB_USER="${DB_USER:?DB_USER must be set}"
 DB_NAME="${DB_NAME:?DB_NAME must be set}"
 DB_PORT="${DB_PORT:-3306}"
+# DB_PORT のバリデーション: :-3306 の後なので空文字は到達しない。非数字・範囲外をチェック。
 case "${DB_PORT}" in
-    ''|*[!0-9]*)
+    *[!0-9]*)
         echo "Error: DB_PORT must be a positive integer (got: '${DB_PORT}')" >&2
         exit 1
         ;;
 esac
-if [ "${DB_PORT}" -gt 65535 ]; then
-    echo "Error: DB_PORT must be <= 65535 (got: ${DB_PORT})" >&2
+if [ "${DB_PORT}" -lt 1 ] || [ "${DB_PORT}" -gt 65535 ]; then
+    echo "Error: DB_PORT must be between 1 and 65535 (got: ${DB_PORT})" >&2
     exit 1
 fi
 
@@ -83,7 +76,7 @@ fi
 #       漏洩リスクは残る（同一ホストの root または docker inspect 権限所持者がアクセス可能）。
 #       unset は DB_PASSWORD / DB_PASSWORD_ENCODED の残存を防ぐためのもの。
 #       根本的な解消は issue #148（Flask 側でファイルから直接読み込む）で対応予定。
-# sys.stdout.write を使って print() の末尾改行を避ける
+# printf の失敗は通常発生しないが、pipefail 非対応のため python3 側のエラーのみ || で捕捉する。
 DB_PASSWORD_ENCODED=$(printf '%s' "${DB_PASSWORD}" | python3 -c "
 import urllib.parse, sys
 sys.stdout.write(urllib.parse.quote(sys.stdin.read(), safe=''))

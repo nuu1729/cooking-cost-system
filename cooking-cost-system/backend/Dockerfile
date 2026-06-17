@@ -27,7 +27,7 @@ COPY --chown=appuser:appuser . .
 
 # COPY 後に所有者を確実に設定（COPY --chown は既存ディレクトリの所有者を変更しないため）
 RUN chown appuser:appuser logs uploads \
-    && chmod +x entrypoint.sh
+    && chmod +x entrypoint.sh  # entrypoint.sh はリポジトリで 100755 管理（git update-index --chmod=+x）。ここはフォールバック。
 
 USER appuser
 
