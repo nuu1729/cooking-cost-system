@@ -29,7 +29,12 @@ help: ## 📖 使用可能なコマンドを表示
 ## 🔐 セキュリティ
 init-secrets: ## 🔐 secrets/* のパーミッションを 600 に設定（本番デプロイ前に実行）
 	@if [ ! -d "$(MAKEFILE_DIR)secrets" ]; then echo "$(RED)❌ secrets/ ディレクトリが見つかりません$(RESET)"; exit 1; fi
-	@chmod 600 "$(MAKEFILE_DIR)secrets"/* 2>/dev/null && echo "$(GREEN)✅ secrets/* を 600 に設定しました$(RESET)" || echo "$(YELLOW)⚠️ secrets/ にファイルが見つかりません$(RESET)"
+	@if [ -n "$$(find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f 2>/dev/null)" ]; then \
+	   find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f -exec chmod 600 {} + \
+	   && echo "$(GREEN)✅ secrets/* を 600 に設定しました$(RESET)"; \
+	 else \
+	   echo "$(YELLOW)⚠️ secrets/ にファイルが見つかりません$(RESET)"; \
+	 fi
 
 ## 🚀 開発環境
 dev: ## 🔧 開発環境を起動
