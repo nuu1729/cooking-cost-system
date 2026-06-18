@@ -64,14 +64,15 @@ DB_HOST="${DB_HOST:?DB_HOST must be set}"
 DB_USER="${DB_USER:?DB_USER must be set}"
 DB_NAME="${DB_NAME:?DB_NAME must be set}"
 DB_PORT="${DB_PORT:-3306}"
-# DB_PORT のバリデーション: :-3306 の後なので空文字は到達しない。非数字・範囲外をチェック。
+# DB_PORT のバリデーション: :-3306 の後なので空文字は到達しない。
+# 0* で "0"/"007" 等のゼロ始まり（ポート 0 および先頭ゼロのゼロパディング）を拒否する。
 case "${DB_PORT}" in
-    *[!0-9]*)
-        echo "Error: DB_PORT must be a positive integer (got: '${DB_PORT}')" >&2
+    *[!0-9]*|0*)
+        echo "Error: DB_PORT must be a positive integer without leading zeros (got: '${DB_PORT}')" >&2
         exit 1
         ;;
 esac
-if [ "${DB_PORT}" -lt 1 ] || [ "${DB_PORT}" -gt 65535 ]; then
+if [ "${DB_PORT}" -gt 65535 ]; then
     echo "Error: DB_PORT must be between 1 and 65535 (got: ${DB_PORT})" >&2
     exit 1
 fi
