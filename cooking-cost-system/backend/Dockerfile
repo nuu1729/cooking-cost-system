@@ -26,8 +26,10 @@ RUN mkdir -p logs uploads
 COPY --chown=appuser:appuser . .
 
 # COPY 後に所有者を確実に設定（COPY --chown は既存ディレクトリの所有者を変更しないため）
+# entrypoint.sh はリポジトリで 100755 管理（git update-index --chmod=+x）
+# CI/CD でパーミッションが失われた場合のフォールバックとして chmod も実行
 RUN chown appuser:appuser logs uploads \
-    && chmod +x entrypoint.sh  # entrypoint.sh はリポジトリで 100755 管理（git update-index --chmod=+x）。ここはフォールバック。
+    && chmod +x entrypoint.sh
 
 USER appuser
 

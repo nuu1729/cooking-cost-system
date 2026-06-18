@@ -19,14 +19,18 @@ read_secret() {
     # check_secret を廃止してこの関数に統合することで TOCTOU 競合状態を排除している。
     # NOTE: local は POSIX 非標準だが ash/dash/bash で広くサポートされている。
     #       python:3.11-slim の /bin/sh（dash）でも動作確認済み。
+    # NOTE: この関数はコマンド置換 $(...) 内で呼ばれるため、内部の exit はサブシェルのみ
+    #       を終了させる。呼び出し元では必ず || exit 1 を付けること（set -e だけでは
+    #       サブシェルの exit 1 を親シェルに伝播させない実装がある）。
     local _name="$1" _val
     if [ ! -f "/run/secrets/${_name}" ]; then
         echo "Error: Docker secret '/run/secrets/${_name}' not found." >&2
         echo "  Check the 'secrets' section in docker-compose.prod.yml and secrets/*.txt files." >&2
         exit 1
     fi
-    # 先頭1行のみ取得し末尾 whitespace・CRLF を除去する。
+    # 先頭1行のみ取得し末尾 whitespace（スペース・タブ・CRLF）を除去する。
     # 複数行ファイルで内部改行が URL エンコード（%0A）されて接続失敗するのを防ぐ。
+    # 末尾スペースを含むパスワードはここで切り捨てられる（意図的: 末尾スペースは通常コピペミス）。
     # [ ! -s ] はバイト数チェックのため whitespace-only を通過させる。[ -n ] で補完する。
     _val=$(sed -n '1{s/[[:space:]]*$//;p}' "/run/secrets/${_name}") || {
         echo "Error: Failed to read ${_name} secret." >&2
