@@ -27,6 +27,8 @@ help: ## 📖 使用可能なコマンドを表示
 	@echo "  Docker Compose: $(shell docker-compose --version 2>/dev/null || echo '$(RED)未インストール$(RESET)')"
 
 ## 🔐 セキュリティ
+# NOTE: find の -maxdepth 1 は意図的 — secrets/ 直下のファイルのみを対象とする。
+#       サブディレクトリ構成に変更した場合はこのコマンドを合わせて更新すること。
 init-secrets: ## 🔐 secrets/* のパーミッションを 600 に設定（本番デプロイ前に実行）
 	@if [ ! -d "$(MAKEFILE_DIR)secrets" ]; then echo "$(RED)❌ secrets/ ディレクトリが見つかりません$(RESET)"; exit 1; fi
 	@if [ -n "$$(find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f 2>/dev/null)" ]; then \
