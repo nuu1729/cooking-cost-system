@@ -65,11 +65,22 @@ DB_USER="${DB_USER:?DB_USER must be set}"
 DB_NAME="${DB_NAME:?DB_NAME must be set}"
 DB_PORT="${DB_PORT:-3306}"
 # DB_PORT のバリデーション: :-3306 の後なので空文字は到達しない。
-# 0* で "0"/"007" 等のゼロ始まりを拒否することで下限（1以上）を保証する。
+# パターンを分割して各拒否理由を明示する。0* は下限（1以上）を保証するため
 # 以降の if は上限のみチェックすれば十分（-lt 1 は到達不能なため置かない）。
 case "${DB_PORT}" in
-    *[!0-9]*|0*)
-        echo "Error: DB_PORT must be a positive integer between 1 and 65535, without leading zeros (got: '${DB_PORT}')" >&2
+    *[!0-9]*)
+        # 数字以外の文字を含む（例: "abc", "33o6"）
+        echo "Error: DB_PORT must be a positive integer (got: '${DB_PORT}')" >&2
+        exit 1
+        ;;
+    0)
+        # ポート 0 はOS自動割り当てを意味し本番用途では不正
+        echo "Error: DB_PORT must be between 1 and 65535 (got: '${DB_PORT}')" >&2
+        exit 1
+        ;;
+    0*)
+        # 先頭ゼロを含む（例: "03306"）
+        echo "Error: DB_PORT must not have leading zeros (got: '${DB_PORT}')" >&2
         exit 1
         ;;
 esac

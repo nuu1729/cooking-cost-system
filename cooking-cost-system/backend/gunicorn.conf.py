@@ -64,6 +64,8 @@ if worker_class != 'sync':
 
 def on_starting(server):
     """Gunicorn master プロセス起動時に1回だけ呼ばれる（ワーカーフォーク前）"""
+    # try ブロックが ValueError で失敗した場合 Gunicorn 自体が起動しないため、
+    # workers が None のままここへ到達することは事実上ない。将来の変更に備えた防御的チェック。
     if workers is None:
         raise RuntimeError('workers が初期化されていません。Gunicorn 設定エラーを確認してください。')
     server.log.info(
