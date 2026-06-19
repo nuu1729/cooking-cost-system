@@ -69,8 +69,8 @@ def on_starting(server):
     if workers is None:
         raise RuntimeError('workers が初期化されていません。Gunicorn 設定エラーを確認してください。')
     server.log.info(
-        'Gunicorn starting | FLASK_ENV=%s workers=%d worker_class=%s bind=%s',
-        os.environ.get('FLASK_ENV', 'development'),
+        'Gunicorn starting | APP_ENV=%s workers=%d worker_class=%s bind=%s',
+        os.environ.get('APP_ENV', 'development'),
         workers,
         worker_class,
         bind,

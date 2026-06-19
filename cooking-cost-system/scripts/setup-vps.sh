@@ -356,7 +356,7 @@ setup_env() {
     # config_production.py の DATABASE_URL_PRODUCTION 環境変数フォールバックは
     # この setup-vps.sh 経由のデプロイでは使われない（secrets 非対応の代替デプロイ手段専用）。
     cat > "${env_file}" <<'ENV_HEADER'
-FLASK_ENV=production
+APP_ENV=production
 ENV_HEADER
 
     {

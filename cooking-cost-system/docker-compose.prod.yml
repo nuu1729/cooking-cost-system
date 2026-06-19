@@ -54,11 +54,12 @@ services:
     env_file:
       - ./backend/.env.production
     environment:
-      # FLASK_ENV は Flask 3.0 で公式サポート廃止だが、app.py が os.environ.get('FLASK_ENV') で
-      # 独自に参照しているため引き続き必要（Flask フレームワーク自体は無視する）
-      FLASK_ENV: production
-      # Flask の _get_bool_env は "0"/"false"/"no" を無効と判定する（Python の bool("false")==True とは異なる）
-      FLASK_DEBUG: "false"
+      # APP_ENV: app.py が config クラスの切り替えに使用する独自環境変数
+      # （FLASK_ENV は Flask 3.0 で廃止されたため APP_ENV に移行済み）
+      APP_ENV: production
+      # FLASK_DEBUG: Flask フレームワーク自体のデバッグモード制御。"0" が安全・標準的な無効値。
+      # ProductionConfig.DEBUG=False で制御済みだが多重防衛として設定する。
+      FLASK_DEBUG: "0"
       PORT: 3001
       # DB 接続パラメータ（非機密。パスワードのみ secrets 経由）
       DB_USER: cooking_user
@@ -85,6 +86,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s  # Gunicorn 起動 + DB 接続初期化に余裕を持たせる
+    security_opt:
+      - no-new-privileges:true  # setuid バイナリ等による権限昇格を防止
     deploy:
       resources:
         limits:

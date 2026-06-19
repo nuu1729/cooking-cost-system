@@ -29,10 +29,11 @@ help: ## 📖 使用可能なコマンドを表示
 ## 🔐 セキュリティ
 # NOTE: find の -maxdepth 1 は意図的 — secrets/ 直下のファイルのみを対象とする。
 #       サブディレクトリ構成に変更した場合はこのコマンドを合わせて更新すること。
+#       シンボリックリンクも対象（-type f -o -type l）。chmod はリンク先ファイルに適用される。
 init-secrets: ## 🔐 secrets/* のパーミッションを 600 に設定（本番デプロイ前に実行）
 	@if [ ! -d "$(MAKEFILE_DIR)secrets" ]; then echo "$(RED)❌ secrets/ ディレクトリが見つかりません$(RESET)"; exit 1; fi
-	@if [ -n "$$(find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f 2>/dev/null)" ]; then \
-	   find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f -exec chmod 600 {} + \
+	@if [ -n "$$(find "$(MAKEFILE_DIR)secrets" -maxdepth 1 \( -type f -o -type l \) 2>/dev/null)" ]; then \
+	   find "$(MAKEFILE_DIR)secrets" -maxdepth 1 \( -type f -o -type l \) -exec chmod 600 {} + \
 	   && echo "$(GREEN)✅ secrets/* を 600 に設定しました$(RESET)" \
 	   || { echo "$(RED)❌ chmod 600 に失敗しました。実行ユーザーの権限を確認してください$(RESET)" >&2; exit 1; }; \
 	 else \

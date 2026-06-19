@@ -35,7 +35,7 @@ def create_app():
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
     _configure_logging(log_dir)
 
-    env = os.environ.get('FLASK_ENV', 'development')
+    env = os.environ.get('APP_ENV', 'development')
     if env == 'production':
         app.config.from_object('config_production.ProductionConfig')
     elif env == 'staging':
