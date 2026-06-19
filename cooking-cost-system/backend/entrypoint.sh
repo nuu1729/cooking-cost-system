@@ -8,7 +8,7 @@ set -eu
 # --- ヘルパー関数 ---
 check_python3() {
     if ! command -v python3 > /dev/null 2>&1; then
-        echo "Error: python3 not found. Required for URL encoding." >&2
+        echo "Error: python3 not found. Python 3.6+ is required for URL encoding (urllib.parse.quote)." >&2
         exit 1
     fi
 }
