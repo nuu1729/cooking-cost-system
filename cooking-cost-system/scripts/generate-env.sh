@@ -435,11 +435,14 @@ rotate_secrets() {
     new_jwt="$(generate_secret)"
     new_secret_key="$(generate_secret)"
     # APP_ENV は既存ファイルから引き継ぐ（開発環境で --rotate した際に production に上書きされるのを防ぐ）
-    local current_app_env="${APP_ENV:-production}"
+    # シェル環境変数ではなくファイルから直接読み込む（source していない環境でも正確に引き継ぐため）
+    local current_app_env
+    current_app_env="$(grep -m1 '^APP_ENV=' "${env_file}" | cut -d'=' -f2-)"
+    current_app_env="${current_app_env:-production}"
     {
         printf "# 本番環境変数 - generate-env.sh --rotate で更新 (%s)\n" "$(date '+%Y-%m-%d %H:%M:%S')"
         printf "# ⚠️  このファイルを Git にコミットしないこと（.gitignore で除外済み）\n"
-        printf "APP_ENV=%s\n"                "${current_app_env}"
+        printf "APP_ENV=%s\n"                 "${current_app_env}"
         printf "PORT=%s\n"                    "${current_port}"
         printf "DATABASE_URL_PRODUCTION=%s\n" "${current_db}"
         printf "JWT_SECRET=%s\n"              "${new_jwt}"

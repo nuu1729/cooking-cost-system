@@ -36,6 +36,9 @@ def create_app():
     _configure_logging(log_dir)
 
     env = os.environ.get('APP_ENV', 'development')
+    _valid_envs = {'development', 'staging', 'production'}
+    if env not in _valid_envs:
+        raise ValueError(f'APP_ENV に無効な値が設定されています: {env!r}。有効値: {_valid_envs}')
     if env == 'production':
         app.config.from_object('config_production.ProductionConfig')
     elif env == 'staging':
