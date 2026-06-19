@@ -72,8 +72,7 @@ case "${DB_PORT}" in
         exit 1
         ;;
 esac
-# 0* で下限（ポート 0）は弾き済みだが、範囲を明示するため -lt 1 も残す。
-if [ "${DB_PORT}" -lt 1 ] || [ "${DB_PORT}" -gt 65535 ]; then
+if [ "${DB_PORT}" -gt 65535 ]; then
     echo "Error: DB_PORT must be between 1 and 65535 (got: ${DB_PORT})" >&2
     exit 1
 fi
