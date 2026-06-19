@@ -1,5 +1,4 @@
 import logging
-import sys
 
 # フォールバック設定: create_app() 内でロギングが設定される前に起動失敗した場合に備える
 # WARNING にすることで create_app() 内部の警告も捕捉できる（CRITICAL だと握りつぶす）

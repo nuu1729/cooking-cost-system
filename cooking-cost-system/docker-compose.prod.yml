@@ -54,6 +54,11 @@ services:
     env_file:
       - ./backend/.env.production
     environment:
+      # FLASK_ENV は Flask 3.0 で公式サポート廃止だが、app.py が os.environ.get('FLASK_ENV') で
+      # 独自に参照しているため引き続き必要（Flask フレームワーク自体は無視する）
+      FLASK_ENV: production
+      # Flask の _get_bool_env は "0"/"false"/"no" を無効と判定する（Python の bool("false")==True とは異なる）
+      FLASK_DEBUG: "false"
       PORT: 3001
       # DB 接続パラメータ（非機密。パスワードのみ secrets 経由）
       DB_USER: cooking_user
@@ -90,6 +95,8 @@ services:
 # file ベースのシークレット（Docker Compose 標準機能・Swarm 不要）
 # mysql_root_password は database コンテナの初期化のみに使用。
 # mysql_password・jwt_secret・secret_key は database 初期化と backend 双方から参照される。
+# ⚠️ secrets/*.txt のパーミッションを 600 に設定すること（owner read-only）
+#    例: chmod 600 secrets/*.txt
 secrets:
   mysql_root_password:
     file: ./secrets/mysql_root_password.txt

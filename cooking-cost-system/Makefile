@@ -1,7 +1,7 @@
 # 🍽️ 料理原価計算システム v2.0 - Makefile
 # ===================================================
 
-.PHONY: help dev build test clean logs restart backup frontend-shell backend-shell db-shell
+.PHONY: help dev build test clean logs restart backup frontend-shell backend-shell db-shell init-secrets
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -13,6 +13,9 @@ YELLOW := \033[33m
 BLUE   := \033[34m
 RESET  := \033[0m
 
+# make をどのディレクトリから実行しても secrets/ が Makefile と同じ階層を指すよう絶対パス化
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
 ## ヘルプ
 help: ## 📖 使用可能なコマンドを表示
 	@echo "$(GREEN)🍽️ 料理原価計算システム v2.0$(RESET)"
@@ -22,6 +25,19 @@ help: ## 📖 使用可能なコマンドを表示
 	@echo "$(BLUE)📊 システム状況:$(RESET)"
 	@echo "  Docker: $(shell docker --version 2>/dev/null || echo '$(RED)未インストール$(RESET)')"
 	@echo "  Docker Compose: $(shell docker-compose --version 2>/dev/null || echo '$(RED)未インストール$(RESET)')"
+
+## 🔐 セキュリティ
+# NOTE: find の -maxdepth 1 は意図的 — secrets/ 直下のファイルのみを対象とする。
+#       サブディレクトリ構成に変更した場合はこのコマンドを合わせて更新すること。
+init-secrets: ## 🔐 secrets/* のパーミッションを 600 に設定（本番デプロイ前に実行）
+	@if [ ! -d "$(MAKEFILE_DIR)secrets" ]; then echo "$(RED)❌ secrets/ ディレクトリが見つかりません$(RESET)"; exit 1; fi
+	@if [ -n "$$(find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f 2>/dev/null)" ]; then \
+	   find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f -exec chmod 600 {} + \
+	   && echo "$(GREEN)✅ secrets/* を 600 に設定しました$(RESET)" \
+	   || { echo "$(RED)❌ chmod 600 に失敗しました。実行ユーザーの権限を確認してください$(RESET)" >&2; exit 1; }; \
+	 else \
+	   echo "$(YELLOW)⚠️ secrets/ にファイルが見つかりません$(RESET)"; \
+	 fi
 
 ## 🚀 開発環境
 dev: ## 🔧 開発環境を起動
