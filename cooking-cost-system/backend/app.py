@@ -39,7 +39,10 @@ def create_app():
     env = os.environ.get('APP_ENV', 'development')
     _valid_envs = frozenset({'development', 'test', 'staging', 'production'})
     if env not in _valid_envs:
-        logging.critical('APP_ENV に無効な値が設定されています: %r。有効値: development / staging / production', env)
+        logging.critical('APP_ENV に無効な値が設定されています: %r。有効値: development / test / staging / production', env)
+        # ValueError ではなく sys.exit(1) にすることで Gunicorn ワーカーの再起動ループを防止する。
+        # ただし Docker の restart: always / unless-stopped 設定下ではコンテナ自体が再起動し続ける点に注意。
+        # APP_ENV の誤設定は再起動では解消されないため、コンテナを停止してから環境変数を修正すること。
         sys.exit(1)
     if env == 'production':
         app.config.from_object('config_production.ProductionConfig')
