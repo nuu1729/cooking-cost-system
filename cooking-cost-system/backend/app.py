@@ -37,7 +37,7 @@ def create_app():
     _configure_logging(log_dir)
 
     env = os.environ.get('APP_ENV', 'development')
-    _valid_envs = frozenset({'development', 'staging', 'production'})
+    _valid_envs = frozenset({'development', 'test', 'staging', 'production'})
     if env not in _valid_envs:
         logging.critical('APP_ENV に無効な値が設定されています: %r。有効値: development / staging / production', env)
         sys.exit(1)
