@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify, send_from_directory
@@ -36,9 +37,10 @@ def create_app():
     _configure_logging(log_dir)
 
     env = os.environ.get('APP_ENV', 'development')
-    _valid_envs = {'development', 'staging', 'production'}
+    _valid_envs = frozenset({'development', 'staging', 'production'})
     if env not in _valid_envs:
-        raise ValueError(f'APP_ENV に無効な値が設定されています: {env!r}。有効値: {_valid_envs}')
+        logging.critical('APP_ENV に無効な値が設定されています: %r。有効値: development / staging / production', env)
+        sys.exit(1)
     if env == 'production':
         app.config.from_object('config_production.ProductionConfig')
     elif env == 'staging':
