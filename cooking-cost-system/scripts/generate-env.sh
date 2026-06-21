@@ -437,7 +437,7 @@ rotate_secrets() {
     # APP_ENV は既存ファイルから引き継ぐ（開発環境で --rotate した際に production に上書きされるのを防ぐ）
     # シェル環境変数ではなくファイルから直接読み込む（source していない環境でも正確に引き継ぐため）
     local current_app_env
-    current_app_env="$(grep -m1 '^APP_ENV=' "${ENV_FILE}" | cut -d'=' -f2- | tr -d "'\"[:space:]")"
+    current_app_env="$(grep -m1 '^APP_ENV=' "${ENV_FILE}" | cut -d'=' -f2- | sed 's/[[:space:]]*#.*//' | tr -d "'\"[:space:]")"
     case "${current_app_env}" in
         development|test|staging|production) ;;
         *) log_warn "APP_ENV の値が想定外です: '${current_app_env}'。production を使用します。"
