@@ -34,9 +34,9 @@ help: ## 📖 使用可能なコマンドを表示
 init-secrets: ## 🔐 secrets/* のパーミッションを 600 に設定（本番デプロイ前に実行）
 	@if [ ! -d "$(MAKEFILE_DIR)secrets" ]; then echo "$(RED)❌ secrets/ ディレクトリが見つかりません$(RESET)"; exit 1; fi
 	@find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type l 2>/dev/null \
-	   -exec sh -c 'echo "$(YELLOW)⚠️  シンボリックリンクをスキップ: $$1（リンク先への意図しない chmod を防ぐため）$(RESET)" >&2' _ {} \;
-	# NOTE: find を2回実行しているが、-exec ... + と xargs の動作差異（ファイル名に
-	#       スペース・改行が含まれる場合）を考慮して xargs への置き換えは行わない。
+	   -exec sh -c 'printf "'"$(YELLOW)"'⚠️  シンボリックリンクをスキップ: %s（リンク先への意図しない chmod を防ぐため）'"$(RESET)"'\n" "$$1" >&2' _ {} \;
+	@# NOTE: find を2回実行しているが、-exec ... + と xargs の動作差異（ファイル名に
+	@#       スペース・改行が含まれる場合）を考慮して xargs への置き換えは行わない。
 	@if [ -n "$$(find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f 2>/dev/null)" ]; then \
 	   find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f -exec chmod 600 {} + \
 	   && echo "$(GREEN)✅ secrets/* を 600 に設定しました$(RESET)" \
