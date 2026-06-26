@@ -68,6 +68,7 @@ def on_starting(server):
     # workers が None のままここへ到達することは事実上ない。将来の変更に備えた防御的チェック。
     if workers is None:
         raise RuntimeError('workers が初期化されていません。Gunicorn 設定エラーを確認してください。')
+    # APP_ENV のバリデーションは app.py (create_app) で実施済み
     server.log.info(
         'Gunicorn starting | APP_ENV=%s workers=%d worker_class=%s bind=%s',
         os.environ.get('APP_ENV', 'development'),
