@@ -442,9 +442,10 @@ rotate_secrets() {
     # NOTE: ENV_FILE の存在は rotate_secrets() 冒頭（上記 "if [ ! -f" ブロック）で保証済み。
     #       2>/dev/null は念のための措置であり、明示的な存在チェックを重複して追加する必要はない。
     local current_app_env
-    current_app_env="$(grep -m1 '^APP_ENV=' "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2- | sed "s/[[:space:]]*#.*//; s/['\"]//g; s/[[:space:]]//g")"
+    current_app_env="$(grep -m1 '^APP_ENV=' "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2- | sed "s/#.*//; s/['\"]//g; s/[[:space:]]//g")"
     # NOTE: sed による # 以降の切り捨ては APP_ENV の有効値（development/test/staging/production）が
     #       固定文字列のため実害なし。想定外の値は case でフォールバックするため安全。
+    # NOTE: s/#.*// は「# 直前のスペースありなし両方」を除去する（s/[[:space:]]*#.*// より明確）。
     # ⚠️  有効値を変更する際は backend/app.py の _VALID_APP_ENVS も合わせて更新すること
     case "${current_app_env}" in
         development|test|staging|production)
