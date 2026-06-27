@@ -21,7 +21,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: PR の差分を取得
+      - name: PR の差分・コメント履歴を取得
         id: pr_info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,6 +58,18 @@ jobs:
             -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
+          # 過去のコメント履歴を取得（最新20件、最大20KB）
+          # Claude レビューコメントと作者の対応方針コメントの両方を含む
+          COMMENTS=$(gh api "repos/${GH_REPO}/issues/${PR_NUMBER}/comments?per_page=100" \
+            | jq -r '
+              .[-20:]
+              | map(
+                  "### コメント by \(.user.login) (\(.created_at))\n\(.body)"
+                )
+              | join("\n\n---\n\n")
+            ' | head -c 20000)
+          printf '%s' "$COMMENTS" > "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
+
       - name: Claude にレビューを依頼
         id: claude_review
         env:
@@ -67,8 +79,15 @@ jobs:
         run: |
           DIFF=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt")
           TITLE=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt")
+          COMMENTS=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt")
 
-          PROMPT=$(printf 'PR タイトル: %s\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n%s\n```' "$TITLE" "$DIFF")
+          if [ -n "$COMMENTS" ]; then
+            CONTEXT_SECTION=$(printf '\n\n---\n## これまでのレビュー・対応履歴（最新20件）\n\n以下はこのPRにおける過去のClaudeレビューと作者の対応方針コメントです。\nすでに対応済み・対応不要と判断された指摘は繰り返さないでください。\n未対応の指摘や新たに発生した問題に絞ってレビューしてください。\n\n%s' "$COMMENTS")
+          else
+            CONTEXT_SECTION=""
+          fi
+
+          PROMPT=$(printf 'PR タイトル: %s\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n%s\n```%s' "$TITLE" "$DIFF" "$CONTEXT_SECTION")
 
           # ARG_MAX 超過を防ぐためリクエストボディをファイルに書き出す
           jq -n --arg content "$PROMPT" --arg model "$ANTHROPIC_MODEL" \
