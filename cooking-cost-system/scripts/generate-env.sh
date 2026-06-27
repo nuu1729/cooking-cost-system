@@ -445,6 +445,7 @@ rotate_secrets() {
     current_app_env="$(grep -m1 '^APP_ENV=' "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2- | sed "s/[[:space:]]*#.*//; s/['\"]//g; s/[[:space:]]//g")"
     # NOTE: sed による # 以降の切り捨ては APP_ENV の有効値（development/test/staging/production）が
     #       固定文字列のため実害なし。想定外の値は case でフォールバックするため安全。
+    # ⚠️  有効値を変更する際は backend/app.py の _VALID_APP_ENVS も合わせて更新すること
     case "${current_app_env}" in
         development|test|staging|production)
             # 有効値 — そのまま引き継ぐ

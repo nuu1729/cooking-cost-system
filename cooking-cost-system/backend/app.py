@@ -50,6 +50,8 @@ def create_app():
     elif env == 'staging':
         app.config.from_object('config_staging.StagingConfig')
     else:
+        # development および test は DevelopmentConfig を使用
+        # test は CI/ローカルテスト用途のみ想定し、専用 Config クラスは持たない
         app.config.from_object('config.DevelopmentConfig')
 
     is_production = (env == 'production')
