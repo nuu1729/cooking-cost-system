@@ -10,6 +10,9 @@ from api.extensions import limiter
 from api.error import register_error_handlers
 from datetime import datetime, timezone
 
+# generate-env.sh の case 文と有効値を同期すること
+_VALID_APP_ENVS = frozenset({'development', 'test', 'staging', 'production'})
+
 
 def _configure_logging(log_dir: str):
     os.makedirs(log_dir, exist_ok=True)
@@ -36,8 +39,7 @@ def create_app():
     _configure_logging(log_dir)
 
     env = os.environ.get('APP_ENV', 'development')
-    _valid_envs = frozenset({'development', 'test', 'staging', 'production'})
-    if env not in _valid_envs:
+    if env not in _VALID_APP_ENVS:
         raise RuntimeError(
             f'APP_ENV に無効な値が設定されています: {env!r}。'
             '有効値: development / test / staging / production'
