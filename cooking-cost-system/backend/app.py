@@ -40,9 +40,10 @@ def create_app():
 
     env = os.environ.get('APP_ENV', 'development')
     if env not in _VALID_APP_ENVS:
+        valid_str = ' / '.join(sorted(_VALID_APP_ENVS))
         raise RuntimeError(
             f'APP_ENV に無効な値が設定されています: {env!r}。'
-            '有効値: development / test / staging / production'
+            f'有効値: {valid_str}'
         )
     if env == 'production':
         app.config.from_object('config_production.ProductionConfig')
