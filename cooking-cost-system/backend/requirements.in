@@ -1,0 +1,16 @@
+# 抽象依存関係（pip-compile で requirements.txt を生成する）
+# 更新手順: docker compose run --rm backend pip-compile requirements.in
+Flask
+flask-cors
+gunicorn==21.2.0
+Flask-Limiter>=4.0.0
+SQLAlchemy
+Flask-SQLAlchemy
+PyMySQL
+python-dotenv
+PyJWT>=2.8.0
+bcrypt>=4.1.0
+cryptography
+filetype>=1.2.0
+flask-talisman>=1.1.0
+click

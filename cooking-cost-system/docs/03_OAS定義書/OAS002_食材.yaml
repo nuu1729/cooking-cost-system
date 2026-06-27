@@ -1,0 +1,548 @@
+openapi: 3.0.3
+info:
+  title: 料理原価計算システム - 食材 API
+  description: |
+    食材の追加・検索・編集・削除を扱う API。
+    DB上は `items` テーブルの `item_type = 1` として管理される。
+    対応テーブル定義: T003 食材追加 / T004 食材検索 / T005 食材編集 / T006 一覧（食材タブ）
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3001/api
+    description: ローカル開発環境
+  - url: https://api.cooking-cost.example.com/api
+    description: 本番環境
+
+tags:
+  - name: ingredients
+    description: 食材管理（items.item_type = 1）
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Ingredient:
+      type: object
+      description: 食材（items テーブルの item_type=1 レコード）
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 255
+          example: 豚バラ肉
+        item_type:
+          type: integer
+          enum: [1]
+          description: 食材を示す固定値
+          example: 1
+        store:
+          type: string
+          maxLength: 100
+          description: 購入先名（stores.name のキャッシュ。store_id と同期）
+          example: コストコ
+        store_id:
+          type: integer
+          nullable: true
+          description: 購入先マスタID（stores.id）。食材のみ設定。
+          example: 2
+        price:
+          type: number
+          format: double
+          minimum: 0
+          example: 450.00
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          example: 500.00
+        unit:
+          type: string
+          maxLength: 20
+          example: g
+        unit_price:
+          type: number
+          format: double
+          description: price ÷ quantity で算出された単価（API層で自動計算）
+          example: 0.9000
+        genre:
+          type: string
+          maxLength: 50
+          nullable: true
+          enum: [meat, vegetable, seasoning, sauce, frozen, drink, other]
+          example: meat
+        description:
+          type: string
+          nullable: true
+          example: 国産豚バラ
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-27T10:00:00Z"
+
+    CreateIngredientRequest:
+      type: object
+      required: [name, store_id, price, quantity, unit]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: 豚バラ肉
+        store_id:
+          type: integer
+          description: 購入先マスタID（stores.id）。バックエンドが stores.name を取得して items.store に同期する。
+          example: 2
+        price:
+          type: number
+          format: double
+          minimum: 0
+          example: 450.00
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          example: 500.00
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example: g
+        genre:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: meat
+        description:
+          type: string
+          nullable: true
+          example: 国産豚バラ
+
+    UpdateIngredientRequest:
+      type: object
+      description: 変更するフィールドのみ送信可。unit_price はサーバー側で自動再計算。
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: 豚バラ肉（特売）
+        store_id:
+          type: integer
+          description: 購入先マスタID（stores.id）。変更時に items.store も同期される。
+          example: 3
+        price:
+          type: number
+          format: double
+          minimum: 0
+          example: 398.00
+        quantity:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          example: 500.00
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 20
+          example: g
+        genre:
+          type: string
+          maxLength: 50
+          nullable: true
+          example: meat
+        description:
+          type: string
+          nullable: true
+          example: 特売品
+
+    IngredientListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ingredient'
+        count:
+          type: integer
+          example: 10
+        timestamp:
+          type: string
+          format: date-time
+
+    IngredientResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Ingredient'
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: NOT_FOUND
+        message:
+          type: string
+          example: 食材が見つかりません
+        timestamp:
+          type: string
+          format: date-time
+
+  parameters:
+    IngredientId:
+      name: id
+      in: path
+      required: true
+      description: 食材ID（items.id）
+      schema:
+        type: integer
+        example: 1
+
+  responses:
+    NotFound:
+      description: 食材が見つからない
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: NOT_FOUND
+            message: 食材が見つかりません
+            timestamp: "2026-04-27T10:00:00Z"
+
+    Unauthorized:
+      description: 認証エラー
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: 削除不可（他の仕込み品・お品で使用中）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: CONFLICT
+            message: この食材は「合わせ味噌」で使用中のため削除できません
+
+paths:
+  /ingredients:
+    get:
+      tags: [ingredients]
+      summary: 食材一覧取得
+      description: |
+        登録済み食材の一覧を取得する。名前・購入先・ジャンル・価格帯での絞り込み、
+        ソート、ページネーションに対応。
+        対応画面: 一覧（食材タブ）
+      parameters:
+        - name: name
+          in: query
+          description: 食材名（部分一致）
+          schema:
+            type: string
+            example: 豚
+        - name: store
+          in: query
+          description: 購入先（部分一致）
+          schema:
+            type: string
+            example: コストコ
+        - name: genre
+          in: query
+          description: ジャンル絞り込み
+          schema:
+            type: string
+            enum: [meat, vegetable, seasoning, sauce, frozen, drink, other]
+        - name: minPrice
+          in: query
+          description: 最低価格
+          schema:
+            type: number
+            example: 100
+        - name: maxPrice
+          in: query
+          description: 最高価格
+          schema:
+            type: number
+            example: 1000
+        - name: sortBy
+          in: query
+          description: ソート対象カラム
+          schema:
+            type: string
+            enum: [name, price, unit_price, store, created_at, updated_at]
+            default: name
+        - name: sortOrder
+          in: query
+          description: ソート順
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+        - name: limit
+          in: query
+          description: 取得件数（最大100）
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          description: 取得開始位置
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 食材一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngredientListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [ingredients]
+      summary: 食材追加
+      description: |
+        新しい食材を登録する。`unit_price`（単価）は `price ÷ quantity` でサーバー側が自動計算して保存する。
+        対応画面: 食材追加（`/ingredients/add`）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIngredientRequest'
+            example:
+              name: 豚バラ肉
+              store: コストコ
+              price: 450.00
+              quantity: 500.00
+              unit: g
+              genre: meat
+      responses:
+        '201':
+          description: 食材追加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngredientResponse'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ingredients/search:
+    get:
+      tags: [ingredients]
+      summary: 食材名インクリメンタル検索（サジェスト用）
+      description: |
+        入力文字列に部分一致する食材を返す。仕込み画面・お品画面の食材選択サジェストに使用。
+        Debounce（300ms）制御前提。`q` パラメータのワイルドカード文字は自動エスケープされる。
+        対応画面: 仕込み・お品（食材選択フォーム）
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: 検索キーワード（部分一致）
+          schema:
+            type: string
+            minLength: 1
+            example: 豚
+      responses:
+        '200':
+          description: 検索結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngredientListResponse'
+              example:
+                success: true
+                data:
+                  - id: 1
+                    name: 豚バラ肉
+                    store: コストコ
+                    price: 450.00
+                    quantity: 500.00
+                    unit: g
+                    unit_price: 0.9000
+                    genre: meat
+                count: 1
+                timestamp: "2026-04-27T10:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ingredients/stats/genre:
+    get:
+      tags: [ingredients]
+      summary: ジャンル別食材統計取得
+      description: ジャンルごとの食材件数・平均単価などの統計を返す。
+      responses:
+        '200':
+          description: ジャンル別統計
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        genre:
+                          type: string
+                          example: meat
+                        count:
+                          type: integer
+                          example: 5
+                        avg_unit_price:
+                          type: number
+                          example: 1.2500
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ingredients/popular:
+    get:
+      tags: [ingredients]
+      summary: 人気食材取得
+      description: 仕込み・お品への使用頻度が高い食材ランキングを返す。
+      parameters:
+        - name: limit
+          in: query
+          description: 取得件数
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: 人気食材一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngredientListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ingredients/{id}:
+    get:
+      tags: [ingredients]
+      summary: 食材詳細取得
+      description: 指定 ID の食材詳細を返す。対応画面: 食材編集（初期表示）
+      parameters:
+        - $ref: '#/components/parameters/IngredientId'
+      responses:
+        '200':
+          description: 食材詳細取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngredientResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [ingredients]
+      summary: 食材編集
+      description: |
+        指定 ID の食材を更新する。`price` または `quantity` が変更された場合、
+        `unit_price` をサーバー側で自動再計算して保存する。
+        対応画面: 食材編集（`/ingredients/edit`）
+      parameters:
+        - $ref: '#/components/parameters/IngredientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIngredientRequest'
+      responses:
+        '200':
+          description: 食材更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngredientResponse'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [ingredients]
+      summary: 食材削除
+      description: |
+        指定 ID の食材を削除する。
+        他の仕込み品・お品の材料として使用中の場合は 409 を返す（削除不可）。
+        対応画面: 一覧（食材タブ）の削除アイコン
+      parameters:
+        - $ref: '#/components/parameters/IngredientId'
+      responses:
+        '200':
+          description: 食材削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 食材を削除しました
+                  timestamp:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'

@@ -3,40 +3,30 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { authApi } from '../../api/api';
-// import PersonIcon from '@mui/icons-material/Person';
-// import GoogleIcon from '@mui/icons-material/Google'; // Not available in all MUI versions, using text or standard icon
-// import AppleIcon from '@mui/icons-material/Apple';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { authApi } from '@/api';
+import { accountStore } from '@/stores/accountStore';
+import { toBackendUrl } from '@/utils/url';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 // Validation Schema
 const schema = yup.object({
     email: yup
         .string()
-        .email('有効なメールアドレスを入力してください')
         .required('メールアドレスは必須です'),
     password: yup
         .string()
         .required('パスワードは必須です')
-        .min(8, 'パスワードは8文字以上である必要があります')
-        .matches(/[a-z]/, '小文字を含める必要があります')
-        .matches(/[A-Z]/, '大文字を含める必要があります')
-        .matches(/[0-9]/, '数字を含める必要があります'),
+        .min(1, 'パスワードを入力してください'),
 }).required();
 
 type FormData = yup.InferType<typeof schema>;
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
-    const [mode] = useState<'login' | 'signup'>('login');
+    const location = useLocation();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-    // Toggle mode function
-    // Toggle mode function (Disabled for now as per request)
-    // const toggleMode = () => {
-    //     setMode(prev => prev === 'login' ? 'signup' : 'login');
-    //     setErrorMessage(null);
-    // };
+    const from = (location.state as any)?.from?.pathname ?? '/';
 
     const {
         register,
@@ -50,43 +40,27 @@ const LoginPage: React.FC = () => {
     const onSubmit = async (data: FormData) => {
         setErrorMessage(null);
         try {
-            if (mode === 'signup') {
-                // TODO: Registration Logic
-                console.log('Registering:', data);
-                const response = await authApi.register({
-                    username: data.email.split('@')[0],
-                    email: data.email,
-                    password: data.password
-                });
-                if (response.success) {
-                    navigate('/login');
-                }
-            } else {
-                // MSW / Backend Login
-                console.log('Logging in:', data);
-                const response = await authApi.login({
-                    username: data.email, // identification by email
-                    password: data.password
-                });
+            const response = await authApi.login({
+                username: data.email,
+                password: data.password
+            });
 
-                if (response.success && response.data) {
-                    // Save Token
-                    localStorage.setItem('authToken', response.data.token);
-                    navigate('/');
-                } else {
-                    throw new Error('Invalid credentials');
-                }
+            if (response.success && response.data) {
+                localStorage.setItem('authToken', response.data.token);
+                const user = response.data.user as any;
+                accountStore.initForUser(user.id, user.username, user.email, toBackendUrl(user.icon_url), toBackendUrl(user.home_bg_url));
+                navigate(from, { replace: true });
+            } else {
+                throw new Error('ログインに失敗しました。');
             }
-        } catch (error: any) {
-            console.error(error);
-            setErrorMessage(error.message || (mode === 'login'
-                ? 'メールアドレスまたはパスワードが正しくありません。'
-                : 'アカウント作成に失敗しました。'));
+        } catch (err: any) {
+            const message = err?.response?.data?.message;
+            setErrorMessage(message || 'ログインに失敗しました。時間をおいて再度お試しください。');
         }
     };
 
     return (
-        <div className="min-h-screen w-full bg-white flex flex-col font-sans text-gray-800">
+        <div className="h-screen w-full bg-white flex flex-col font-sans text-gray-800 overflow-hidden">
             {/* Simple Header matching Figma */}
             <header className="h-[80px] bg-[#d9d9d9] flex items-center px-8 border-b border-gray-300">
                 <h2 className="text-xl font-bold text-black tracking-tight">
@@ -94,7 +68,7 @@ const LoginPage: React.FC = () => {
                 </h2>
             </header>
 
-            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-10">
+            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-2 md:py-10">
 
                 {/* Left Side: Text */}
                 <div className="w-full md:w-1/2 flex items-center justify-center md:justify-start pl-0 md:pl-5 mb-10 md:mb-0">
@@ -114,34 +88,31 @@ const LoginPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="bg-[#D9D9D9] p-8 md:p-10 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
+                        className="bg-[#D9D9D9] p-6 md:p-8 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
                     >
                         {/* Icon */}
-                        {/* <div className="bg-blue-100 rounded-2xl p-4 mb-4 border-2 border-white shadow-sm">
-                            <PersonIcon style={{ fontSize: 40, color: '#3B82F6' }} />
-                        </div> */}
-                        <div className="mb-6">
-                            <img src="/icons/Authentication_icon.png" alt="Auth Icon" className="w-20 h-20 object-contain" />
+                        <div className="bg-blue-100 rounded-2xl p-4 mb-4 border-2 border-white shadow-sm">
+                            <AccountCircleIcon style={{ fontSize: 48, color: '#3B82F6' }} />
                         </div>
 
                         {/* Title */}
                         <h2 className="text-3xl font-bold text-black mb-1 font-sans">
-                            {mode === 'login' ? 'Log In' : 'Sign Up'}
+                            Log In
                         </h2>
-                        <p className="text-gray-500 text-xs mb-8 tracking-wider">
+                        <p className="text-gray-500 text-xs mb-4 tracking-wider">
                             セキュアなJWT認証システム
                         </p>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-5">
+                        <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-3">
 
                             {/* Email */}
                             <div className="space-y-1">
-                                <label className="text-sm font-bold text-black pl-1 block">メールアドレス</label>
+                                <label className="text-sm font-bold text-black pl-1 block">メールアドレス / ユーザー名</label>
                                 <input
-                                    type="email"
+                                    type="text"
                                     {...register('email')}
-                                    placeholder="your@email.com"
+                                    placeholder="your@email.com またはユーザー名"
                                     className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.email ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                 />
                                 <AnimatePresence>
@@ -162,7 +133,7 @@ const LoginPage: React.FC = () => {
                                 <input
                                     type="password"
                                     {...register('password')}
-                                    placeholder="8文字以上（大文字・小文字・数字を含む）"
+                                    placeholder="パスワードを入力"
                                     className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                 />
                                 <AnimatePresence>
@@ -190,11 +161,11 @@ const LoginPage: React.FC = () => {
                                 disabled={isSubmitting}
                                 className="w-full bg-[#1E90FF] hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                             >
-                                {isSubmitting ? '処理中...' : (mode === 'login' ? 'ログイン' : 'アカウント作成')}
+                                {isSubmitting ? '処理中...' : 'ログイン'}
                             </button>
 
                             {/* Create Account Link */}
-                            <div className="text-center pt-4">
+                            <div className="text-center pt-2">
                                 <button
                                     type="button"
                                     onClick={() => navigate('/signup')}
@@ -227,7 +198,7 @@ const LoginPage: React.FC = () => {
                         </form>
 
                         {/* Footer Note */}
-                        <div className="mt-8 pt-4 border-t border-gray-400 border-opacity-30 w-full text-center">
+                        <div className="mt-4 pt-4 border-t border-gray-400 border-opacity-30 w-full text-center">
                             <p className="text-[10px] text-gray-500">
                                 JWT（JSON Web Token）による安全な認証
                             </p>

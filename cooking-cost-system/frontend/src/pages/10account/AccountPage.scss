@@ -1,0 +1,395 @@
+// AccountPage.scss
+
+.account-page {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 24px;
+    min-height: 100%;
+    background: #f5f5f5;
+    overflow-y: auto;
+}
+
+.account-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.10);
+    padding: 40px 48px;
+    width: 100%;
+    max-width: 1000px;  // 560px → 1000px に拡大
+
+    &__title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #222;
+        margin: 0 0 32px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #e5e5e5;
+    }
+
+    &__section-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #555;
+        margin: 0 0 16px;
+        letter-spacing: 0.03em;
+    }
+
+    &__success {
+        font-size: 0.88rem;
+        color: #2e7d32;
+        font-weight: 500;
+    }
+
+    &__error {
+        font-size: 0.85rem;
+        color: #c62828;
+        margin: 8px 0 0;
+    }
+}
+
+// ─── 2カラムグリッド ─────────────────────────────────────────────
+.account-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 48px;          // 列間だけギャップ、行間は各カラム内で管理
+    align-items: start;
+
+    &__col {
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+    }
+
+    &__footer {
+        grid-column: 1 / -1;   // 2カラム全幅
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding-top: 16px;
+        margin-top: 8px;
+        border-top: 1px solid #e5e5e5;
+    }
+}
+
+// 各セクションのラッパー（カラム内の1ブロック）
+.account-section {
+    display: flex;
+    flex-direction: column;
+}
+
+// ─── アイコンプレビュー ──────────────────────────────────────────
+.account-icon-preview {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 20px;
+
+    &__circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: #c8c8c8;
+        border: 2px solid #aaa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        svg {
+            width: 65%;
+            height: 65%;
+            fill: #fff;
+        }
+    }
+
+    &__sample {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    &__sample-label {
+        font-size: 0.78rem;
+        color: #888;
+        text-align: center;
+        white-space: nowrap;
+    }
+}
+
+// ─── アップロードゾーン ──────────────────────────────────────────
+.account-upload-zone {
+    border: 2px dashed #bbb;
+    border-radius: 10px;
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    user-select: none;
+    background: #fafafa;
+
+    &:hover,
+    &:focus {
+        border-color: #888;
+        background: #f0f0f0;
+        outline: none;
+    }
+
+    &--dragging {
+        border-color: #555;
+        background: #ebebeb;
+    }
+
+    &__icon {
+        width: 32px;
+        height: 32px;
+        fill: #999;
+        margin-bottom: 6px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    &__text {
+        font-size: 0.88rem;
+        color: #555;
+        margin: 0 0 4px;
+    }
+
+    &__hint {
+        font-size: 0.76rem;
+        color: #999;
+        margin: 0;
+    }
+}
+
+// ─── フォーム ────────────────────────────────────────────────────
+.account-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    &__group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    &__label {
+        font-size: 0.88rem;
+        font-weight: 500;
+        color: #444;
+    }
+
+    &__input {
+        padding: 10px 14px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        color: #333;
+        transition: border-color 0.2s;
+        outline: none;
+
+        &:focus {
+            border-color: #666;
+        }
+    }
+}
+
+// ─── ボタン ──────────────────────────────────────────────────────
+.account-btn {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+
+    &--primary {
+        background: #444;
+        color: #fff;
+
+        &:hover {
+            background: #222;
+        }
+    }
+
+    &--danger {
+        background: transparent;
+        color: #c62828;
+        border: 1px solid #c62828;
+        margin-top: 12px;
+        padding: 7px 20px;
+        font-size: 0.86rem;
+
+        &:hover {
+            background: #fdecea;
+        }
+    }
+
+    &--logout {
+        background: transparent;
+        color: #666;
+        border: 1px solid #bbb;
+
+        &:hover {
+            background: #f5f5f5;
+            border-color: #888;
+            color: #333;
+        }
+    }
+
+    &--back {
+        background: transparent;
+        color: #444;
+        border: 1px solid #bbb;
+
+        &:hover {
+            background: #f0f0f0;
+            border-color: #666;
+            color: #222;
+        }
+    }
+}
+
+// ─── ホーム背景画像プレビュー ────────────────────────────────────
+.account-bg-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 20px;
+
+    &__frame {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #ddd;
+        background: #eee;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+    }
+
+    &__caption {
+        font-size: 0.78rem;
+        color: #888;
+        margin: 0;
+    }
+}
+
+// ─── モーダル ──────────────────────────────────────────────────────
+.account-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: pointer; // 画面のどこをタップしても動作することを明示
+}
+
+.account-modal {
+    background: #fff;
+    padding: 40px 64px;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.2s ease-out;
+    cursor: default; // 文字部分はデフォルト
+
+    &__text {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #333;
+        margin: 0;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+// ─── スマートフォン対応（640px以下）────────────────────────────────
+@media (max-width: 640px) {
+    .account-page {
+        padding: 16px;
+        align-items: stretch;
+    }
+
+    .account-card {
+        padding: 24px 16px;
+
+        &__title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+    }
+
+    // 2カラム → 1カラム
+    .account-body {
+        grid-template-columns: 1fr;
+        gap: 0;
+
+        &__col {
+            gap: 24px;
+        }
+
+        &__footer {
+            flex-direction: column;
+            align-items: stretch;
+
+            button {
+                width: 100%;
+                padding: 12px;
+                font-size: 1rem;
+            }
+        }
+    }
+
+    // アイコンプレビューを縦積みに
+    .account-icon-preview {
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+
+        &__circle {
+            width: 80px;
+            height: 80px;
+        }
+    }
+
+    // モーダルのパディングを縮小・横幅を画面内に収める
+    .account-modal {
+        padding: 28px 24px;
+        margin: 16px;
+        width: calc(100% - 32px);
+        max-width: none;
+
+        &__text {
+            font-size: 1.05rem;
+        }
+    }
+}

@@ -3,6 +3,7 @@ import { authHandlers } from './auth';
 import { homeHandlers } from './home';
 import { ingredientHandlers } from './ingredients';
 import { prepHandlers } from './preps';
+import { dishHandlers } from './dishes';
 
 export const handlers = [
     http.get('/health', () => {
@@ -12,4 +13,5 @@ export const handlers = [
     ...homeHandlers,
     ...prepHandlers,
     ...ingredientHandlers,
+    ...dishHandlers,
 ];

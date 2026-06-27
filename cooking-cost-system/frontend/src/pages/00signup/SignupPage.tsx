@@ -4,10 +4,12 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { signinApi } from '@/api';
+import { accountStore } from '@/stores/accountStore';
+import { toBackendUrl } from '@/utils/url';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 // Validation Schema
 const schema = yup.object({
@@ -21,19 +23,10 @@ const schema = yup.object({
     password: yup
         .string()
         .required('パスワードは必須です')
-        .min(8, 'パスワードは8文字以上である必要があります')
-        .test('password-complexity', 'パスワードの複雑さが不足しています', function(value, context) {
-            if (!value) return true;
-            const missing = [];
-            if (!/[a-z]/.test(value)) missing.push('小文字');
-            if (!/[A-Z]/.test(value)) missing.push('大文字');
-            if (!/[0-9]/.test(value)) missing.push('数字');
-
-            if (missing.length > 0) {
-                return context.createError({ message: `${missing.join('、')}を用いること` });
-            }
-            return true;
-        }),
+        .min(8, 'パスワードは8文字以上で入力してください')
+        .test('password-has-lower', 'パスワードに小文字英字を含めてください', (v) => !v || /[a-z]/.test(v))
+        .test('password-has-upper', 'パスワードに大文字英字を含めてください', (v) => !v || /[A-Z]/.test(v))
+        .test('password-has-digit', 'パスワードに数字を含めてください', (v) => !v || /[0-9]/.test(v)),
     confirmPassword: yup
         .string()
         .required('パスワード（確認）は必須です')
@@ -75,19 +68,32 @@ const SignupPage: React.FC = () => {
         if (!pendingData) return;
 
         try {
-            console.log('Registering (Final):', pendingData);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const response = await signinApi.register({
+                username: pendingData.name,
+                email: pendingData.email,
+                password: pendingData.password
+            });
+            if (response.success && response.data) {
+                const data = response.data as any;
+                localStorage.setItem('authToken', data.token);
+                accountStore.initForUser(data.user.id, data.user.username, data.user.email, toBackendUrl(data.user.icon_url), toBackendUrl(data.user.home_bg_url));
+                setIsConfirmOpen(false);
+                navigate('/');
+            }
+        } catch (err: any) {
             setIsConfirmOpen(false);
-            navigate('/');
-        } catch (error) {
-            console.error(error);
-            setErrorMessage('アカウント作成に失敗しました。');
-            setIsConfirmOpen(false);
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message;
+            if (status === 409) {
+                setErrorMessage(`${message || 'このユーザー名またはメールアドレスは既に登録されています。'} → ログインページからサインインしてください。`);
+            } else {
+                setErrorMessage(message || 'アカウント作成に失敗しました。時間をおいて再度お試しください。');
+            }
         }
     };
 
     return (
-        <div className="min-h-screen w-full bg-white flex flex-col font-sans text-gray-800">
+        <div className="h-screen w-full bg-white flex flex-col font-sans text-gray-800 overflow-hidden">
             {/* Header */}
             <header className="h-[80px] bg-[#d9d9d9] flex items-center px-8 border-b border-gray-300">
                 <h2 className="text-xl font-bold text-black tracking-tight">
@@ -95,7 +101,7 @@ const SignupPage: React.FC = () => {
                 </h2>
             </header>
 
-            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-10">
+            <main className="flex-grow flex flex-col md:flex-row items-center justify-center w-full max-w-7xl mx-auto px-0 py-2 md:py-10">
 
                 {/* Left Side: Text */}
                 <div className="w-full md:w-1/2 flex items-center justify-center md:justify-start pl-0 md:pl-5 mb-10 md:mb-0">
@@ -115,23 +121,23 @@ const SignupPage: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
-                        className="bg-[#D9D9D9] p-8 md:p-10 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
+                        className="bg-[#D9D9D9] p-6 md:p-8 rounded-[30px] shadow-lg w-full max-w-md flex flex-col items-center"
                     >
                         {/* Icon */}
-                        <div className="mb-6">
-                            <img src="/icons/Authentication_icon.png" alt="Auth Icon" className="w-20 h-20 object-contain" />
+                        <div className="bg-blue-100 rounded-2xl p-4 mb-4 border-2 border-white shadow-sm">
+                            <AccountCircleIcon style={{ fontSize: 48, color: '#3B82F6' }} />
                         </div>
 
                         {/* Title */}
                         <h2 className="text-3xl font-bold text-black mb-1 font-sans">
                             Sign Up
                         </h2>
-                        <p className="text-gray-500 text-xs mb-8 tracking-wider">
+                        <p className="text-gray-500 text-xs mb-3 tracking-wider">
                             新規アカウントを作成して利用を開始
                         </p>
 
                         {/* Form */}
-                        <form onSubmit={handleSubmit(onFormSubmit)} className="w-full space-y-5">
+                        <form onSubmit={handleSubmit(onFormSubmit)} className="w-full space-y-2">
 
                             {/* Name */}
                             <div className="space-y-1">
@@ -256,8 +262,17 @@ const SignupPage: React.FC = () => {
 
                             {/* Error Box */}
                             {errorMessage && (
-                                <div className="bg-red-100 text-red-600 text-xs p-2 rounded text-center border border-red-200">
-                                    {errorMessage}
+                                <div className="bg-red-100 text-red-600 text-xs p-3 rounded border border-red-200 space-y-2">
+                                    <p className="text-center">{errorMessage}</p>
+                                    <div className="text-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/login')}
+                                            className="text-[#1E90FF] font-bold hover:underline text-xs"
+                                        >
+                                            ログインページへ →
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
@@ -271,7 +286,7 @@ const SignupPage: React.FC = () => {
                             </button>
 
                             {/* Back to Login Link */}
-                            <div className="text-center pt-4">
+                            <div className="text-center pt-2">
                                 <span className="text-gray-500 text-sm">すでにアカウントをお持ちですか？ </span>
                                 <button
                                     type="button"

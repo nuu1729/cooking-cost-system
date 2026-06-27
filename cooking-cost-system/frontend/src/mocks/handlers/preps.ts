@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { CreatePrepRequest } from '../../types';
-import { MOCK_PREPS, MOCK_INGREDIENTS } from './db';
+import { MOCK_PREPS, MOCK_INGREDIENTS, MOCK_ITEMS } from './db';
 
 /**
  * 06_prepAPI - 仕込み関連のモックハンドラー
@@ -17,9 +17,21 @@ export const prepHandlers = [
             filtered = filtered.filter(p => p.prep_name.includes(nameQuery));
         }
 
+        // 食材情報を結合して返す（表示用）
+        const enriched = filtered.map(prep => ({
+            ...prep,
+            items: prep.items?.map((item: any) => {
+                const ingredient = MOCK_INGREDIENTS.find(ing => ing.id === item.ingredient_id);
+                return {
+                    ...item,
+                    ingredient: ingredient ? { name: ingredient.name } : undefined
+                };
+            })
+        }));
+
         return HttpResponse.json({
             success: true,
-            data: filtered,
+            data: enriched,
             timestamp: new Date().toISOString()
         });
     }),
@@ -46,25 +58,31 @@ export const prepHandlers = [
         const url = new URL(request.url);
         const query = url.searchParams.get('q') || '';
 
-        // 食材からの検索
-        const ingResults = MOCK_INGREDIENTS.filter(i => i.name.includes(query));
-        
-        // 仕込みからの検索（※簡易的に食材と同じ形式に変換）
-        const prepResults = MOCK_PREPS
-            .filter(p => p.prep_name.includes(query))
-            .map(p => ({
-                id: p.id,
-                name: p.prep_name,
-                price: p.total_cost,
-                quantity: p.yield_amount,
-                unit: p.yield_unit,
-                store: '自家製',
-                genre: 'sauce' // 便宜上のジャンル
-            }));
+        // 統合アイテムマスタから 食材（item_type === 1）のみを抽出して検索
+        const results = MOCK_ITEMS
+            .filter(i => i.item_type === 1)
+            .filter(i => i.name.includes(query));
 
         return HttpResponse.json({
             success: true,
-            data: [...ingResults, ...prepResults],
+            data: results,
+            timestamp: new Date().toISOString()
+        });
+    }),
+
+    // 仕込み品検索（お品画面用サジェスト）
+    // ※ /api/preps/:id より前に定義する必要がある
+    http.get('/api/preps/search', async ({ request }) => {
+        const url = new URL(request.url);
+        const query = url.searchParams.get('q') || '';
+
+        const results = MOCK_ITEMS
+            .filter(i => i.item_type === 2)
+            .filter(i => i.name.includes(query));
+
+        return HttpResponse.json({
+            success: true,
+            data: results,
             timestamp: new Date().toISOString()
         });
     }),
@@ -82,9 +100,17 @@ export const prepHandlers = [
             }, { status: 404 });
         }
 
+        const enriched = {
+            ...item,
+            items: item.items?.map((p: any) => {
+                const ing = MOCK_INGREDIENTS.find(i => i.id === p.ingredient_id);
+                return { ...p, ingredient: ing };
+            })
+        };
+
         return HttpResponse.json({
             success: true,
-            data: item,
+            data: enriched,
             timestamp: new Date().toISOString()
         });
     }),
@@ -115,6 +141,28 @@ export const prepHandlers = [
             success: true,
             data: newPrep,
             message: '仕込みデータを登録しました',
+            timestamp: new Date().toISOString()
+        });
+    }),
+    
+    // 仕込みデータの削除
+    http.delete('/api/preps/:id', async ({ params }) => {
+        const { id } = params;
+        const index = MOCK_PREPS.findIndex(p => p.id === Number(id));
+        
+        if (index === -1) {
+            return HttpResponse.json({
+                success: false,
+                message: '削除対象が見つかりません',
+                timestamp: new Date().toISOString()
+            }, { status: 404 });
+        }
+        
+        MOCK_PREPS.splice(index, 1);
+        
+        return HttpResponse.json({
+            success: true,
+            message: '削除が完了しました',
             timestamp: new Date().toISOString()
         });
     }),
