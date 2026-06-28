@@ -443,10 +443,12 @@ rotate_secrets() {
     #       2>/dev/null は念のための措置であり、明示的な存在チェックを重複して追加する必要はない。
     local current_app_env
     current_app_env="$(grep -m1 '^APP_ENV=' "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2- | sed "s/#.*//; s/['\"]//g; s/[[:space:]]//g")"
-    # NOTE: sed による # 以降の切り捨ては APP_ENV の有効値（development/test/staging/production）が
-    #       固定文字列のため実害なし。想定外の値は case でフォールバックするため安全。
-    # NOTE: s/#.*// は「# 直前のスペースありなし両方」を除去する（s/[[:space:]]*#.*// より明確）。
-    # ⚠️  有効値を変更する際は backend/app.py の _VALID_APP_ENVS も合わせて更新すること
+    # NOTE: sed の処理順 —
+    #   s/#.*//        : # 以降（インラインコメント）を除去。# 直前のスペースは次の s/[[:space:]]//g で除去。
+    #   s/['\"]//g     : 引用符を除去。
+    #   s/[[:space:]]//g : 残留スペースをすべて除去（コメント除去後の末尾スペースを含む）。
+    # NOTE: APP_ENV の有効値は固定文字列のため # 切り捨てによる実害なし。想定外値は case でフォールバック。
+    # ⚠️  有効値を変更する際は backend/app.py の _VALID_APP_ENVS_ORDERED も合わせて更新すること
     case "${current_app_env}" in
         development|test|staging|production)
             # 有効値 — そのまま引き継ぐ

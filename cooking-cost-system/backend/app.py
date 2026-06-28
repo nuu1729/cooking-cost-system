@@ -10,8 +10,10 @@ from api.extensions import limiter
 from api.error import register_error_handlers
 from datetime import datetime, timezone
 
-# generate-env.sh の case 文と有効値を同期すること
-_VALID_APP_ENVS = frozenset({'development', 'test', 'staging', 'production'})
+# 有効な APP_ENV 値の順序付きタプル（表示順を固定）。frozenset はここから派生させる。
+# ⚠️ 変更時は generate-env.sh の case 文も合わせて更新すること
+_VALID_APP_ENVS_ORDERED = ('development', 'test', 'staging', 'production')
+_VALID_APP_ENVS = frozenset(_VALID_APP_ENVS_ORDERED)
 
 
 def _configure_logging(log_dir: str):
@@ -40,7 +42,7 @@ def create_app():
 
     env = os.environ.get('APP_ENV', 'development')
     if env not in _VALID_APP_ENVS:
-        valid_str = ' / '.join(('development', 'test', 'staging', 'production'))
+        valid_str = ' / '.join(_VALID_APP_ENVS_ORDERED)
         raise RuntimeError(
             f'APP_ENV に無効な値が設定されています: {env!r}。'
             f'有効値: {valid_str}'
