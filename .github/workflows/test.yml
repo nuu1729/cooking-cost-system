@@ -1,0 +1,64 @@
+name: Test
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # ─────────────────────────────────────────
+  # フロントエンド: lint・型チェック・ユニットテスト
+  # ─────────────────────────────────────────
+  frontend:
+    name: Frontend (lint / type-check / test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cooking-cost-system/frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cooking-cost-system/frontend/package-lock.json
+
+      - name: 依存関係をインストール
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript 型チェック
+        run: npm run type-check
+
+      - name: ユニットテスト
+        # vitest はデフォルトでウォッチモードになるため --run で非インタラクティブ実行
+        run: npx vitest run
+
+  # ─────────────────────────────────────────
+  # バックエンド: pytest
+  # ─────────────────────────────────────────
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cooking-cost-system/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: cooking-cost-system/backend/requirements-dev.txt
+
+      - name: 依存関係をインストール
+        # requirements-dev.txt は requirements.txt の全依存を含む pip-compile 済みロックファイル
+        run: pip install -r requirements-dev.txt
+
+      - name: pytest
+        run: pytest tests/ -v
