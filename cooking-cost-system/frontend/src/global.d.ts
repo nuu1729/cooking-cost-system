@@ -1,3 +1,7 @@
+// export {} makes this a module file so declare module 'react' augments @types/react
+// instead of replacing it (ambient module would shadow the entire @types/react)
+export {};
+
 // React の型定義に inert 属性を追加（React 19 で正式対応予定）
 // inert='' → 要素を無効化（フォーカス・クリック・スクリーンリーダーをブロック）
 // inert={undefined} → 通常状態（属性なし）

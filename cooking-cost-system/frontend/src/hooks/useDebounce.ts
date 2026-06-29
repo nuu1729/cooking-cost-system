@@ -95,7 +95,7 @@ export function useDelayedLoading(isLoading: boolean, delay: number = 200): bool
   const [delayedLoading, setDelayedLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
 
     if (isLoading) {
       timeoutId = setTimeout(() => {

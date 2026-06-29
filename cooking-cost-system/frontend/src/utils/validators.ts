@@ -531,7 +531,7 @@ export const createDebouncedValidator = (
   validator: (value: any) => FieldValidationResult,
   delay: number = 300
 ) => {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: ReturnType<typeof setTimeout>;
 
   return (value: any): Promise<FieldValidationResult> => {
     return new Promise((resolve) => {

@@ -497,7 +497,7 @@ export const debugUtils = {
    * コンソールログを整形して出力
    */
   log: (message: string, data?: any, type: 'info' | 'warn' | 'error' = 'info'): void => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       const timestamp = new Date().toLocaleTimeString();
       const prefix = `[${timestamp}] ${message}`;
       
@@ -513,7 +513,7 @@ export const debugUtils = {
    * パフォーマンス測定
    */
   measurePerformance: <T>(name: string, fn: () => T): T => {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       const start = performance.now();
       const result = fn();
       const end = performance.now();
@@ -524,18 +524,6 @@ export const debugUtils = {
   },
 };
 
-// エクスポート
-export {
-  numberUtils,
-  stringUtils,
-  dateUtils,
-  arrayUtils,
-  objectUtils,
-  urlUtils,
-  businessUtils,
-  fileUtils,
-  debugUtils,
-};
 
 export default {
   numberUtils,
