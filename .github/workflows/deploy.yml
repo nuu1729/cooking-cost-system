@@ -126,7 +126,9 @@ jobs:
   deploy-backend:
     name: Deploy Backend → Hetzner VPS
     runs-on: ubuntu-latest
-    needs: [test-backend]  # テスト通過後にのみデプロイ
+    needs: [test-backend]  # バックエンドはフロントエンドの実装に依存しない独立サービスのため
+                           # test-frontend は不要。deploy-frontend 側が両テストを待つことで
+                           # API 破壊的変更はフロントエンドのデプロイ段階でブロックされる。
 
     steps:
       - name: SSH でバックエンドをデプロイ
