@@ -60,6 +60,7 @@ jobs:
 
           # 過去のコメント履歴を取得（最新20件、最大20KB）
           # Claude レビューコメントと作者の対応方針コメントの両方を含む
+          # || true: コメント取得失敗はワークフロー全体の失敗とせず、空文字のまま後続処理に進む
           COMMENTS=$(gh api "repos/${GH_REPO}/issues/${PR_NUMBER}/comments?per_page=100" \
             | jq -r '
               .[-20:]
@@ -67,7 +68,7 @@ jobs:
                   "### コメント by \(.user.login) (\(.created_at))\n\(.body)"
                 )
               | join("\n\n---\n\n")
-            ' | head -c 20000)
+            ' | head -c 20000) || true
           printf '%s' "$COMMENTS" > "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
 
       - name: Claude にレビューを依頼
