@@ -90,6 +90,7 @@ services:
       start_period: 60s  # Gunicorn 起動 + DB 接続初期化に余裕を持たせる
     security_opt:
       - no-new-privileges:true  # setuid バイナリ等による権限昇格を防止
+    # user: は Dockerfile の `USER appuser`（非 root）で制御済みのため docker-compose 側では省略
     deploy:
       resources:
         limits:

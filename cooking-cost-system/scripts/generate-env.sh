@@ -444,7 +444,8 @@ rotate_secrets() {
     local current_app_env
     current_app_env="$(grep -m1 '^APP_ENV=' "${ENV_FILE}" 2>/dev/null | cut -d'=' -f2- | sed "s/#.*//; s/['\"]//g; s/[[:space:]]//g")"
     # NOTE: sed の処理順 —
-    #   s/#.*//        : # 以降（インラインコメント）を除去。# 直前のスペースは次の s/[[:space:]]//g で除去。
+    #   s/#.*//        : # 以降（インラインコメント）を除去（スペースあり/なし両方に対応:
+    #                    "val # c"→"val ", "val#c"→"val"）。前者の末尾スペースは次行で除去。
     #   s/['\"]//g     : 引用符を除去。
     #   s/[[:space:]]//g : 残留スペースをすべて除去（コメント除去後の末尾スペースを含む）。
     # NOTE: APP_ENV の有効値は固定文字列のため # 切り捨てによる実害なし。想定外値は case でフォールバック。
