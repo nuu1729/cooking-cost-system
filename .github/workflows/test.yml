@@ -3,6 +3,8 @@ name: Test
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  # deploy.yml から workflow_call で呼び出し可能にする（テストジョブの重複排除）
+  workflow_call:
 
 jobs:
   # ─────────────────────────────────────────
