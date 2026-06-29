@@ -13,6 +13,9 @@ YELLOW := \033[33m
 BLUE   := \033[34m
 RESET  := \033[0m
 
+# シンボリックリンク警告メッセージ（init-secrets で使用）
+SYMLINK_WARN := $(YELLOW)⚠️  シンボリックリンクをスキップ: %s（リンク先への意図しない chmod を防ぐため）$(RESET)\n
+
 # make をどのディレクトリから実行しても secrets/ が Makefile と同じ階層を指すよう絶対パス化
 MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
@@ -29,8 +32,15 @@ help: ## 📖 使用可能なコマンドを表示
 ## 🔐 セキュリティ
 # NOTE: find の -maxdepth 1 は意図的 — secrets/ 直下のファイルのみを対象とする。
 #       サブディレクトリ構成に変更した場合はこのコマンドを合わせて更新すること。
+#       シンボリックリンクは chmod を適用せず警告のみ（リンク先が secrets/ 外にある場合の
+#       意図しないパーミッション変更を防ぐため）。
 init-secrets: ## 🔐 secrets/* のパーミッションを 600 に設定（本番デプロイ前に実行）
 	@if [ ! -d "$(MAKEFILE_DIR)secrets" ]; then echo "$(RED)❌ secrets/ ディレクトリが見つかりません$(RESET)"; exit 1; fi
+	@find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type l 2>/dev/null \
+	   -exec sh -c 'printf "$(SYMLINK_WARN)" "$$1" >&2' _ {} \;
+	@# NOTE: find を最大3回実行している（シンボリックリンク確認・存在確認・chmod適用）。
+	@#       -exec ... + と xargs の動作差異（ファイル名にスペース・改行が含まれる場合）を
+	@#       考慮して xargs への置き換えは行わない。
 	@if [ -n "$$(find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f 2>/dev/null)" ]; then \
 	   find "$(MAKEFILE_DIR)secrets" -maxdepth 1 -type f -exec chmod 600 {} + \
 	   && echo "$(GREEN)✅ secrets/* を 600 に設定しました$(RESET)" \

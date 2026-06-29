@@ -10,6 +10,11 @@ from api.extensions import limiter
 from api.error import register_error_handlers
 from datetime import datetime, timezone
 
+# 有効な APP_ENV 値の順序付きタプル（表示順を固定）。frozenset はここから派生させる。
+# ⚠️ 変更時は generate-env.sh の case 文も合わせて更新すること
+_VALID_APP_ENVS_ORDERED = ('development', 'test', 'staging', 'production')
+_VALID_APP_ENVS = frozenset(_VALID_APP_ENVS_ORDERED)
+
 
 def _configure_logging(log_dir: str):
     os.makedirs(log_dir, exist_ok=True)
@@ -35,12 +40,20 @@ def create_app():
     log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
     _configure_logging(log_dir)
 
-    env = os.environ.get('FLASK_ENV', 'development')
+    env = os.environ.get('APP_ENV', 'development')
+    if env not in _VALID_APP_ENVS:
+        valid_str = ' / '.join(_VALID_APP_ENVS_ORDERED)
+        raise RuntimeError(
+            f'APP_ENV に無効な値が設定されています: {env!r}。'
+            f'有効値: {valid_str}'
+        )
     if env == 'production':
         app.config.from_object('config_production.ProductionConfig')
     elif env == 'staging':
         app.config.from_object('config_staging.StagingConfig')
     else:
+        # development および test は DevelopmentConfig を使用
+        # test は CI/ローカルテスト用途のみ想定し、専用 Config クラスは持たない
         app.config.from_object('config.DevelopmentConfig')
 
     is_production = (env == 'production')
