@@ -11,34 +11,38 @@ jobs:
   frontend:
     name: Frontend (lint / type-check / test)
     runs-on: ubuntu-latest
+    # cooking-cost-system/ が npm workspace のルート（package-lock.json の場所）
     defaults:
       run:
-        working-directory: cooking-cost-system/frontend
+        working-directory: cooking-cost-system
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: cooking-cost-system/frontend/package-lock.json
+          cache-dependency-path: cooking-cost-system/package-lock.json
 
       - name: 依存関係をインストール
+        # workspace ルートで npm ci を実行し、全 workspace（frontend/backend）の依存を解決
         run: npm ci
 
       - name: ESLint
-        run: npm run lint
+        run: npm run lint -w frontend
 
       - name: TypeScript 型チェック
-        run: npm run type-check
+        run: npm run type-check -w frontend
 
       - name: ユニットテスト
         # vitest はデフォルトでウォッチモードになるため --run で非インタラクティブ実行
-        run: npx vitest run
+        run: npm run test -w frontend -- --run
 
   # ─────────────────────────────────────────
   # バックエンド: pytest
+  # test_cors_validation.py は config.py の関数のみをテストし DB 不要
+  # pytest.ini の pythonpath = . により backend/ がモジュール探索パスに含まれる
   # ─────────────────────────────────────────
   backend:
     name: Backend (pytest)
