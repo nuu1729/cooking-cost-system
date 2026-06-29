@@ -1,0 +1,172 @@
+name: Deploy
+
+# main ブランチへのプッシュ時にフロントエンド・バックエンドを並列デプロイする
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ─────────────────────────────────────────
+  # テスト（デプロイ前に必ず通過を確認）
+  # ─────────────────────────────────────────
+  test-frontend:
+    name: Frontend (lint / type-check / test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cooking-cost-system
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: cooking-cost-system/package-lock.json
+
+      - name: 依存関係をインストール
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint -w frontend
+
+      - name: TypeScript 型チェック
+        run: npm run type-check -w frontend
+
+      - name: ユニットテスト
+        run: npm run test -w frontend -- --run
+
+  test-backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cooking-cost-system/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: cooking-cost-system/backend/requirements-dev.txt
+
+      - name: 依存関係をインストール
+        run: pip install -r requirements-dev.txt
+
+      - name: pytest
+        run: pytest tests/ -v
+
+  # ─────────────────────────────────────────
+  # フロントエンド: Cloudflare Pages
+  #
+  # 【初回セットアップ — 実行前にユーザーが手動で行う必要あり】
+  # 1. Cloudflare ダッシュボード → Workers & Pages → "Create a project"
+  # 2. "Direct Upload" を選択（GitHub 連携ではなく CI/CD 経由でデプロイするため）
+  # 3. プロジェクト名: cooking-cost-system
+  # 4. GitHub Secrets に以下を登録:
+  #    - CLOUDFLARE_API_TOKEN  : Cloudflare API トークン（Cloudflare Pages 編集権限）
+  #    - CLOUDFLARE_ACCOUNT_ID : Cloudflare ダッシュボードの右サイドバーに表示される ID
+  #    - VITE_API_URL          : 本番 API URL（例: https://api.yourdomain.com）
+  # ─────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend → Cloudflare Pages
+    runs-on: ubuntu-latest
+    needs: [test-frontend, test-backend]  # フロント・バック両テスト通過後にのみデプロイ（API 破壊的変更の保護）
+    permissions:
+      contents: read
+      deployments: write  # Cloudflare Pages のデプロイステータスを GitHub に反映するため
+    defaults:
+      run:
+        working-directory: cooking-cost-system
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: cooking-cost-system/package-lock.json
+
+      - name: 依存関係をインストール
+        run: npm ci
+
+      - name: ビルド
+        run: npm run build -w frontend
+        env:
+          # 本番 API エンドポイント。Vite はビルド時に VITE_* 変数をバンドルに埋め込む
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Cloudflare Pages にデプロイ
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: cooking-cost-system
+          # リポジトリルートからの相対パスで dist/ を指定
+          directory: cooking-cost-system/frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────
+  # バックエンド: Hetzner VPS へ SSH デプロイ
+  #
+  # 【初回セットアップ — 実行前にユーザーが手動で行う必要あり】
+  # 1. VPS 上で以下を事前準備:
+  #    - /opt/cooking-cost-system にリポジトリをクローン済みであること
+  #    - docker・docker compose がインストール済みであること
+  #    - secrets/*.txt が配置済みであること（generate-env.sh で生成）
+  # 2. GitHub Secrets に以下を登録:
+  #    - VPS_HOST    : Hetzner VPS の IP アドレス
+  #    - VPS_USER    : SSH ユーザー名（例: deploy）
+  #    - VPS_SSH_KEY : SSH 秘密鍵（PEM 形式、改行を含む文字列）
+  # ─────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend → Hetzner VPS
+    runs-on: ubuntu-latest
+    needs: [test-backend]  # バックエンドはフロントエンドの実装に依存しない独立サービスのため
+                           # test-frontend は不要。deploy-frontend 側が両テストを待つことで
+                           # API 破壊的変更はフロントエンドのデプロイ段階でブロックされる。
+
+    steps:
+      - name: SSH でバックエンドをデプロイ
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # タイムアウト: 初回ビルドで docker build が 10 分を超えるリスクを考慮して 15m に設定
+          command_timeout: 15m
+          script: |
+            set -e
+            cd /opt/cooking-cost-system
+
+            echo "=== 最新コードを取得 ==="
+            # git pull ではなく reset --hard で VPS 上の手動変更によるコンフリクトを防ぐ
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Docker イメージをビルド ==="
+            # backend のみ再ビルド（database は更新不要）
+            docker compose -f cooking-cost-system/docker-compose.prod.yml build backend
+
+            echo "=== コンテナを再起動 ==="
+            # --no-deps: database コンテナに影響を与えない
+            # --remove-orphans: このプロジェクト専用 VPS のため他プロジェクトへの影響なし
+            docker compose -f cooking-cost-system/docker-compose.prod.yml \
+              up -d --no-deps --remove-orphans backend
+
+            echo "=== ヘルスチェック（5秒 × 最大12回 = 最大60秒待機）==="
+            for i in $(seq 1 12); do
+              # healthcheck.py（docker-compose.prod.yml 参照）と同じエンドポイントを確認
+              if curl -sf http://localhost:3001/health; then
+                echo "✅ デプロイ成功"
+                exit 0
+              fi
+              echo "待機中... ($i/12)"
+              sleep 5
+            done
+            echo "❌ ヘルスチェック失敗"
+            exit 1

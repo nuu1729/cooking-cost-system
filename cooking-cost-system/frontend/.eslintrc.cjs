@@ -3,7 +3,7 @@ module.exports = {
   env: { browser: true, es2020: true },
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended',
     'plugin:react-hooks/recommended',
   ],
   ignorePatterns: ['dist', '.eslintrc.cjs'],
@@ -45,16 +45,6 @@ module.exports = {
     'object-shorthand': 'error',
     'prefer-template': 'error',
     'template-curly-spacing': 'error',
-    'padding-line-between-statements': [
-      'error',
-      { blankLine: 'always', prev: '*', next: 'return' },
-      { blankLine: 'always', prev: ['const', 'let', 'var'], next: '*' },
-      {
-        blankLine: 'any',
-        prev: ['const', 'let', 'var'],
-        next: ['const', 'let', 'var'],
-      },
-    ],
   },
   settings: {
     react: {

@@ -41,8 +41,8 @@ export const dishHandlers = [
         
         // ソート
         filtered.sort((a, b) => {
-            let valA = a[sortBy];
-            let valB = b[sortBy];
+            const valA = a[sortBy];
+            const valB = b[sortBy];
             
             if (typeof valA === 'string') {
                 return sortOrder === 'ASC' ? valA.localeCompare(valB) : valB.localeCompare(valA);
@@ -75,8 +75,8 @@ export const dishHandlers = [
         
         // ソート
         filtered.sort((a, b) => {
-            let valA = a[sortBy];
-            let valB = b[sortBy];
+            const valA = a[sortBy];
+            const valB = b[sortBy];
             
             if (typeof valA === 'string') {
                 return sortOrder === 'ASC' ? valA.localeCompare(valB) : valB.localeCompare(valA);

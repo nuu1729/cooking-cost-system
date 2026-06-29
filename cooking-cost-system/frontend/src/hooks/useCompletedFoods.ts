@@ -242,7 +242,7 @@ export const useCompletedFoodBuilder = () => {
     const foodData: CreateCompletedFoodRequest = {
       name: foodName.trim(),
       description: description.trim() || undefined,
-      price: price,
+      price,
       dishes: selectedDishes.map(item => ({
         dish_id: item.dish.id!,
         usage_quantity: item.usageQuantity,

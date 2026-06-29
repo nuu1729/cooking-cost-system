@@ -21,8 +21,7 @@ export const useDishes = (
   searchParams?: DishSearchParams,
   options?: UseDishesOptions
 ) => {
-  const { success, error } = useToast();
-  const queryClient = useQueryClient();
+  const { error } = useToast();
 
   const query = useQuery({
     queryKey: [...QUERY_KEYS.DISHES, searchParams],
@@ -77,7 +76,7 @@ export const useCreateDish = () => {
 
   return useMutation({
     mutationFn: (data: CreateDishRequest) => dishApi.create(data),
-    onSuccess: (response) => {
+    onSuccess: (_response) => {
       success('料理を作成しました');
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DISHES });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD });
@@ -96,7 +95,7 @@ export const useUpdateDish = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<CreateDishRequest> }) =>
       dishApi.update(id, data),
-    onSuccess: (response, variables) => {
+    onSuccess: (_response, variables) => {
       success('料理を更新しました');
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DISHES });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DISH_DETAIL(variables.id) });

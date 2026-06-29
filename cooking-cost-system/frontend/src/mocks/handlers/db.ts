@@ -5,17 +5,17 @@ import initialPreps from '../data/preps.json';
 import initialDishes from '../data/dishes.json';
 
 // In-Memory DB (移行前の互換性用)
-export let MOCK_ACCOUNTS = [...loginAccounts];
-export let MOCK_INGREDIENTS: Ingredient[] = [...initialIngredients] as Ingredient[];
-export let MOCK_PREPS: any[] = [...initialPreps];
-export let MOCK_DISHES: any[] = [...initialDishes];
+export const MOCK_ACCOUNTS = [...loginAccounts];
+export const MOCK_INGREDIENTS: Ingredient[] = [...initialIngredients] as Ingredient[];
+export const MOCK_PREPS: any[] = [...initialPreps];
+export const MOCK_DISHES: any[] = [...initialDishes];
 
 // ----------------------------------------------------
 // 統合DBモデル（アイテムと構成要素の単一化）
 // ----------------------------------------------------
 import { UnifiedItem, UnifiedRecipeItem } from '../../types';
 
-export let MOCK_ITEMS: UnifiedItem[] = [
+export const MOCK_ITEMS: UnifiedItem[] = [
     // 既存の食材を属性1（食材）としてマッピング
     ...(initialIngredients.map(i => ({
         id: i.id,
@@ -47,7 +47,7 @@ export let MOCK_ITEMS: UnifiedItem[] = [
 ];
 
 // 仕込みの构成情報をレシピとしてマッピング
-export let MOCK_RECIPE_ITEMS: UnifiedRecipeItem[] = initialPreps.flatMap((p) => 
+export const MOCK_RECIPE_ITEMS: UnifiedRecipeItem[] = initialPreps.flatMap((p) => 
     p.items.map((item: any) => ({
         id: Math.floor(Math.random() * 1000000),
         parent_item_id: p.id,

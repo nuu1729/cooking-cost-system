@@ -1,10 +1,5 @@
 import { useCallback } from 'react';
-import toast, { 
-  Toast, 
-  ToastOptions, 
-  toast as hotToast,
-  Toaster as HotToaster 
-} from 'react-hot-toast';
+import toast, { ToastOptions } from 'react-hot-toast';
 
 interface ToastMessage {
   type: 'success' | 'error' | 'info' | 'warning' | 'loading';

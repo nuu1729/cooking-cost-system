@@ -328,7 +328,7 @@ const PrepPage: React.FC = () => {
                                         >
                                             <div className="ic-body">
                                                 <p className="ic-name">{item.ingredient?.name}</p>
-                                                <p className="ic-meta">{item.amount}{item.unit}　{item.ingredient?.store}</p>
+                                                <p className="ic-meta">{item.amount}{item.unit} {item.ingredient?.store}</p>
                                                 <p className="ic-cost">¥{item.cost.toLocaleString()}</p>
                                             </div>
                                             <div className="ic-actions">

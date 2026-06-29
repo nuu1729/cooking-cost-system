@@ -497,8 +497,6 @@ export const predictionCalculations = {
     const sumY = dataPoints.reduce((sum, point) => sum + point.y, 0);
     const sumXY = dataPoints.reduce((sum, point) => sum + point.x * point.y, 0);
     const sumXX = dataPoints.reduce((sum, point) => sum + point.x * point.x, 0);
-    const sumYY = dataPoints.reduce((sum, point) => sum + point.y * point.y, 0);
-
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
 
@@ -591,17 +589,6 @@ export const calculationUtils = {
       Math.abs(value - mean) <= threshold * stdDev
     );
   },
-};
-
-// エクスポート
-export {
-  calculations,
-  ingredientCalculations,
-  dishCalculations,
-  completedFoodCalculations,
-  statisticsCalculations,
-  predictionCalculations,
-  calculationUtils,
 };
 
 export default {
