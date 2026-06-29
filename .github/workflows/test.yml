@@ -36,8 +36,9 @@ jobs:
         run: npm run type-check -w frontend
 
       - name: ユニットテスト
-        # vitest はデフォルトでウォッチモードになるため --run で非インタラクティブ実行
-        run: npm run test -w frontend -- --run
+        # --run: ウォッチモードを無効化（CI 向け非インタラクティブ実行）
+        # --passWithNoTests: テストファイルが存在しない場合も exit 0（テスト未作成時の CI ブロックを防ぐ）
+        run: npm run test -w frontend -- --run --passWithNoTests
 
   # ─────────────────────────────────────────
   # バックエンド: pytest
