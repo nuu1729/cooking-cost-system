@@ -185,8 +185,8 @@ export function useStorageState<T>(
   initialValue: T,
   storageType: 'localStorage' | 'sessionStorage' = 'localStorage'
 ): [T, (value: SetValue<T>) => void, () => void] {
-  // storageType は初期化後に変更されない前提
-  // （Reactフックのルールに従い両フックを常に呼び出す）
+  // storageType は初期化後に変更されない前提（Reactフックのルールに従い両フックを常に呼び出す）
+  // 初期化時は両ストレージから getItem のみ。setItem は返した setValue のみが呼び出す。
   const sessionResult = useSessionStorage(key, initialValue);
   const localResult = useLocalStorage(key, initialValue);
   return storageType === 'sessionStorage' ? sessionResult : localResult;

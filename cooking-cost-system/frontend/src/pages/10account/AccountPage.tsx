@@ -10,7 +10,7 @@ const MAX_FILE_SIZE_MB = 5;
 
 const AccountPage: React.FC = () => {
     // accountStore の更新を受けて再レンダリングするトリガー（値は直接JSXで使わない）
-    const [_account, setAccount] = useState<AccountInfo>(accountStore.get());
+    const [, setAccount] = useState<AccountInfo>(accountStore.get());
     const [editDisplayName, setEditDisplayName] = useState(accountStore.get().displayName);
     const [editEmail, setEditEmail] = useState(accountStore.get().email);
     const [previewUrl, setPreviewUrl] = useState<string | null>(accountStore.get().iconUrl);
