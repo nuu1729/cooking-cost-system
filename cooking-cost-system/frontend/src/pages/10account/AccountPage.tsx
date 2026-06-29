@@ -9,7 +9,7 @@ import './AccountPage.scss';
 const MAX_FILE_SIZE_MB = 5;
 
 const AccountPage: React.FC = () => {
-    const [account, setAccount] = useState<AccountInfo>(accountStore.get());
+    const [_account, setAccount] = useState<AccountInfo>(accountStore.get());
     const [editDisplayName, setEditDisplayName] = useState(accountStore.get().displayName);
     const [editEmail, setEditEmail] = useState(accountStore.get().email);
     const [previewUrl, setPreviewUrl] = useState<string | null>(accountStore.get().iconUrl);
@@ -126,7 +126,7 @@ const AccountPage: React.FC = () => {
     const handleLogout = async () => {
         try {
             await authApi.logout();
-        } catch {}
+        } catch { /* logout は失敗しても後続処理を継続する */ }
         localStorage.removeItem('authToken');
         accountStore.clear();
         navigate('/login');

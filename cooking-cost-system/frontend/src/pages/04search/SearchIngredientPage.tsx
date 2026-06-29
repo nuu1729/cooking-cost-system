@@ -105,7 +105,7 @@ const SearchIngredientPage: React.FC = () => {
     // 個 + isNormalizePiece ON: ¥/g（個→g変換）
     // 個 + isNormalizePiece OFF: ¥/個
     const getUnitPrice = (item: Ingredient) => {
-        let price = item.price;
+        const price = item.price;
         let quantity = item.quantity;
 
         if (filters.isNormalizePiece && item.unit === '個') {

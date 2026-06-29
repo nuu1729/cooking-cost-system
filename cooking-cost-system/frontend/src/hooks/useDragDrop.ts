@@ -1,6 +1,6 @@
 import { useDrag, useDrop } from 'react-dnd';
 import { useCallback, useRef, useState } from 'react';
-import { DragItem, DropResult, Ingredient, Dish, CompletedFood } from '../types';
+import { DragItem, Ingredient, Dish, CompletedFood } from '../types';
 
 // ドラッグ&ドロップの種類定義
 export const DragTypes = {
@@ -34,7 +34,7 @@ export const useDraggableItem = <T extends Ingredient | Dish | CompletedFood>(
 };
 
 // ドロップターゲットのフック
-export const useDropTarget = <T>(
+export const useDropTarget = (
   accept: string | string[],
   onDrop: (item: DragItem, monitor: any) => void,
   canDrop?: (item: DragItem, monitor: any) => boolean
@@ -240,7 +240,7 @@ export const useMultiSelectDrag = <T extends { id: number }>(
 };
 
 // ドラッグプレビューカスタマイズのフック
-export const useDragPreview = (item: any, type: string) => {
+export const useDragPreview = (item: any, _type: string) => {
   const preview = useCallback((connect: any) => {
     const element = document.createElement('div');
     element.className = 'drag-preview';

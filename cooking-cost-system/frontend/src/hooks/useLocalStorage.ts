@@ -185,10 +185,9 @@ export function useStorageState<T>(
   initialValue: T,
   storageType: 'localStorage' | 'sessionStorage' = 'localStorage'
 ): [T, (value: SetValue<T>) => void, () => void] {
-  if (storageType === 'sessionStorage') {
-    return useSessionStorage(key, initialValue);
-  }
-  return useLocalStorage(key, initialValue);
+  const sessionResult = useSessionStorage(key, initialValue);
+  const localResult = useLocalStorage(key, initialValue);
+  return storageType === 'sessionStorage' ? sessionResult : localResult;
 }
 
 // ユーティリティ関数
@@ -264,7 +263,7 @@ export const storageUtils = {
 
       let total = 0;
       for (const key in window.localStorage) {
-        if (window.localStorage.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(window.localStorage, key)) {
           total += window.localStorage[key].length + key.length;
         }
       }

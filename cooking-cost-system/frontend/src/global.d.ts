@@ -3,6 +3,7 @@
 // inert={undefined} → 通常状態（属性なし）
 // boolean は許容しない（inert={false} のような誤用を防ぐため）
 declare module 'react' {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     interface HTMLAttributes<T> {
         inert?: '' | undefined;
     }
