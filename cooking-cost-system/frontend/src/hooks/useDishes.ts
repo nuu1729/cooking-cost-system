@@ -95,7 +95,7 @@ export const useUpdateDish = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<CreateDishRequest> }) =>
       dishApi.update(id, data),
-    onSuccess: (response, variables) => {
+    onSuccess: (_response, variables) => {
       success('料理を更新しました');
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DISHES });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DISH_DETAIL(variables.id) });
