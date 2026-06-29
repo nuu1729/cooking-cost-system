@@ -41,7 +41,7 @@
     "incremental": true,
     "noImplicitReturns": true,
     "noImplicitThis": true,
-    "noImplicitAny": false,
+    "noImplicitAny": false, // 既存コードに暗黙的 any が多数存在するため段階的移行。別 issue で対応予定
     "strictBindCallApply": true,
     "strictFunctionTypes": true,
     "strictNullChecks": true,
