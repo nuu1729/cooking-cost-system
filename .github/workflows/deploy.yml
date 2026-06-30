@@ -9,6 +9,8 @@ jobs:
   # ─────────────────────────────────────────
   # テスト（デプロイ前に必ず通過を確認）
   # test.yml を workflow_call で再利用してジョブ定義の重複を排除する
+  # ※ needs: [test] は test.yml 内の全ジョブ完了を待つ（frontend + backend 両ジョブ）
+  #    test.yml に新規ジョブを追加した場合はデプロイ条件への影響を確認すること
   # ─────────────────────────────────────────
   test:
     uses: ./.github/workflows/test.yml
@@ -80,9 +82,9 @@ jobs:
   deploy-backend:
     name: Deploy Backend → Hetzner VPS
     runs-on: ubuntu-latest
-    needs: [test]  # バックエンドはフロントエンドの実装に依存しない独立サービスのため
+    needs: [test]  # workflow_call の制約上、test.yml 内の特定ジョブのみを指定できないため
                    # test.yml 全体（frontend + backend 両ジョブ）の完了を待つ。
-                   # deploy-frontend 側が両テストを待つことで API 破壊的変更はフロントエンドのデプロイ段階でブロックされる。
+                   # フロントエンドテストも待つ点は workflow_call 採用による許容トレードオフ。
 
     steps:
       - name: SSH でバックエンドをデプロイ
