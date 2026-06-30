@@ -9,11 +9,11 @@ jobs:
   # ─────────────────────────────────────────
   # テスト（デプロイ前に必ず通過を確認）
   # test.yml を workflow_call で再利用してジョブ定義の重複を排除する
-  # ※ needs: [test] は test.yml 内の全ジョブ完了を待つ（frontend + backend 両ジョブ）
-  #    test.yml に新規ジョブを追加した場合はデプロイ条件への影響を確認すること
   # ─────────────────────────────────────────
   test:
     uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read  # テストジョブに最低限の権限を明示（リポジトリのデフォルトが read-write でも安全）
 
   # ─────────────────────────────────────────
   # フロントエンド: Cloudflare Pages
