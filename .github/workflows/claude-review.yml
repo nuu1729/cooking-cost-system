@@ -44,6 +44,8 @@ jobs:
           # GITHUB_ENV への書き込みは次ステップ以降にしか反映されないため、
           # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
+          # ERR トラップ: このステップがエラー終了した場合のみ即時削除（EXIT だと成功時も発火して次ステップが参照できなくなる）
+          trap 'rm -rf "$CLAUDE_REVIEW_WORK_DIR"' ERR
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
           # PR の基本情報を取得
@@ -52,10 +54,11 @@ jobs:
 
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
-          # 差分を取得（最大100KB）。マルチバイト文字の切り捨て問題は issue #109 で追跡中
           # 注意: タイトル取得と差分取得で同じエンドポイントを2回呼んでいる（差分は Accept ヘッダが異なるため回避困難）
+          # python3 で文字境界を意識して切り捨て（head -c はバイト単位のためマルチバイト文字の途中でカットされる恐れがある）
           DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
-            -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
+            -H "Accept: application/vnd.github.v3.diff" \
+            | python3 -c "import sys; d=sys.stdin.buffer.read(120000); sys.stdout.write(d.decode('utf-8','ignore')[:100000])")
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
           # 過去のコメント履歴を取得（最新20件、最大20KB）
@@ -68,7 +71,7 @@ jobs:
                   "### コメント by \(.user.login) (\(.created_at))\n\(.body)"
                 )
               | join("\n\n---\n\n")
-            ' | head -c 20000) || true
+            ' | python3 -c "import sys; d=sys.stdin.buffer.read(25000); sys.stdout.write(d.decode('utf-8','ignore')[:20000])") || true
           printf '%s' "$COMMENTS" > "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
 
       - name: Claude にレビューを依頼
