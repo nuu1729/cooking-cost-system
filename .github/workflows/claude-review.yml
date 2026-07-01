@@ -28,6 +28,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
+          set -euo pipefail
+
           if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
             echo "Error: PR番号が不正です: '$PR_NUMBER'" >&2
             exit 1
@@ -44,7 +46,22 @@ jobs:
           # GITHUB_ENV への書き込みは次ステップ以降にしか反映されないため、
           # 同一ステップ内はローカル変数 CLAUDE_REVIEW_WORK_DIR を直接参照する
           CLAUDE_REVIEW_WORK_DIR=$(mktemp -d) || { echo "mktemp failed" >&2; exit 1; }
+          # ERR トラップ: このステップがエラー終了した場合のみ即時削除（EXIT だと成功時も発火して次ステップが参照できなくなる）
+          # DIFF 取得失敗時はトラップが発火してクリーンアップ後にワークフローが終了する（意図通り）
+          # COMMENTS 取得失敗時は || { ...; COMMENTS=""; } で吸収されるためトラップは発火しない
+          trap 'rm -rf "$CLAUDE_REVIEW_WORK_DIR"' ERR
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
+
+          # 引数: 出力上限文字数（文字単位）。UTF-8 は最大4バイト/文字のため max_chars×4 バイトを読み込み、
+          #        文字境界で切り捨てることで head -c が引き起こすマルチバイト文字の途中切断を防ぐ。
+          truncate_utf8() {
+            local max_chars="$1"
+            if ! [[ "$max_chars" =~ ^[0-9]+$ ]]; then
+              echo "Error: truncate_utf8 の引数が不正です: '$max_chars'" >&2
+              return 1
+            fi
+            python3 -c "import sys; data = sys.stdin.buffer.read($max_chars * 4); sys.stdout.write(data.decode('utf-8', 'replace')[:$max_chars])"
+          }
 
           # PR の基本情報を取得
           PR_DATA=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}")
@@ -52,15 +69,14 @@ jobs:
 
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
-          # 差分を取得（最大100KB）。マルチバイト文字の切り捨て問題は issue #109 で追跡中
           # 注意: タイトル取得と差分取得で同じエンドポイントを2回呼んでいる（差分は Accept ヘッダが異なるため回避困難）
           DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
-            -H "Accept: application/vnd.github.v3.diff" | head -c 100000)
+            -H "Accept: application/vnd.github.v3.diff" \
+            | truncate_utf8 100000)
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
-          # 過去のコメント履歴を取得（最新20件、最大20KB）
+          # 過去のコメント履歴を取得（最新20件、最大20,000文字）
           # Claude レビューコメントと作者の対応方針コメントの両方を含む
-          # || true: コメント取得失敗はワークフロー全体の失敗とせず、空文字のまま後続処理に進む
           COMMENTS=$(gh api "repos/${GH_REPO}/issues/${PR_NUMBER}/comments?per_page=100" \
             | jq -r '
               .[-20:]
@@ -68,7 +84,8 @@ jobs:
                   "### コメント by \(.user.login) (\(.created_at))\n\(.body)"
                 )
               | join("\n\n---\n\n")
-            ' | head -c 20000) || true
+            ' | truncate_utf8 20000) \
+            || { echo "WARN: コメント取得に失敗しました" >&2; COMMENTS=""; }
           printf '%s' "$COMMENTS" > "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
 
       - name: Claude にレビューを依頼
