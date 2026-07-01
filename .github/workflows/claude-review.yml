@@ -28,6 +28,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
+          set -euo pipefail
+
           if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
             echo "Error: PR番号が不正です: '$PR_NUMBER'" >&2
             exit 1
@@ -48,6 +50,14 @@ jobs:
           trap 'rm -rf "$CLAUDE_REVIEW_WORK_DIR"' ERR
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
+          # UTF-8 文字境界を意識してバイトストリームを切り捨てるヘルパー
+          # head -c はバイト単位のためマルチバイト文字の途中でカットされる恐れがある
+          # 引数: 出力上限文字数。UTF-8 は最大4バイト/文字のため max_chars×4 バイトを読み込む
+          truncate_utf8() {
+            local max_chars="$1"
+            python3 -c "import sys; data = sys.stdin.buffer.read($max_chars * 4); sys.stdout.write(data.decode('utf-8', 'replace')[:$max_chars])"
+          }
+
           # PR の基本情報を取得
           PR_DATA=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}")
           TITLE=$(echo "$PR_DATA" | jq -r '.title')
@@ -55,15 +65,13 @@ jobs:
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
           # 注意: タイトル取得と差分取得で同じエンドポイントを2回呼んでいる（差分は Accept ヘッダが異なるため回避困難）
-          # python3 で文字境界を意識して切り捨て（head -c はバイト単位のためマルチバイト文字の途中でカットされる恐れがある）
           DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
             -H "Accept: application/vnd.github.v3.diff" \
-            | python3 -c "import sys; d=sys.stdin.buffer.read(120000); sys.stdout.write(d.decode('utf-8','ignore')[:100000])")
+            | truncate_utf8 100000)
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
-          # 過去のコメント履歴を取得（最新20件、最大20KB）
+          # 過去のコメント履歴を取得（最新20件、最大20,000文字）
           # Claude レビューコメントと作者の対応方針コメントの両方を含む
-          # || true: コメント取得失敗はワークフロー全体の失敗とせず、空文字のまま後続処理に進む
           COMMENTS=$(gh api "repos/${GH_REPO}/issues/${PR_NUMBER}/comments?per_page=100" \
             | jq -r '
               .[-20:]
@@ -71,7 +79,8 @@ jobs:
                   "### コメント by \(.user.login) (\(.created_at))\n\(.body)"
                 )
               | join("\n\n---\n\n")
-            ' | python3 -c "import sys; d=sys.stdin.buffer.read(25000); sys.stdout.write(d.decode('utf-8','ignore')[:20000])") || true
+            ' | truncate_utf8 20000) \
+            || { echo "WARN: コメント取得に失敗しました" >&2; COMMENTS=""; }
           printf '%s' "$COMMENTS" > "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
 
       - name: Claude にレビューを依頼
