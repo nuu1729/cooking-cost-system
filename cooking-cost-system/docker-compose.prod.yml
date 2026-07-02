@@ -42,6 +42,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # image タグを明示することでロールバックスクリプトがイメージ名を確実に参照できるようにする
+    image: cooking-cost-system-backend:latest
     container_name: cooking-cost-backend-prod
     restart: unless-stopped
     secrets:

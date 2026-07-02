@@ -87,7 +87,7 @@ jobs:
                    # フロントエンドテストも待つ点は workflow_call 採用による許容トレードオフ。
 
     steps:
-      - name: SSH でバックエンドをデプロイ
+      - name: SSH でバックエンドをデプロイ（ロールバック付き）
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -99,6 +99,39 @@ jobs:
             set -e
             cd /opt/cooking-cost-system
 
+            COMPOSE_FILE="cooking-cost-system/docker-compose.prod.yml"
+            # docker-compose.prod.yml の image: フィールドと一致させること
+            IMAGE_NAME="cooking-cost-system-backend"
+
+            # ────────────────────────────────────────────────────────────────
+            # ロールバック関数
+            # ビルド失敗・コンテナ起動失敗・ヘルスチェック失敗のいずれでも
+            # trap ERR により自動呼び出しされる。
+            # 関数先頭で trap - ERR することで再帰呼び出しを防ぐ。
+            # ────────────────────────────────────────────────────────────────
+            rollback() {
+              trap - ERR
+              echo "=== ❌ デプロイ失敗。ロールバックを実行します ===" >&2
+              if docker image inspect "${IMAGE_NAME}:rollback" >/dev/null 2>&1; then
+                echo "旧バージョン (${IMAGE_NAME}:rollback) で復旧します" >&2
+                docker tag "${IMAGE_NAME}:rollback" "${IMAGE_NAME}:latest"
+                docker compose -f "$COMPOSE_FILE" up -d --no-deps --remove-orphans backend \
+                  && echo "✅ ロールバック完了" >&2 \
+                  || echo "❌ ロールバックも失敗。手動対応が必要です" >&2
+              else
+                echo "ロールバック用イメージなし（初回デプロイ失敗）" >&2
+              fi
+            }
+            trap rollback ERR
+
+            echo "=== 旧イメージをロールバック用にバックアップ ==="
+            if docker image inspect "${IMAGE_NAME}:latest" >/dev/null 2>&1; then
+              docker tag "${IMAGE_NAME}:latest" "${IMAGE_NAME}:rollback"
+              echo "バックアップ完了: ${IMAGE_NAME}:rollback"
+            else
+              echo "Info: 既存イメージなし（初回デプロイ）"
+            fi
+
             echo "=== 最新コードを取得 ==="
             # git pull ではなく reset --hard で VPS 上の手動変更によるコンフリクトを防ぐ
             git fetch origin main
@@ -106,23 +139,29 @@ jobs:
 
             echo "=== Docker イメージをビルド ==="
             # backend のみ再ビルド（database は更新不要）
-            docker compose -f cooking-cost-system/docker-compose.prod.yml build backend
+            docker compose -f "$COMPOSE_FILE" build backend
 
             echo "=== コンテナを再起動 ==="
             # --no-deps: database コンテナに影響を与えない
             # --remove-orphans: このプロジェクト専用 VPS のため他プロジェクトへの影響なし
-            docker compose -f cooking-cost-system/docker-compose.prod.yml \
-              up -d --no-deps --remove-orphans backend
+            docker compose -f "$COMPOSE_FILE" up -d --no-deps --remove-orphans backend
 
             echo "=== ヘルスチェック（5秒 × 最大12回 = 最大60秒待機）==="
+            HEALTHY=false
             for i in $(seq 1 12); do
               # healthcheck.py（docker-compose.prod.yml 参照）と同じエンドポイントを確認
               if curl -sf http://localhost:3001/health; then
-                echo "✅ デプロイ成功"
-                exit 0
+                HEALTHY=true
+                break
               fi
               echo "待機中... ($i/12)"
               sleep 5
             done
-            echo "❌ ヘルスチェック失敗"
-            exit 1
+
+            if [ "$HEALTHY" = "true" ]; then
+              trap - ERR  # 成功確定 → ERR トラップ解除
+              echo "✅ デプロイ成功"
+            else
+              echo "❌ ヘルスチェック失敗"
+              exit 1  # trap ERR → rollback() 呼び出し
+            fi
