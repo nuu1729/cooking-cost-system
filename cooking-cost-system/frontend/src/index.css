@@ -14,3 +14,21 @@
         overflow-x: hidden;
     }
 }
+
+@layer utilities {
+
+    /* iOS Safari の 100vh 問題対策:
+       100vh は URL バーが隠れた状態の高さを指すため、URL バー表示中は
+       レイアウトが画面より縦長になりページ全体がパンできてしまう
+       （固定ヘッダーが画面外へ流れる／画面下部が切れる）。
+       dvh（動的ビューポート高さ）を使い、非対応ブラウザには vh でフォールバックする。 */
+    .h-screen-dvh {
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    .min-h-screen-dvh {
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+}

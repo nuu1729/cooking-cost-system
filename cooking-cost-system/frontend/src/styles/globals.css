@@ -74,7 +74,9 @@ body {
 
 #root {
   height: 100%;
+  /* iOS Safari では 100vh が視覚ビューポートより大きくなるため dvh を優先（非対応時は vh）*/
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Utility classes */

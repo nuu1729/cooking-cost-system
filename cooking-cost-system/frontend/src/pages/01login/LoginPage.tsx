@@ -60,7 +60,9 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <div className="h-screen w-full bg-white flex flex-col font-sans text-gray-800 overflow-hidden">
+        // min-h-screen-dvh + overflow-hidden なし:
+        // コンテンツがビューポートより高い場合（モバイル等）は下部が切れずにスクロールできる
+        <div className="min-h-screen-dvh w-full bg-white flex flex-col font-sans text-gray-800">
             {/* Simple Header matching Figma */}
             <header className="h-[80px] bg-[#d9d9d9] flex items-center px-8 border-b border-gray-300">
                 <h2 className="text-xl font-bold text-black tracking-tight">
