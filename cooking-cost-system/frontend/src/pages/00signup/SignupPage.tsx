@@ -92,9 +92,9 @@ const SignupPage: React.FC = () => {
         }
     };
 
+    // min-h-screen-dvh + overflow-hidden なし:
+    // コンテンツがビューポートより高い場合（モバイル等）は下部が切れずにスクロールできる
     return (
-        // min-h-screen-dvh + overflow-hidden なし:
-        // コンテンツがビューポートより高い場合（モバイル等）は下部が切れずにスクロールできる
         <div className="min-h-screen-dvh w-full bg-white flex flex-col font-sans text-gray-800">
             {/* Header */}
             <header className="h-[80px] bg-[#d9d9d9] flex items-center px-8 border-b border-gray-300">

@@ -6,8 +6,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+    // h-screen-dvh: iOS Safari の URL バー表示中もヘッダーが固定されるよう dvh を使う（index.css 参照）
     return (
-        // h-screen-dvh: iOS Safari の URL バー表示中もヘッダーが固定されるよう dvh を使う（index.css 参照）
         <div className="h-screen-dvh bg-white flex flex-col overflow-hidden">
             <Header />
             {/* モバイル（sm未満）はここがスクロールを担当。デスクトップは各ページが個別に overflow を管理する */}
