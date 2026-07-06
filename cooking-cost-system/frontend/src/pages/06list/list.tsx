@@ -21,7 +21,10 @@ function getDishCostJudgment(item: any): CostJudgment {
 }
 
 // ─── スワイプカード（モバイル専用） ───────────────────────────────
+// スワイプで露出するアクションボタン領域の幅（px）
 const SWIPE_REVEAL_PX = 120;
+// 開閉を切り替えるスワイプ距離の閾値（px）。左スワイプ（負値）で開く・右スワイプ（正値）で閉じる
+// の両方向に同じ値を使う。閾値未満の移動は現在の開閉状態を維持する。
 const SWIPE_THRESHOLD = 60;
 
 interface SwipeableCardProps {
@@ -56,18 +59,18 @@ const SwipeableCard = React.forwardRef<HTMLDivElement, SwipeableCardProps>(({
     }, [isOpen, x]);
 
     const handleDragEnd = (_: unknown, info: PanInfo) => {
-        // 閾値未満の小さな移動では現在の開閉状態を維持する：
-        // 閉じた状態 → 左へ SWIPE_THRESHOLD 超スワイプしたときだけ開く
-        // 開いた状態 → 右へ SWIPE_THRESHOLD 超スワイプしたときだけ閉じる（指ブレで閉じない）
-        const shouldOpen = isOpen
-            ? info.offset.x <= SWIPE_THRESHOLD
-            : info.offset.x < -SWIPE_THRESHOLD;
-        if (shouldOpen) {
-            animate(x, -SWIPE_REVEAL_PX, { type: 'spring', stiffness: 300, damping: 30 });
-            setSwipeOpenId(itemId);
+        // info.offset.x は右スワイプが正値・左スワイプが負値。
+        // 閾値未満の小さな移動では現在の開閉状態を維持する（指ブレで反転させない）。
+        if (isOpen) {
+            // 開いた状態 → 右へ SWIPE_THRESHOLD 超スワイプしたときだけ閉じる
+            const shouldClose = info.offset.x > SWIPE_THRESHOLD;
+            animate(x, shouldClose ? 0 : -SWIPE_REVEAL_PX, { type: 'spring', stiffness: 300, damping: 30 });
+            setSwipeOpenId(shouldClose ? null : itemId);
         } else {
-            animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
-            setSwipeOpenId(null);
+            // 閉じた状態 → 左へ SWIPE_THRESHOLD 超スワイプしたときだけ開く
+            const shouldOpen = info.offset.x < -SWIPE_THRESHOLD;
+            animate(x, shouldOpen ? -SWIPE_REVEAL_PX : 0, { type: 'spring', stiffness: 300, damping: 30 });
+            setSwipeOpenId(shouldOpen ? itemId : null);
         }
     };
 
@@ -347,14 +350,14 @@ const ListPage: React.FC = () => {
             >
                 <AnimatePresence mode="popLayout">
                     {isLoading ? (
-                        <motion.div className="mobile-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                        <motion.div key="loading" className="mobile-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                             読み込み中...
                         </motion.div>
                     ) : (
                         <>
                             {activeTab === 'ingredients' && (
                                 ingredients.length === 0
-                                    ? <div className="mobile-empty">データがありません</div>
+                                    ? <div key="empty-ingredients" className="mobile-empty">データがありません</div>
                                     : ingredients.map((item) => (
                                         <SwipeableCard
                                             key={item.id}
@@ -372,7 +375,7 @@ const ListPage: React.FC = () => {
                             )}
                             {activeTab === 'preps' && (
                                 preps.length === 0
-                                    ? <div className="mobile-empty">データがありません</div>
+                                    ? <div key="empty-preps" className="mobile-empty">データがありません</div>
                                     : preps.map((item) => (
                                         // preps は any[] 型のため非 null アサーション不要（API レスポンス上 id は必須）。
                                         // ingredients/dishes は id?: number の型定義のため item.id! を使用している。
@@ -392,7 +395,7 @@ const ListPage: React.FC = () => {
                             )}
                             {activeTab === 'dishes' && (
                                 dishes.length === 0
-                                    ? <div className="mobile-empty">データがありません</div>
+                                    ? <div key="empty-dishes" className="mobile-empty">データがありません</div>
                                     : dishes.map((item) => {
                                         const judgment = getDishCostJudgment(item);
                                         const costRatio = item.selling_price && item.selling_price > 0
