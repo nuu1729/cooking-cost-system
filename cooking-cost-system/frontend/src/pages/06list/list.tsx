@@ -56,7 +56,13 @@ const SwipeableCard = React.forwardRef<HTMLDivElement, SwipeableCardProps>(({
     }, [isOpen, x]);
 
     const handleDragEnd = (_: unknown, info: PanInfo) => {
-        if (info.offset.x < -SWIPE_THRESHOLD) {
+        // 閾値未満の小さな移動では現在の開閉状態を維持する：
+        // 閉じた状態 → 左へ SWIPE_THRESHOLD 超スワイプしたときだけ開く
+        // 開いた状態 → 右へ SWIPE_THRESHOLD 超スワイプしたときだけ閉じる（指ブレで閉じない）
+        const shouldOpen = isOpen
+            ? info.offset.x <= SWIPE_THRESHOLD
+            : info.offset.x < -SWIPE_THRESHOLD;
+        if (shouldOpen) {
             animate(x, -SWIPE_REVEAL_PX, { type: 'spring', stiffness: 300, damping: 30 });
             setSwipeOpenId(itemId);
         } else {
@@ -102,7 +108,14 @@ const SwipeableCard = React.forwardRef<HTMLDivElement, SwipeableCardProps>(({
                 dragElastic={0.05}
                 style={{ x }}
                 onDragEnd={handleDragEnd}
-                onClick={() => { if (isOpen) setSwipeOpenId(null); }}
+                onClick={(e) => {
+                    // 開いているカードのタップはここで閉じて伝播を止める（アクションボタンと同じ扱い）。
+                    // 閉じているカードのタップは伝播させ、mobile-card-list 側で他の開いたカードを閉じる。
+                    if (isOpen) {
+                        e.stopPropagation();
+                        setSwipeOpenId(null);
+                    }
+                }}
             >
                 {children}
             </motion.div>
@@ -361,6 +374,8 @@ const ListPage: React.FC = () => {
                                 preps.length === 0
                                     ? <div className="mobile-empty">データがありません</div>
                                     : preps.map((item) => (
+                                        // preps は any[] 型のため非 null アサーション不要（API レスポンス上 id は必須）。
+                                        // ingredients/dishes は id?: number の型定義のため item.id! を使用している。
                                         <SwipeableCard
                                             key={item.id}
                                             itemId={item.id}
