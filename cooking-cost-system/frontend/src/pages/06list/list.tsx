@@ -63,11 +63,14 @@ const SwipeableCard = React.forwardRef<HTMLDivElement, SwipeableCardProps>(({
         // 閾値未満の小さな移動では現在の開閉状態を維持する（指ブレで反転させない）。
         if (isOpen) {
             // 開いた状態 → 右へ SWIPE_THRESHOLD 超スワイプしたときだけ閉じる
+            // （閉じない場合は swipeOpenId === itemId のままなので setter は呼ばない）
             const shouldClose = info.offset.x > SWIPE_THRESHOLD;
             animate(x, shouldClose ? 0 : -SWIPE_REVEAL_PX, { type: 'spring', stiffness: 300, damping: 30 });
-            setSwipeOpenId(shouldClose ? null : itemId);
+            if (shouldClose) setSwipeOpenId(null);
         } else {
-            // 閉じた状態 → 左へ SWIPE_THRESHOLD 超スワイプしたときだけ開く
+            // 閉じた状態 → 左へ SWIPE_THRESHOLD 超スワイプしたときだけ開く。
+            // 開かない場合も null を設定する：別のカードが開いている状態でこのカードを
+            // 軽くドラッグしたとき、タップと同様に開いているカードを閉じるため。
             const shouldOpen = info.offset.x < -SWIPE_THRESHOLD;
             animate(x, shouldOpen ? -SWIPE_REVEAL_PX : 0, { type: 'spring', stiffness: 300, damping: 30 });
             setSwipeOpenId(shouldOpen ? itemId : null);
