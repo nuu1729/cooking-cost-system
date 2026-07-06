@@ -11,7 +11,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="h-screen-dvh bg-white flex flex-col overflow-hidden">
             <Header />
             {/* モバイル（sm未満）はここがスクロールを担当。デスクトップは各ページが個別に overflow を管理する */}
-            <main className="flex-1 min-h-0 overflow-y-auto sm:overflow-hidden">
+            {/* overscroll-y-contain: スクロール終端で body へのチェイニング（iOS のバウンス）を防ぐ */}
+            <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain sm:overflow-hidden">
                 {children}
             </main>
         </div>
