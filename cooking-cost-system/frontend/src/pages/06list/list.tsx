@@ -33,14 +33,18 @@ interface SwipeableCardProps {
     children: React.ReactNode;
 }
 
-const SwipeableCard: React.FC<SwipeableCardProps> = ({
+// AnimatePresence (mode="popLayout") の直下に置くカスタムコンポーネントは
+// ルート要素への ref 転送が必須のため forwardRef で定義する。
+// リスト出現/退出アニメーション（layout/initial/animate/exit）もこのラッパーが担い、
+// 内側のドラッグ用 motion.div との二重アニメーションを避ける。
+const SwipeableCard = React.forwardRef<HTMLDivElement, SwipeableCardProps>(({
     itemId,
     swipeOpenId,
     setSwipeOpenId,
     onEdit,
     onDeleteClick,
     children,
-}) => {
+}, ref) => {
     const x = useMotionValue(0);
     const isOpen = swipeOpenId === itemId;
 
@@ -62,7 +66,14 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
     };
 
     return (
-        <div className="swipeable-card-wrapper">
+        <motion.div
+            ref={ref}
+            className="swipeable-card-wrapper"
+            layout
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+        >
             {/* スワイプで露出するアクションボタン */}
             <div className="swipe-actions" aria-hidden={!isOpen}>
                 <button
@@ -95,9 +106,10 @@ const SwipeableCard: React.FC<SwipeableCardProps> = ({
             >
                 {children}
             </motion.div>
-        </div>
+        </motion.div>
     );
-};
+});
+SwipeableCard.displayName = 'SwipeableCard';
 
 // ─── メインコンポーネント ───────────────────────────────────────────
 const ListPage: React.FC = () => {
@@ -189,6 +201,7 @@ const ListPage: React.FC = () => {
                 fetchData();
             }
         } catch (error: any) {
+            console.error('Delete failed:', error);
             const message = error.response?.data?.message || '削除できませんでした。';
             setDeleteError(message);
         }
@@ -330,38 +343,36 @@ const ListPage: React.FC = () => {
                                 ingredients.length === 0
                                     ? <div className="mobile-empty">データがありません</div>
                                     : ingredients.map((item) => (
-                                        <motion.div key={item.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}>
-                                            <SwipeableCard
-                                                itemId={item.id!}
-                                                swipeOpenId={swipeOpenId}
-                                                setSwipeOpenId={setSwipeOpenId}
-                                                onEdit={() => handleEdit('ingredients', item.id!)}
-                                                onDeleteClick={() => handleDeleteClick('ingredients', item)}
-                                            >
-                                                <div className="card-name">{item.name}</div>
-                                                <div className="card-price">¥{(item.price / item.quantity).toFixed(2)}<span className="card-unit">/{item.unit}</span></div>
-                                                <div className="card-sub">{item.store}{(item as any).genre ? ` · ${(item as any).genre}` : ''}</div>
-                                            </SwipeableCard>
-                                        </motion.div>
+                                        <SwipeableCard
+                                            key={item.id}
+                                            itemId={item.id!}
+                                            swipeOpenId={swipeOpenId}
+                                            setSwipeOpenId={setSwipeOpenId}
+                                            onEdit={() => handleEdit('ingredients', item.id!)}
+                                            onDeleteClick={() => handleDeleteClick('ingredients', item)}
+                                        >
+                                            <div className="card-name">{item.name}</div>
+                                            <div className="card-price">¥{(item.price / item.quantity).toFixed(2)}<span className="card-unit">/{item.unit}</span></div>
+                                            <div className="card-sub">{item.store}{(item as any).genre ? ` · ${(item as any).genre}` : ''}</div>
+                                        </SwipeableCard>
                                     ))
                             )}
                             {activeTab === 'preps' && (
                                 preps.length === 0
                                     ? <div className="mobile-empty">データがありません</div>
                                     : preps.map((item) => (
-                                        <motion.div key={item.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}>
-                                            <SwipeableCard
-                                                itemId={item.id}
-                                                swipeOpenId={swipeOpenId}
-                                                setSwipeOpenId={setSwipeOpenId}
-                                                onEdit={() => handleEdit('preps', item.id)}
-                                                onDeleteClick={() => handleDeleteClick('preps', item)}
-                                            >
-                                                <div className="card-name">{item.prep_name || item.name}</div>
-                                                <div className="card-price">¥{item.unit_price != null ? Number(item.unit_price).toFixed(2) : '-'}<span className="card-unit">/g</span></div>
-                                                <div className="card-sub">{item.ingredient_names?.join(', ') || '-'}</div>
-                                            </SwipeableCard>
-                                        </motion.div>
+                                        <SwipeableCard
+                                            key={item.id}
+                                            itemId={item.id}
+                                            swipeOpenId={swipeOpenId}
+                                            setSwipeOpenId={setSwipeOpenId}
+                                            onEdit={() => handleEdit('preps', item.id)}
+                                            onDeleteClick={() => handleDeleteClick('preps', item)}
+                                        >
+                                            <div className="card-name">{item.prep_name || item.name}</div>
+                                            <div className="card-price">¥{item.unit_price != null ? Number(item.unit_price).toFixed(2) : '-'}<span className="card-unit">/g</span></div>
+                                            <div className="card-sub">{item.ingredient_names?.join(', ') || '-'}</div>
+                                        </SwipeableCard>
                                     ))
                             )}
                             {activeTab === 'dishes' && (
@@ -373,26 +384,25 @@ const ListPage: React.FC = () => {
                                             ? ((item.price ?? 0) / item.selling_price * 100).toFixed(1)
                                             : null;
                                         return (
-                                            <motion.div key={item.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}>
-                                                <SwipeableCard
-                                                    itemId={item.id!}
-                                                    swipeOpenId={swipeOpenId}
-                                                    setSwipeOpenId={setSwipeOpenId}
-                                                    onEdit={() => handleEdit('dishes', item.id!)}
-                                                    onDeleteClick={() => handleDeleteClick('dishes', item)}
-                                                >
-                                                    <div className={`card-name ${judgment ? `card-name--${judgment}` : ''}`}>
-                                                        {item.name}
-                                                        {judgment === 'danger' && <span className="cost-badge cost-badge--danger">✗ {costRatio}%</span>}
-                                                        {judgment === 'warning' && <span className="cost-badge cost-badge--warning">△ {costRatio}%</span>}
-                                                    </div>
-                                                    <div className="card-price">原価 ¥{(item.price ?? 0).toLocaleString()}</div>
-                                                    {item.selling_price != null && (
-                                                        <div className="card-selling-price">売 ¥{item.selling_price.toLocaleString()}</div>
-                                                    )}
-                                                    <div className="card-sub">{item.dishes?.map((p: any) => p.prep_name || p.name).join(', ') || '-'}</div>
-                                                </SwipeableCard>
-                                            </motion.div>
+                                            <SwipeableCard
+                                                key={item.id}
+                                                itemId={item.id!}
+                                                swipeOpenId={swipeOpenId}
+                                                setSwipeOpenId={setSwipeOpenId}
+                                                onEdit={() => handleEdit('dishes', item.id!)}
+                                                onDeleteClick={() => handleDeleteClick('dishes', item)}
+                                            >
+                                                <div className={`card-name ${judgment ? `card-name--${judgment}` : ''}`}>
+                                                    {item.name}
+                                                    {judgment === 'danger' && <span className="cost-badge cost-badge--danger">✗ {costRatio}%</span>}
+                                                    {judgment === 'warning' && <span className="cost-badge cost-badge--warning">△ {costRatio}%</span>}
+                                                </div>
+                                                <div className="card-price">原価 ¥{(item.price ?? 0).toLocaleString()}</div>
+                                                {item.selling_price != null && (
+                                                    <div className="card-selling-price">売 ¥{item.selling_price.toLocaleString()}</div>
+                                                )}
+                                                <div className="card-sub">{item.dishes?.map((p: any) => p.prep_name || p.name).join(', ') || '-'}</div>
+                                            </SwipeableCard>
                                         );
                                     })
                             )}
