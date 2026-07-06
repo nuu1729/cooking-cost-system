@@ -102,8 +102,12 @@ jobs:
             COMPOSE_FILE="cooking-cost-system/docker-compose.prod.yml"
             # docker-compose.prod.yml の image: フィールドと一致させること
             IMAGE_NAME="cooking-cost-system-backend"
+            # docker-compose.prod.yml の ports:（ホスト側）と一致させること
+            BACKEND_PORT="3001"
             # rollback() でコードも巻き戻すため、trap 設置前に現在のコミットを記録
             # （trap 発火時に未定義参照しないよう必ず trap より前で取得する）
+            # 注意: VPS 上に手動コミットがあった場合、PREV_COMMIT はそれを含む。
+            # 「デプロイ直前の状態に戻す」というロールバックの意味論として正しいため許容する。
             PREV_COMMIT=$(git rev-parse HEAD)
 
             # ────────────────────────────────────────────────────────────────
@@ -137,9 +141,10 @@ jobs:
               else
                 echo "ロールバック用イメージなし（初回デプロイ失敗）" >&2
               fi
-              exit 1  # ロールバックの成否によらずデプロイ自体は失敗として終了
+              # 全分岐がこの exit 1 に到達する（分岐ごとに exit を散らさず1箇所に集約することで
+              # 将来分岐を追加した際の exit 書き忘れを防ぐ）。デプロイ自体は必ず失敗として終了する。
+              exit 1
             }
-            trap rollback ERR
 
             echo "=== 旧イメージをロールバック用にバックアップ ==="
             if docker image inspect "${IMAGE_NAME}:latest" >/dev/null 2>&1; then
@@ -148,6 +153,13 @@ jobs:
             else
               echo "Info: 既存イメージなし（初回デプロイ）"
             fi
+
+            # trap の設置はバックアップ完了後に行う。
+            # バックアップ段階（docker tag）で失敗した場合はまだ何も変更していないため
+            # ロールバック不要で set -e の即終了が正しい。ここで trap が設置済みだと、
+            # 前回デプロイの古い :rollback イメージが :latest に上書きされ、
+            # 正常稼働中のコンテナを1世代前に巻き戻してしまう。
+            trap rollback ERR
 
             echo "=== 最新コードを取得 ==="
             # git pull ではなく reset --hard で VPS 上の手動変更によるコンフリクトを防ぐ
@@ -167,7 +179,7 @@ jobs:
             HEALTHY=false
             for i in $(seq 1 12); do
               # healthcheck.py（docker-compose.prod.yml 参照）と同じエンドポイントを確認
-              if curl -sf http://localhost:3001/health; then
+              if curl -sf "http://localhost:${BACKEND_PORT}/health"; then
                 HEALTHY=true
                 break
               fi
