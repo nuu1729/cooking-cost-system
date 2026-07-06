@@ -102,25 +102,42 @@ jobs:
             COMPOSE_FILE="cooking-cost-system/docker-compose.prod.yml"
             # docker-compose.prod.yml の image: フィールドと一致させること
             IMAGE_NAME="cooking-cost-system-backend"
+            # rollback() でコードも巻き戻すため、trap 設置前に現在のコミットを記録
+            # （trap 発火時に未定義参照しないよう必ず trap より前で取得する）
+            PREV_COMMIT=$(git rev-parse HEAD)
 
             # ────────────────────────────────────────────────────────────────
             # ロールバック関数
-            # ビルド失敗・コンテナ起動失敗・ヘルスチェック失敗のいずれでも
-            # trap ERR により自動呼び出しされる。
+            # ビルド失敗・コンテナ起動失敗は trap ERR により自動呼び出しされる。
+            # ヘルスチェック失敗時は明示的に呼び出す（exit は ERR トラップを発火しないため）。
             # 関数先頭で trap - ERR することで再帰呼び出しを防ぐ。
             # ────────────────────────────────────────────────────────────────
             rollback() {
               trap - ERR
+              set +e  # 以降は if 判定で手動エラー制御（メッセージなしの途中終了を防ぐ）
               echo "=== ❌ デプロイ失敗。ロールバックを実行します ===" >&2
+
+              # コードも旧コミットへ巻き戻し、動作中イメージとの乖離を防ぐ
+              if ! git reset --hard "$PREV_COMMIT"; then
+                echo "⚠️ git reset 失敗。コードは新バージョンのままです" >&2
+              fi
+
               if docker image inspect "${IMAGE_NAME}:rollback" >/dev/null 2>&1; then
                 echo "旧バージョン (${IMAGE_NAME}:rollback) で復旧します" >&2
-                docker tag "${IMAGE_NAME}:rollback" "${IMAGE_NAME}:latest"
-                docker compose -f "$COMPOSE_FILE" up -d --no-deps --remove-orphans backend \
-                  && echo "✅ ロールバック完了" >&2 \
-                  || echo "❌ ロールバックも失敗。手動対応が必要です" >&2
+                if ! docker tag "${IMAGE_NAME}:rollback" "${IMAGE_NAME}:latest"; then
+                  echo "❌ タグ付け失敗。手動対応が必要です" >&2
+                  exit 1
+                fi
+                # ロールバック時は安全側に倒し --remove-orphans を付けない
+                if docker compose -f "$COMPOSE_FILE" up -d --no-deps backend; then
+                  echo "✅ ロールバック完了" >&2
+                else
+                  echo "❌ ロールバックも失敗。手動対応が必要です" >&2
+                fi
               else
                 echo "ロールバック用イメージなし（初回デプロイ失敗）" >&2
               fi
+              exit 1  # ロールバックの成否によらずデプロイ自体は失敗として終了
             }
             trap rollback ERR
 
@@ -163,5 +180,6 @@ jobs:
               echo "✅ デプロイ成功"
             else
               echo "❌ ヘルスチェック失敗"
-              exit 1  # trap ERR → rollback() 呼び出し
+              # exit 1 では ERR トラップが発火しない（bash 仕様）ため明示的に呼び出す
+              rollback  # rollback() 内部で exit 1 する
             fi
