@@ -115,6 +115,9 @@ jobs:
             # ビルド失敗・コンテナ起動失敗は trap ERR により自動呼び出しされる。
             # ヘルスチェック失敗時は明示的に呼び出す（exit は ERR トラップを発火しないため）。
             # 関数先頭で trap - ERR することで再帰呼び出しを防ぐ。
+            # 注意: このデプロイフロー内での自動呼び出し専用。オペレーターによる手動実行は
+            # 非対応（:rollback タグは単一世代のため、任意時点での手動ロールバックには
+            # 世代管理の見直しが必要になる）。
             # ────────────────────────────────────────────────────────────────
             rollback() {
               trap - ERR
@@ -124,6 +127,8 @@ jobs:
               # コードも旧コミットへ巻き戻し、動作中イメージとの乖離を防ぐ
               if ! git reset --hard "$PREV_COMMIT"; then
                 echo "⚠️ git reset 失敗。コードは新バージョンのままです" >&2
+                # git reset 失敗でもコンテナ復旧は続行する。
+                # コードとコンテナの乖離より、サービスダウンの回避を優先するため。
               fi
 
               if docker image inspect "${IMAGE_NAME}:rollback" >/dev/null 2>&1; then
@@ -178,8 +183,10 @@ jobs:
             echo "=== ヘルスチェック（5秒 × 最大12回 = 最大60秒待機）==="
             HEALTHY=false
             for i in $(seq 1 12); do
-              # healthcheck.py（docker-compose.prod.yml 参照）と同じエンドポイントを確認
-              if curl -sf "http://localhost:${BACKEND_PORT}/health"; then
+              # /health/detailed は DB 疎通確認（SELECT 1）を含み、DB 接続不可なら 503 を返す。
+              # /health はコンテナ起動のみの確認で DB 障害を検知できないため使用しない。
+              # 503 は curl -f が失敗扱いにする → リトライ → タイムアウトで rollback が発動する。
+              if curl -sf "http://localhost:${BACKEND_PORT}/health/detailed"; then
                 HEALTHY=true
                 break
               fi
