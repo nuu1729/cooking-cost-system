@@ -18,6 +18,9 @@ readonly DEPLOY_USER="deploy"
 readonly APP_PORT=3001
 readonly CADDY_KEYRING="/usr/share/keyrings/caddy-stable-archive-keyring.gpg"
 readonly DOCKER_KEYRING="/etc/apt/keyrings/docker.gpg"
+# Docker 公式 GPG キーのフィンガープリント（https://docs.docker.com/engine/install/ubuntu/ に記載）
+# Docker が鍵をローテートした場合はこの値の更新が必要
+readonly DOCKER_GPG_FINGERPRINT="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # fail2ban 設定値
@@ -208,6 +211,21 @@ install_docker() {
                 | gpg --dearmor -o "${DOCKER_KEYRING}"
             chmod a+r "${DOCKER_KEYRING}"
         fi
+
+        # フィンガープリント検証（MITM 等による偽キー配布の検知）
+        # ダウンロード直後だけでなく既存ファイルも毎回検証する（過去の実行で
+        # 混入した不正な鍵を排除するため）。--with-colons の fpr 行から
+        # フィンガープリントを抽出し、完全一致で照合する。
+        if ! gpg --show-keys --with-colons "${DOCKER_KEYRING}" 2>/dev/null \
+            | awk -F: '/^fpr:/ {print $10}' \
+            | grep -qx "${DOCKER_GPG_FINGERPRINT}"; then
+            # 不正な鍵を残すと次回実行時に存在チェックで再取得がスキップされるため必ず削除する
+            rm -f "${DOCKER_KEYRING}"
+            log_error "Docker GPG キーの検証に失敗しました。期待するフィンガープリント: ${DOCKER_GPG_FINGERPRINT}"
+            log_error "Docker が鍵をローテートした可能性があります。公式ドキュメントで最新のフィンガープリントを確認してください。"
+            exit 1
+        fi
+        log_info "  -> Docker GPG キーのフィンガープリントを検証しました"
 
         # Docker APT リポジトリ追加
         echo "deb [arch=$(dpkg --print-architecture) signed-by=${DOCKER_KEYRING}] \

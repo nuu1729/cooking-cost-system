@@ -18,6 +18,14 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+# 既知の脆弱性を持つパッケージが含まれていないかビルド時にスキャンする。
+# 検出時はビルドを失敗させる（デプロイは #157 のロールバック機構により旧バージョン継続で安全）。
+# 誤検知や修正版未リリースで一時的に無視する場合: pip-audit --ignore-vuln <ID> を使う。
+# pip-audit 自体は監査後にアンインストールし、本番イメージに残さない。
+RUN pip install --no-cache-dir pip-audit && \
+    pip-audit --skip-editable && \
+    pip uninstall -y pip-audit
+
 # ディレクトリを先に作成（COPY 前に作ることで .dockerignore に logs/uploads が含まれていても
 # ホストのファイルで上書きされるリスクを防ぐ）
 RUN mkdir -p logs uploads
