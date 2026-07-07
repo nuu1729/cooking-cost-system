@@ -19,6 +19,8 @@ readonly APP_PORT=3001
 readonly CADDY_KEYRING="/usr/share/keyrings/caddy-stable-archive-keyring.gpg"
 readonly DOCKER_KEYRING="/etc/apt/keyrings/docker.gpg"
 # Docker 公式 GPG キーのフィンガープリント（https://docs.docker.com/engine/install/ubuntu/ に記載）
+# 公式ドキュメントのスペース区切り表記: 9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88
+# （gpg --with-colons の fpr フィールドはスペースなしのためこの形式で保持する）
 # Docker が鍵をローテートした場合はこの値の更新が必要
 readonly DOCKER_GPG_FINGERPRINT="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
