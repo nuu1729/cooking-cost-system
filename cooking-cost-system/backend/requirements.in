@@ -2,7 +2,8 @@
 # 更新手順: docker compose run --rm backend pip-compile requirements.in
 Flask
 flask-cors
-gunicorn==21.2.0
+# 21.2.0 は CVE-2024-1135 / CVE-2024-6827（HTTP Request Smuggling）該当のため 22 以上を要求
+gunicorn>=22.0.0
 Flask-Limiter>=4.0.0
 SQLAlchemy
 Flask-SQLAlchemy

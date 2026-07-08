@@ -18,6 +18,11 @@ readonly DEPLOY_USER="deploy"
 readonly APP_PORT=3001
 readonly CADDY_KEYRING="/usr/share/keyrings/caddy-stable-archive-keyring.gpg"
 readonly DOCKER_KEYRING="/etc/apt/keyrings/docker.gpg"
+# Docker 公式 GPG キーのフィンガープリント（https://docs.docker.com/engine/install/ubuntu/ に記載）
+# 公式ドキュメントのスペース区切り表記: 9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88
+# （gpg --with-colons の fpr フィールドはスペースなしのためこの形式で保持する）
+# Docker が鍵をローテートした場合はこの値の更新が必要
+readonly DOCKER_GPG_FINGERPRINT="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # fail2ban 設定値
@@ -208,6 +213,41 @@ install_docker() {
                 | gpg --dearmor -o "${DOCKER_KEYRING}"
             chmod a+r "${DOCKER_KEYRING}"
         fi
+
+        # フィンガープリント検証（MITM 等による偽キー配布の検知）
+        # ダウンロード直後だけでなく既存ファイルも毎回検証する（過去の実行で
+        # 混入した不正な鍵を排除するため）。
+        #
+        # 注意: 1個の公開鍵に対して --with-colons は "fpr" 行を複数出力する
+        # （プライマリ鍵 + 各サブ鍵）。実際 Docker 公式鍵はサブ鍵を1つ持つため
+        # fpr 行は2行になる。そのため「全 fpr 行のいずれかに一致するか」ではなく、
+        # 「pub（プライマリ鍵）レコードが1件だけ存在し、そのプライマリ鍵自身の
+        # フィンガープリントが一致するか」を検証する。こうすることで、鍵ファイルに
+        # 別の公開鍵が不正に追加混入されるケース（pub レコードが2件以上になる）
+        # を確実に検知できる。
+        # gpg --with-colons の出力仕様: pub: 行の直後に、その鍵自身のフィンガープリントを
+        # 持つ fpr: 行が来ることが保証される（GnuPG の DETAILS ドキュメントに規定）。
+        # getline は失敗時の戻り値を検査しないと読み飛ばしのリスクがあるため使わず、
+        # 「直前に pub: を見た直後の最初の fpr:」を状態変数で追跡して取得する。
+        key_info=$(gpg --show-keys --with-colons "${DOCKER_KEYRING}" 2>/dev/null)
+        pub_count=$(echo "${key_info}" | grep -c '^pub:')
+        primary_fpr=$(echo "${key_info}" | awk -F: '
+            after_pub == 1 && $1 == "fpr" { print $10; exit }
+            $1 == "pub" { after_pub = 1 }
+        ')
+
+        if [ "${pub_count}" -ne 1 ] || [ "${primary_fpr}" != "${DOCKER_GPG_FINGERPRINT}" ]; then
+            # 不正な鍵を残すと次回実行時に存在チェックで再取得がスキップされるため必ず削除する
+            rm -f "${DOCKER_KEYRING}"
+            log_error "Docker GPG キーの検証に失敗しました（公開鍵数: ${pub_count}、フィンガープリント: ${primary_fpr:-なし}）"
+            log_error "期待するフィンガープリント: ${DOCKER_GPG_FINGERPRINT}"
+            # TODO: Docker 鍵ローテート時はこの値の更新が必要。更新を忘れると
+            # ここで exit 1 し、以降すべての VPS セットアップ・再プロビジョニングが
+            # 停止する（既存 VPS の運用は継続するが新規/再構築ができなくなる）。
+            log_error "Docker が鍵をローテートした可能性があります。公式ドキュメントで最新のフィンガープリントを確認してください。"
+            exit 1
+        fi
+        log_info "  -> Docker GPG キーのフィンガープリントを検証しました"
 
         # Docker APT リポジトリ追加
         echo "deb [arch=$(dpkg --print-architecture) signed-by=${DOCKER_KEYRING}] \

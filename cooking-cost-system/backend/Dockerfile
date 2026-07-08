@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# ── base: 依存関係インストールまでの共通ステージ ──────────────────
+FROM python:3.11-slim AS base
 
 # .pyc ファイル生成を抑制・stdout/stderr バッファリングを無効化（ログがリアルタイムで出力される）
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -17,6 +18,26 @@ COPY requirements.txt ./
 #    Docker が使える場合: docker compose run --rm backend pip-compile requirements.in
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
+
+# ── audit: 脆弱性スキャン専用ステージ ──────────────────────────────
+# 既知の脆弱性を持つパッケージが含まれていないかビルド時にスキャンする。
+# 検出時はビルドを失敗させる（デプロイは #157 のロールバック機構により旧バージョン継続で安全）。
+# 誤検知や修正版未リリースで一時的に無視する場合: pip-audit --ignore-vuln <ID> を使う。
+# ステージを分離することで pip-audit とその依存パッケージを本番イメージに一切残さない。
+# pip-audit 自体もバージョン固定し、監査結果の再現性を確保する
+# （更新する場合は `pip index versions pip-audit` で最新版を確認して差し替える）。
+FROM base AS audit
+RUN pip install --no-cache-dir "pip-audit==2.10.1" && \
+    pip-audit --skip-editable && \
+    touch /tmp/audit-passed
+
+# ── production: 本番イメージ ───────────────────────────────────────
+FROM base AS production
+
+# BuildKit は最終ステージから参照されないステージをスキップするため、
+# marker ファイルの COPY で audit ステージの実行（＝監査の通過）を強制する。
+# marker は空ファイルで実害がないため /tmp に残置する。
+COPY --from=audit /tmp/audit-passed /tmp/audit-passed
 
 # ディレクトリを先に作成（COPY 前に作ることで .dockerignore に logs/uploads が含まれていても
 # ホストのファイルで上書きされるリスクを防ぐ）
