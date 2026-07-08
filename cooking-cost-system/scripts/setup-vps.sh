@@ -216,14 +216,27 @@ install_docker() {
 
         # フィンガープリント検証（MITM 等による偽キー配布の検知）
         # ダウンロード直後だけでなく既存ファイルも毎回検証する（過去の実行で
-        # 混入した不正な鍵を排除するため）。--with-colons の fpr 行から
-        # フィンガープリントを抽出し、完全一致で照合する。
-        if ! gpg --show-keys --with-colons "${DOCKER_KEYRING}" 2>/dev/null \
-            | awk -F: '/^fpr:/ {print $10}' \
-            | grep -qx "${DOCKER_GPG_FINGERPRINT}"; then
+        # 混入した不正な鍵を排除するため）。
+        #
+        # 注意: 1個の公開鍵に対して --with-colons は "fpr" 行を複数出力する
+        # （プライマリ鍵 + 各サブ鍵）。実際 Docker 公式鍵はサブ鍵を1つ持つため
+        # fpr 行は2行になる。そのため「全 fpr 行のいずれかに一致するか」ではなく、
+        # 「pub（プライマリ鍵）レコードが1件だけ存在し、そのプライマリ鍵自身の
+        # フィンガープリントが一致するか」を検証する。こうすることで、鍵ファイルに
+        # 別の公開鍵が不正に追加混入されるケース（pub レコードが2件以上になる）
+        # を確実に検知できる。
+        key_info=$(gpg --show-keys --with-colons "${DOCKER_KEYRING}" 2>/dev/null)
+        pub_count=$(echo "${key_info}" | grep -c '^pub:')
+        primary_fpr=$(echo "${key_info}" | awk -F: '/^pub:/{getline; if ($1=="fpr") print $10}')
+
+        if [ "${pub_count}" -ne 1 ] || [ "${primary_fpr}" != "${DOCKER_GPG_FINGERPRINT}" ]; then
             # 不正な鍵を残すと次回実行時に存在チェックで再取得がスキップされるため必ず削除する
             rm -f "${DOCKER_KEYRING}"
-            log_error "Docker GPG キーの検証に失敗しました。期待するフィンガープリント: ${DOCKER_GPG_FINGERPRINT}"
+            log_error "Docker GPG キーの検証に失敗しました（公開鍵数: ${pub_count}、フィンガープリント: ${primary_fpr:-なし}）"
+            log_error "期待するフィンガープリント: ${DOCKER_GPG_FINGERPRINT}"
+            # TODO: Docker 鍵ローテート時はこの値の更新が必要。更新を忘れると
+            # ここで exit 1 し、以降すべての VPS セットアップ・再プロビジョニングが
+            # 停止する（既存 VPS の運用は継続するが新規/再構築ができなくなる）。
             log_error "Docker が鍵をローテートした可能性があります。公式ドキュメントで最新のフィンガープリントを確認してください。"
             exit 1
         fi

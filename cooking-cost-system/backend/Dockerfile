@@ -24,8 +24,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # 検出時はビルドを失敗させる（デプロイは #157 のロールバック機構により旧バージョン継続で安全）。
 # 誤検知や修正版未リリースで一時的に無視する場合: pip-audit --ignore-vuln <ID> を使う。
 # ステージを分離することで pip-audit とその依存パッケージを本番イメージに一切残さない。
+# pip-audit 自体もバージョン固定し、監査結果の再現性を確保する
+# （更新する場合は `pip index versions pip-audit` で最新版を確認して差し替える）。
 FROM base AS audit
-RUN pip install --no-cache-dir pip-audit && \
+RUN pip install --no-cache-dir "pip-audit==2.10.1" && \
     pip-audit --skip-editable && \
     touch /tmp/audit-passed
 
