@@ -225,9 +225,16 @@ install_docker() {
         # フィンガープリントが一致するか」を検証する。こうすることで、鍵ファイルに
         # 別の公開鍵が不正に追加混入されるケース（pub レコードが2件以上になる）
         # を確実に検知できる。
+        # gpg --with-colons の出力仕様: pub: 行の直後に、その鍵自身のフィンガープリントを
+        # 持つ fpr: 行が来ることが保証される（GnuPG の DETAILS ドキュメントに規定）。
+        # getline は失敗時の戻り値を検査しないと読み飛ばしのリスクがあるため使わず、
+        # 「直前に pub: を見た直後の最初の fpr:」を状態変数で追跡して取得する。
         key_info=$(gpg --show-keys --with-colons "${DOCKER_KEYRING}" 2>/dev/null)
         pub_count=$(echo "${key_info}" | grep -c '^pub:')
-        primary_fpr=$(echo "${key_info}" | awk -F: '/^pub:/{getline; if ($1=="fpr") print $10}')
+        primary_fpr=$(echo "${key_info}" | awk -F: '
+            after_pub == 1 && $1 == "fpr" { print $10; exit }
+            $1 == "pub" { after_pub = 1 }
+        ')
 
         if [ "${pub_count}" -ne 1 ] || [ "${primary_fpr}" != "${DOCKER_GPG_FINGERPRINT}" ]; then
             # 不正な鍵を残すと次回実行時に存在チェックで再取得がスキップされるため必ず削除する
