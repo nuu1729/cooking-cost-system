@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import AccountIcon from './AccountIcon';
 
+// ドロワーの transition-transform duration-300（Tailwind クラス）と対応する値。
+// クラス側を変更する場合はこの定数も合わせて更新すること。
+const DRAWER_TRANSITION_MS = 300;
+
 const navItems = [
     { label: 'ホーム', subLabel: 'HOME', path: '/' },
     { label: '食材追加', subLabel: 'ADD', path: '/ingredients/add' },
@@ -46,7 +50,7 @@ const Header: React.FC = () => {
         };
         node.addEventListener('transitionend', handleTransitionEnd);
         // transitionend が発火しない環境（アニメーション中断等）向けのフォールバック
-        const timer = setTimeout(() => setIsInteractive(false), 350);
+        const timer = setTimeout(() => setIsInteractive(false), DRAWER_TRANSITION_MS + 50);
         return () => {
             node.removeEventListener('transitionend', handleTransitionEnd);
             clearTimeout(timer);
@@ -174,7 +178,9 @@ const Header: React.FC = () => {
                 inert/invisible は isInteractive（閉じる際はアニメーション終了まで
                 true を維持）で制御し、translate-x は drawerOpen で即座に切り替える。
                 これにより閉じるアニメーション中（まだ画面上に見えている間）に
-                フォーカスが強制的に外れることを防ぐ（issue #136）。 */}
+                フォーカスが強制的に外れることを防ぐ（issue #136）。
+                visibility の初期値は visible なので、明示的な visible クラスは
+                不要（invisible クラスの有無だけで制御できる）。 */}
             <div
                 ref={drawerRef}
                 id="mobile-drawer"
