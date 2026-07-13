@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import AccountIcon from './AccountIcon';
 
+// ドロワーの transition-transform duration-300（Tailwind クラス）と対応する値。
+// クラス側を変更する場合はこの定数も合わせて更新すること。
+const DRAWER_TRANSITION_MS = 300;
+
 const navItems = [
     { label: 'ホーム', subLabel: 'HOME', path: '/' },
     { label: '食材追加', subLabel: 'ADD', path: '/ingredients/add' },
@@ -21,6 +25,37 @@ const Header: React.FC = () => {
 
     const closeDrawer = useCallback(() => setDrawerOpen(false), []);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const drawerRef = useRef<HTMLDivElement>(null);
+
+    // inert/invisible の実際の適用状態。drawerOpen とは非対称に扱う:
+    // 開くとき: drawerOpen と同時（即座）に true にしてフォーカス可能にする
+    // 閉じるとき: アニメーション（duration-300）終了まで true を維持し、
+    //             画面上にまだ見えている間に inert でフォーカスが強制的に
+    //             外れることを防ぐ（issue #136）
+    const [isInteractive, setIsInteractive] = useState(false);
+
+    useEffect(() => {
+        if (drawerOpen) {
+            setIsInteractive(true);
+            return;
+        }
+        const node = drawerRef.current;
+        if (!node) {
+            setIsInteractive(false);
+            return;
+        }
+        const handleTransitionEnd = (e: TransitionEvent) => {
+            if (e.propertyName !== 'transform') return; // transition-transform 以外は無視
+            setIsInteractive(false);
+        };
+        node.addEventListener('transitionend', handleTransitionEnd);
+        // transitionend が発火しない環境（アニメーション中断等）向けのフォールバック
+        const timer = setTimeout(() => setIsInteractive(false), DRAWER_TRANSITION_MS + 50);
+        return () => {
+            node.removeEventListener('transitionend', handleTransitionEnd);
+            clearTimeout(timer);
+        };
+    }, [drawerOpen]);
 
     // ドロワーを開いたとき閉じるボタンにフォーカスを移動（WAI-ARIA dialog 要件）
     useEffect(() => {
@@ -139,14 +174,21 @@ const Header: React.FC = () => {
 
             {/* Mobile Drawer
                 - inert: フォーカスを完全にブロック（モダンブラウザ）
-                - invisible: inert 非対応ブラウザでもフォーカスを排除 */}
+                - invisible: inert 非対応ブラウザでもフォーカスを排除
+                inert/invisible は isInteractive（閉じる際はアニメーション終了まで
+                true を維持）で制御し、translate-x は drawerOpen で即座に切り替える。
+                これにより閉じるアニメーション中（まだ画面上に見えている間）に
+                フォーカスが強制的に外れることを防ぐ（issue #136）。
+                visibility の初期値は visible なので、明示的な visible クラスは
+                不要（invisible クラスの有無だけで制御できる）。 */}
             <div
+                ref={drawerRef}
                 id="mobile-drawer"
                 role="dialog"
                 aria-modal="true"
                 aria-label="ナビゲーションメニュー"
-                inert={drawerOpen ? undefined : ''}
-                className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0 visible' : 'translate-x-full invisible'}`}
+                inert={isInteractive ? undefined : ''}
+                className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0' : 'translate-x-full'} ${isInteractive ? '' : 'invisible'}`}
             >
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
