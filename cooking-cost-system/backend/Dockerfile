@@ -16,7 +16,9 @@ COPY requirements.txt ./
 # 依存関係を更新する場合: python -m piptools compile requirements.in --output-file requirements.txt
 # ⚠️ Python 3.11 (本番環境) で再生成すること（異なるバージョンで生成すると解決結果が変わる場合がある）
 #    Docker が使える場合: docker compose run --rm backend pip-compile requirements.in
-RUN pip install --no-cache-dir --upgrade pip && \
+# setuptools は requirements.txt に含まれないベースイメージ同梱パッケージだが、
+# pip-audit の対象になるため既知の脆弱性（例: PYSEC-2026-3447）を避けるため明示的に更新する
+RUN pip install --no-cache-dir --upgrade pip setuptools && \
     pip install --no-cache-dir -r requirements.txt
 
 # ── audit: 脆弱性スキャン専用ステージ ──────────────────────────────
@@ -47,10 +49,7 @@ RUN mkdir -p logs uploads
 COPY --chown=appuser:appuser . .
 
 # COPY 後に所有者を確実に設定（COPY --chown は既存ディレクトリの所有者を変更しないため）
-# entrypoint.sh はリポジトリで 100755 管理（git update-index --chmod=+x）
-# CI/CD でパーミッションが失われた場合のフォールバックとして chmod も実行
-RUN chown appuser:appuser logs uploads \
-    && chmod +x entrypoint.sh
+RUN chown appuser:appuser logs uploads
 
 USER appuser
 
@@ -58,8 +57,6 @@ EXPOSE 3001
 
 # HEALTHCHECK は docker-compose.prod.yml 側で一元管理する（start_period 等の調整を一箇所に集約）
 
-# entrypoint.sh が Docker secrets を読み込み DATABASE_URL_PRODUCTION を構築した後に Gunicorn を起動する
-# CMD のデフォルト引数は entrypoint.sh の "$@" に渡される
-# デバッグ時は `docker run --entrypoint /bin/sh image` でシェル起動可能
-ENTRYPOINT ["./entrypoint.sh"]
+# secrets は Cloudflare Containers の envVars（Docker secrets 経由の環境変数フォールバックにも対応）
+# として渡され、config_production.py が直接 os.environ から読み込むため、専用の entrypoint は不要
 CMD ["gunicorn", "--config", "gunicorn.conf.py", "wsgi:app"]

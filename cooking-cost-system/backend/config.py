@@ -1,10 +1,15 @@
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote_plus
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DEFAULT_CORS_ORIGIN = 'http://localhost:3000'
+
+
+def build_d1_database_uri(account_id: str, api_token: str, database_id: str) -> str:
+    """Cloudflare D1 用の SQLAlchemy 接続 URI を組み立てる（sqlalchemy-cloudflare-d1 の URL 形式）。"""
+    return f'cloudflare_d1://{quote_plus(account_id)}:{quote_plus(api_token)}@{database_id}'
 
 _LOCAL_HOSTS = {'localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0'}
 
@@ -56,13 +61,21 @@ class Config:
     SECRET_KEY = _require_env('SECRET_KEY')
     JWT_SECRET = os.environ.get('JWT_SECRET', os.environ.get('SECRET_KEY', ''))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_DATABASE_URI = _require_env('DATABASE_URL')
     CORS_ORIGIN = os.environ.get('CORS_ORIGIN', DEFAULT_CORS_ORIGIN)
+    # SQLALCHEMY_DATABASE_URI はここでは定義しない。
+    # クラス本体はサブクラス定義前に即時評価されるため、ここで _require_env('DATABASE_URL') を
+    # 呼ぶと staging/production（D1 接続で DATABASE_URL を使わない）でも import 時点で
+    # 例外になってしまう。各サブクラスが自身の接続方式で個別に設定すること。
 
 
 class DevelopmentConfig(Config):
     DEBUG = True
     ENV = 'development'
+    # ここでは _require_env を使わず os.environ.get に留める。
+    # このクラス本体は staging/production 利用時にも config.py の import に伴って
+    # 必ず評価されるため、ここで例外を送出すると development 以外の環境まで壊れてしまう。
+    # 値の存在チェックは create_app() 側で「実際に選択された環境」に対してのみ行う。
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
 
 
 class TestingConfig(Config):

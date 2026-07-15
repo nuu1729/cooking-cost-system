@@ -56,10 +56,10 @@ if worker_class != 'sync':
         print(f'[FATAL] Gunicorn 設定エラー: {e}', file=sys.stderr)
         raise
 
-# DB コネクションプール設計メモ:
-# workers × (pool_size + max_overflow) が MySQL の max_connections を超えないよう注意。
-# デフォルト: workers=2, SQLAlchemy pool_size=5, max_overflow=10 → 最大 30 コネクション
-# MySQL デフォルト max_connections=151 なので現状は余裕あり。
+# DB 接続に関するメモ（Cloudflare D1 移行後）:
+# sqlalchemy-cloudflare-d1 は各クエリを D1 の REST API への HTTPS リクエストとして送信するため、
+# MySQL のような TCP コネクションプール上限（max_connections）は存在しない。
+# 代わりに D1 側のクエリタイムアウト・同時実行数の制約が上限になる（D1 のドキュメント参照）。
 
 
 def on_starting(server):

@@ -7,7 +7,8 @@ gunicorn>=22.0.0
 Flask-Limiter>=4.0.0
 SQLAlchemy
 Flask-SQLAlchemy
-PyMySQL
+sqlalchemy-cloudflare-d1
+boto3
 python-dotenv
 PyJWT>=2.8.0
 bcrypt>=4.1.0

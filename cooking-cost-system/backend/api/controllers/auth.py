@@ -15,6 +15,7 @@ from api.extensions import limiter
 from api.models.revoked_token import RevokedToken
 from api.utils.audit import log_login_success, log_login_failure, log_logout
 from api.controllers.genres import seed_default_genres
+from api.utils import storage
 
 ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -38,25 +39,29 @@ def _validate_image(file) -> str | None:
 
     return None
 
-def _upload_dir() -> str:
-    base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.path.join(base, 'uploads')
-
 def _save_file(file, subfolder: str) -> str:
     ext = file.filename.rsplit('.', 1)[1].lower()
     filename = f"{uuid.uuid4().hex}.{ext}"
-    save_dir = os.path.join(_upload_dir(), subfolder)
-    os.makedirs(save_dir, exist_ok=True)
-    file.save(os.path.join(save_dir, filename))
-    return f"/uploads/{subfolder}/{filename}"
+    key = f"{subfolder}/{filename}"
+    file.seek(0, 2)
+    file.seek(0)
+    header = file.read(512)
+    file.seek(0)
+    kind = filetype.guess(header)
+    content_type = kind.mime if kind else 'application/octet-stream'
+    storage.upload_file(file, key, content_type)
+    return f"/uploads/{key}"
 
 def _delete_old_file(url: Optional[str]):
     if not url:
         return
-    rel = url.lstrip('/')
-    abs_path = os.path.join(_upload_dir(), *rel.split('/')[1:])
-    if os.path.exists(abs_path):
-        os.remove(abs_path)
+    key = url.lstrip('/').removeprefix('uploads/')
+    try:
+        storage.delete_file(key)
+    except Exception:
+        # R2 側で既に存在しない等は削除失敗しても致命的ではないため無視する
+        # （DB 側の icon_url/home_bg_url 更新は呼び出し元で継続する）
+        pass
 
 auth_bp = Blueprint('auth', __name__)
 

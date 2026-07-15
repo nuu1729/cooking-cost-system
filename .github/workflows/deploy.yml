@@ -1,204 +1,67 @@
-name: Deploy
+name: Deploy to Cloudflare
+# main への push は自動的に staging へデプロイする。
+# production への反映は workflow_dispatch（手動実行）でのみ行う
+# （Phase 7 のカットオーバー完了までは本番への自動デプロイを避けるための意図的な設計）。
 
-# main ブランチへのプッシュ時にフロントエンド・バックエンドを並列デプロイする
 on:
   push:
     branches: [main]
+    paths:
+      - 'cooking-cost-system/backend/**'
+      - 'cooking-cost-system/worker/**'
+      - 'cooking-cost-system/wrangler.toml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'デプロイ先環境'
+        required: true
+        type: choice
+        options: [staging, production]
+        default: staging
 
 jobs:
-  # ─────────────────────────────────────────
-  # テスト（デプロイ前に必ず通過を確認）
-  # test.yml を workflow_call で再利用してジョブ定義の重複を排除する
-  # ─────────────────────────────────────────
   test:
-    uses: ./.github/workflows/test.yml
-    permissions:
-      contents: read  # テストジョブに最低限の権限を明示（リポジトリのデフォルトが read-write でも安全）
-
-  # ─────────────────────────────────────────
-  # フロントエンド: Cloudflare Pages
-  #
-  # 【初回セットアップ — 実行前にユーザーが手動で行う必要あり】
-  # 1. Cloudflare ダッシュボード → Workers & Pages → "Create a project"
-  # 2. "Direct Upload" を選択（GitHub 連携ではなく CI/CD 経由でデプロイするため）
-  # 3. プロジェクト名: cooking-cost-system
-  # 4. GitHub Secrets に以下を登録:
-  #    - CLOUDFLARE_API_TOKEN  : Cloudflare API トークン（Cloudflare Pages 編集権限）
-  #    - CLOUDFLARE_ACCOUNT_ID : Cloudflare ダッシュボードの右サイドバーに表示される ID
-  #    - VITE_API_URL          : 本番 API URL（例: https://api.yourdomain.com）
-  # ─────────────────────────────────────────
-  deploy-frontend:
-    name: Deploy Frontend → Cloudflare Pages
     runs-on: ubuntu-latest
-    needs: [test]  # フロント・バック両テスト通過後にのみデプロイ（API 破壊的変更の保護）
-    permissions:
-      contents: read
-      deployments: write  # Cloudflare Pages のデプロイステータスを GitHub に反映するため
     defaults:
       run:
-        working-directory: cooking-cost-system
-
+        working-directory: cooking-cost-system/backend
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements-dev.txt
+      # bare `pytest` はカレントディレクトリを sys.path に追加しないため config.py 等の
+      # トップレベルモジュールを import できない。`python -m pytest` を使うこと。
+      - run: python -m pytest tests/
 
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: cooking-cost-system/package-lock.json
-
-      - name: 依存関係をインストール
+          node-version: 20
+      - name: Workerの依存関係をインストール
+        working-directory: cooking-cost-system/worker
         run: npm ci
-
-      - name: ビルド
-        run: npm run build -w frontend
+      - name: D1マイグレーションを適用
+        working-directory: cooking-cost-system/worker
         env:
-          # 本番 API エンドポイント。Vite はビルド時に VITE_* 変数をバンドルに埋め込む
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-      - name: Cloudflare Pages にデプロイ
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: cooking-cost-system
-          # リポジトリルートからの相対パスで dist/ を指定
-          directory: cooking-cost-system/frontend/dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-
-  # ─────────────────────────────────────────
-  # バックエンド: Hetzner VPS へ SSH デプロイ
-  #
-  # 【初回セットアップ — 実行前にユーザーが手動で行う必要あり】
-  # 1. VPS 上で以下を事前準備:
-  #    - /opt/cooking-cost-system にリポジトリをクローン済みであること
-  #    - docker・docker compose がインストール済みであること
-  #    - secrets/*.txt が配置済みであること（generate-env.sh で生成）
-  # 2. GitHub Secrets に以下を登録:
-  #    - VPS_HOST    : Hetzner VPS の IP アドレス
-  #    - VPS_USER    : SSH ユーザー名（例: deploy）
-  #    - VPS_SSH_KEY : SSH 秘密鍵（PEM 形式、改行を含む文字列）
-  # ─────────────────────────────────────────
-  deploy-backend:
-    name: Deploy Backend → Hetzner VPS
-    runs-on: ubuntu-latest
-    needs: [test]  # workflow_call の制約上、test.yml 内の特定ジョブのみを指定できないため
-                   # test.yml 全体（frontend + backend 両ジョブ）の完了を待つ。
-                   # フロントエンドテストも待つ点は workflow_call 採用による許容トレードオフ。
-
-    steps:
-      - name: SSH でバックエンドをデプロイ（ロールバック付き）
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          # タイムアウト: 初回ビルドで docker build が 10 分を超えるリスクを考慮して 15m に設定
-          command_timeout: 15m
-          script: |
-            set -e
-            cd /opt/cooking-cost-system
-
-            COMPOSE_FILE="cooking-cost-system/docker-compose.prod.yml"
-            # docker-compose.prod.yml の image: フィールドと一致させること
-            IMAGE_NAME="cooking-cost-system-backend"
-            # docker-compose.prod.yml の ports:（ホスト側）と一致させること
-            BACKEND_PORT="3001"
-            # rollback() でコードも巻き戻すため、trap 設置前に現在のコミットを記録
-            # （trap 発火時に未定義参照しないよう必ず trap より前で取得する）
-            # 注意: VPS 上に手動コミットがあった場合、PREV_COMMIT はそれを含む。
-            # 「デプロイ直前の状態に戻す」というロールバックの意味論として正しいため許容する。
-            PREV_COMMIT=$(git rev-parse HEAD)
-
-            # ────────────────────────────────────────────────────────────────
-            # ロールバック関数
-            # ビルド失敗・コンテナ起動失敗は trap ERR により自動呼び出しされる。
-            # ヘルスチェック失敗時は明示的に呼び出す（exit は ERR トラップを発火しないため）。
-            # 関数先頭で trap - ERR することで再帰呼び出しを防ぐ。
-            # 注意: このデプロイフロー内での自動呼び出し専用。オペレーターによる手動実行は
-            # 非対応（:rollback タグは単一世代のため、任意時点での手動ロールバックには
-            # 世代管理の見直しが必要になる）。
-            # ────────────────────────────────────────────────────────────────
-            rollback() {
-              trap - ERR
-              set +e  # 以降は if 判定で手動エラー制御（メッセージなしの途中終了を防ぐ）
-              echo "=== ❌ デプロイ失敗。ロールバックを実行します ===" >&2
-
-              # コードも旧コミットへ巻き戻し、動作中イメージとの乖離を防ぐ
-              if ! git reset --hard "$PREV_COMMIT"; then
-                echo "⚠️ git reset 失敗。コードは新バージョンのままです" >&2
-                # git reset 失敗でもコンテナ復旧は続行する。
-                # コードとコンテナの乖離より、サービスダウンの回避を優先するため。
-              fi
-
-              if docker image inspect "${IMAGE_NAME}:rollback" >/dev/null 2>&1; then
-                echo "旧バージョン (${IMAGE_NAME}:rollback) で復旧します" >&2
-                if ! docker tag "${IMAGE_NAME}:rollback" "${IMAGE_NAME}:latest"; then
-                  echo "❌ タグ付け失敗。手動対応が必要です" >&2
-                  exit 1
-                fi
-                # ロールバック時は安全側に倒し --remove-orphans を付けない
-                if docker compose -f "$COMPOSE_FILE" up -d --no-deps backend; then
-                  echo "✅ ロールバック完了" >&2
-                else
-                  echo "❌ ロールバックも失敗。手動対応が必要です" >&2
-                fi
-              else
-                echo "ロールバック用イメージなし（初回デプロイ失敗）" >&2
-              fi
-              # 全分岐がこの exit 1 に到達する（分岐ごとに exit を散らさず1箇所に集約することで
-              # 将来分岐を追加した際の exit 書き忘れを防ぐ）。デプロイ自体は必ず失敗として終了する。
-              exit 1
-            }
-
-            echo "=== 旧イメージをロールバック用にバックアップ ==="
-            if docker image inspect "${IMAGE_NAME}:latest" >/dev/null 2>&1; then
-              docker tag "${IMAGE_NAME}:latest" "${IMAGE_NAME}:rollback"
-              echo "バックアップ完了: ${IMAGE_NAME}:rollback"
-            else
-              echo "Info: 既存イメージなし（初回デプロイ）"
-            fi
-
-            # trap の設置はバックアップ完了後に行う。
-            # バックアップ段階（docker tag）で失敗した場合はまだ何も変更していないため
-            # ロールバック不要で set -e の即終了が正しい。ここで trap が設置済みだと、
-            # 前回デプロイの古い :rollback イメージが :latest に上書きされ、
-            # 正常稼働中のコンテナを1世代前に巻き戻してしまう。
-            trap rollback ERR
-
-            echo "=== 最新コードを取得 ==="
-            # git pull ではなく reset --hard で VPS 上の手動変更によるコンフリクトを防ぐ
-            git fetch origin main
-            git reset --hard origin/main
-
-            echo "=== Docker イメージをビルド ==="
-            # backend のみ再ビルド（database は更新不要）
-            docker compose -f "$COMPOSE_FILE" build backend
-
-            echo "=== コンテナを再起動 ==="
-            # --no-deps: database コンテナに影響を与えない
-            # --remove-orphans: このプロジェクト専用 VPS のため他プロジェクトへの影響なし
-            docker compose -f "$COMPOSE_FILE" up -d --no-deps --remove-orphans backend
-
-            echo "=== ヘルスチェック（5秒 × 最大12回 = 最大60秒待機）==="
-            HEALTHY=false
-            for i in $(seq 1 12); do
-              # /health/detailed は DB 疎通確認（SELECT 1）を含み、DB 接続不可なら 503 を返す。
-              # /health はコンテナ起動のみの確認で DB 障害を検知できないため使用しない。
-              # 503 は curl -f が失敗扱いにする → リトライ → タイムアウトで rollback が発動する。
-              if curl -sf "http://localhost:${BACKEND_PORT}/health/detailed"; then
-                HEALTHY=true
-                break
-              fi
-              echo "待機中... ($i/12)"
-              sleep 5
-            done
-
-            if [ "$HEALTHY" = "true" ]; then
-              trap - ERR  # 成功確定 → ERR トラップ解除
-              echo "✅ デプロイ成功"
-            else
-              echo "❌ ヘルスチェック失敗"
-              # exit 1 では ERR トラップが発火しない（bash 仕様）ため明示的に呼び出す
-              rollback  # rollback() 内部で exit 1 する
-            fi
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler d1 migrations apply DB --remote \
+            --env "${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}" \
+            --config ../wrangler.toml
+      - name: Worker + Container をデプロイ
+        working-directory: cooking-cost-system/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler deploy \
+            --env "${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}" \
+            --config ../wrangler.toml

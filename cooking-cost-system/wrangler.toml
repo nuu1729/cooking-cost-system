@@ -1,0 +1,71 @@
+name = "cooking-cost-backend"
+main = "worker/src/index.ts"
+compatibility_date = "2026-07-01"
+
+# NOTE: containers / durable_objects / migrations は環境（[env.*]）に継承されないため、
+# 各環境ブロックに明示的に複製する必要がある（wrangler の警告に基づく）。
+
+# ── staging ──────────────────────────────────────────────
+[env.staging.vars]
+APP_ENV = "staging"
+CF_ACCOUNT_ID = "fd2f902a0a51dba7efcbd328ce0e1a86"
+CF_D1_DATABASE_ID = "5815fc9c-920a-4cf4-a3ac-1f58a8480bbd"
+CORS_ORIGIN = "http://localhost:3000"
+R2_BUCKET_NAME = "cooking-cost-uploads-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "cooking-cost-db-staging"
+database_id = "5815fc9c-920a-4cf4-a3ac-1f58a8480bbd"
+migrations_dir = "backend/d1/migrations"
+
+# Flask バックエンドを Cloudflare Containers 上で実行するコンテナ定義
+# image は backend/Dockerfile を指す（ビルドコンテキストは backend/ ディレクトリ）
+[[env.staging.containers]]
+name = "cooking-cost-backend-staging"
+class_name = "CookingCostBackend"
+image = "./backend/Dockerfile"
+max_instances = 3
+
+[[env.staging.durable_objects.bindings]]
+name = "BACKEND_CONTAINER"
+class_name = "CookingCostBackend"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["CookingCostBackend"]
+
+# secrets（CF_D1_API_TOKEN, JWT_SECRET, SECRET_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY）は
+# `wrangler secret put <NAME> --env staging` で個別に設定する（Phase 4 参照）
+
+# ── production ───────────────────────────────────────────
+[env.production.vars]
+APP_ENV = "production"
+CF_ACCOUNT_ID = "fd2f902a0a51dba7efcbd328ce0e1a86"
+CF_D1_DATABASE_ID = "68842300-8d04-4ba1-adfd-1b000d6b1538"
+# CORS_ORIGIN は本番ドメイン確定後に更新する（Cloudflare Pages のドメイン）
+CORS_ORIGIN = "https://your-project.pages.dev"
+R2_BUCKET_NAME = "cooking-cost-uploads-prod"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "cooking-cost-db-prod"
+database_id = "68842300-8d04-4ba1-adfd-1b000d6b1538"
+migrations_dir = "backend/d1/migrations"
+
+[[env.production.containers]]
+name = "cooking-cost-backend-production"
+class_name = "CookingCostBackend"
+image = "./backend/Dockerfile"
+max_instances = 3
+
+[[env.production.durable_objects.bindings]]
+name = "BACKEND_CONTAINER"
+class_name = "CookingCostBackend"
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["CookingCostBackend"]
+
+# secrets（CF_D1_API_TOKEN, JWT_SECRET, SECRET_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY）は
+# `wrangler secret put <NAME> --env production` で個別に設定する（Phase 4 参照）

@@ -78,6 +78,7 @@ backups/
 # マイグレーション SQL は管理対象として追跡する
 # ※ * はサブディレクトリに一致しないため、現在の単一階層構造を維持すること
 !scripts/migrations/*.sql
+!backend/d1/migrations/*.sql
 
 # =================================
 # IDE & Editor
@@ -132,6 +133,12 @@ frontend/coverage/
 # Docker
 # =================================
 .docker/
+
+# =================================
+# Cloudflare Wrangler
+# =================================
+.wrangler/
+worker-configuration.d.ts
 
 # =================================
 # Miscellaneous

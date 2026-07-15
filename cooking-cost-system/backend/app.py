@@ -1,17 +1,18 @@
 import os
 import logging
 from logging.handlers import RotatingFileHandler
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, Response
 from flask_cors import CORS
 from flask_talisman import Talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
+from botocore.exceptions import ClientError
 from api.database import db
 from api.extensions import limiter
 from api.error import register_error_handlers
+from api.utils import storage
 from datetime import datetime, timezone
 
 # 有効な APP_ENV 値の順序付きタプル（表示順を固定）。frozenset はここから派生させる。
-# ⚠️ 変更時は generate-env.sh の case 文も合わせて更新すること
 _VALID_APP_ENVS_ORDERED = ('development', 'test', 'staging', 'production')
 _VALID_APP_ENVS = frozenset(_VALID_APP_ENVS_ORDERED)
 
@@ -55,6 +56,15 @@ def create_app():
         # development および test は DevelopmentConfig を使用
         # test は CI/ローカルテスト用途のみ想定し、専用 Config クラスは持たない
         app.config.from_object('config.DevelopmentConfig')
+
+    # DevelopmentConfig.SQLALCHEMY_DATABASE_URI はクラス定義時に例外を出さないよう
+    # os.environ.get() に留めているため（staging/production import 時の巻き添え回避）、
+    # 実際に development/test 環境として起動する場合のみここで存在チェックする。
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        raise RuntimeError(
+            "環境変数 'DATABASE_URL' が設定されていません。"
+            ".env.example を参考に .env を作成してください。"
+        )
 
     is_production = (env == 'production')
 
@@ -100,11 +110,7 @@ def create_app():
     db.init_app(app)
     register_error_handlers(app)
 
-    # Import models so SQLAlchemy registers them before create_all
-    with app.app_context():
-        from api.models import User, Memo, Item, ItemRelation, Store, Genre, RevokedToken  # noqa: F401
-        db.create_all()
-
+    # スキーマは wrangler d1 migrations で管理する（db.create_all() は使用しない）
     from api.controllers import register_blueprints
     register_blueprints(app)
 
@@ -134,8 +140,20 @@ def create_app():
 
     @app.route('/uploads/<path:filename>', methods=['GET'])
     def serve_upload(filename):
-        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-        return send_from_directory(upload_dir, filename)
+        # Cloudflare Containers はローカルディスクを永続化しないため、
+        # アップロード画像は R2 に保存されている（api/utils/storage.py）。
+        # ここでは R2 からストリーム取得してそのままプロキシ配信する。
+        try:
+            obj = storage.get_file(filename)
+        except ClientError as e:
+            code = e.response.get('Error', {}).get('Code')
+            if code in ('NoSuchKey', '404'):
+                return jsonify(error='NOT_FOUND', message='ファイルが見つかりません'), 404
+            raise
+        return Response(
+            obj['Body'].read(),
+            mimetype=obj.get('ContentType', 'application/octet-stream'),
+        )
 
     @app.route('/', methods=['GET'])
     def index():

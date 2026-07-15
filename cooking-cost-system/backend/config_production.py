@@ -1,13 +1,8 @@
 import os
-import re
-from urllib.parse import quote_plus
-from config import Config, validate_cors_origins
+from config import Config, build_d1_database_uri, validate_cors_origins
 
 # テスト・非標準環境向けに環境変数で上書き可能
 SECRETS_DIR = os.environ.get('SECRETS_DIR', '/run/secrets')
-
-# DB_USER・DB_HOST・DB_NAME に許可する文字（URI を壊す `@` `:` `/` 等を排除）
-_DB_COMPONENT_RE = re.compile(r'[A-Za-z0-9_.-]+')
 
 
 def _require_env(name: str) -> str:
@@ -49,36 +44,15 @@ def _load_secret(name: str, env_fallback: str) -> str:
     return _require_env(env_fallback)
 
 
-def _validate_db_component(value: str, env_name: str) -> str:
-    """DB_USER・DB_HOST・DB_NAME が URI を壊す文字を含まないことを検証する。"""
-    if not _DB_COMPONENT_RE.fullmatch(value):
-        raise RuntimeError(f'{env_name} に不正な文字が含まれています: {value!r}')
-    return value
-
-
-def _validate_db_port(value: str) -> str:
-    if not value:
-        raise RuntimeError('DB_PORT が空です。')
-    if not value.isdigit() or not (1 <= int(value) <= 65535):
-        raise RuntimeError(f'DB_PORT が不正です（1-65535 の数値を指定してください）: {value!r}')
-    return value
-
-
 def _build_database_uri() -> str:
-    """mysql_password secrets ファイルが存在する場合は DB_USER/DB_HOST/DB_PORT/DB_NAME
-    （非機密、デフォルト値あり）と組み合わせて URI を構築。
-    secrets ファイルが存在しない場合は DATABASE_URL_PRODUCTION 環境変数にフォールバック。
-    このフォールバックは setup-vps.sh 経由のデプロイでは到達しない
-    （setup_secrets() が secrets/mysql_password.txt を必ず生成するため）。
-    Docker secrets を使わない代替デプロイ環境専用のパス。"""
-    password = _read_secret_file('mysql_password')
-    if password is not None:
-        user = _validate_db_component(os.environ.get('DB_USER', 'cooking_user'), 'DB_USER')
-        host = _validate_db_component(os.environ.get('DB_HOST', 'database'), 'DB_HOST')
-        port = _validate_db_port(os.environ.get('DB_PORT', '3306'))
-        name = _validate_db_component(os.environ.get('DB_NAME', 'cooking_cost_system'), 'DB_NAME')
-        return f'mysql+pymysql://{user}:{quote_plus(password)}@{host}:{port}/{name}'
-    return _require_env('DATABASE_URL_PRODUCTION')
+    """Cloudflare D1 の接続情報から SQLAlchemy 用 URI を組み立てる。
+    CF_D1_API_TOKEN は secrets ファイル（{SECRETS_DIR}/cf_d1_api_token）を優先し、
+    無ければ環境変数にフォールバックする（jwt_secret/secret_key と同じ方式）。
+    CF_ACCOUNT_ID / CF_D1_DATABASE_ID は非機密のため環境変数のみ。"""
+    account_id = _require_env('CF_ACCOUNT_ID')
+    database_id = _require_env('CF_D1_DATABASE_ID')
+    api_token = _load_secret('cf_d1_api_token', env_fallback='CF_D1_API_TOKEN')
+    return build_d1_database_uri(account_id, api_token, database_id)
 
 
 class ProductionConfig(Config):

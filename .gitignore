@@ -1,0 +1,2 @@
+# リポジトリルート直下のみで発生するファイル（アプリ本体は cooking-cost-system/.gitignore を参照）
+.wrangler/
