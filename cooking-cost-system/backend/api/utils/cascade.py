@@ -33,6 +33,11 @@ def _d1_batch_execute(statements: list[tuple[str, list]]) -> None:
 
     失敗時は例外を送出する。呼び出し元で個別に catch せず、Flask の
     エラーハンドラに委ねる（ORM の db.session.commit() 失敗時と同じ失敗経路に統一するため）。
+
+    Flask のアプリケーションコンテキスト内（current_app が有効な状態）からのみ
+    呼び出すこと。現在の呼び出し元はすべて Flask リクエストハンドラ経由のため
+    問題ないが、将来 CLI コマンドやバッチスクリプトから呼ぶ場合は
+    `with app.app_context():` 等でコンテキストを用意する必要がある。
     """
     import httpx
     from flask import current_app
@@ -139,6 +144,11 @@ def _recalculate_dish(
 
     total_cost = 0.0
     for rel, prep in rels:
+        # D1 経路（overrides is not None）: ORM オブジェクトを変更していないため
+        # prep.unit_price は更新前の値のまま。このカスケードで既に再計算済みなら
+        # overrides から新しい値を、そうでなければ DB 上の現在値を使う。
+        # MySQL 経路（overrides is None）: ORM セッション内で prep.unit_price は
+        # 既に新しい値に変更済みなのでそのまま使う。
         unit_price = overrides.get(prep.id, float(prep.unit_price)) if overrides is not None else float(prep.unit_price)
         cost = round(unit_price * float(rel.amount), 2)
         total_cost += cost

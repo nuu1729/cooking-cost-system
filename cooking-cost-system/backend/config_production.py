@@ -56,6 +56,16 @@ def _validate_db_component(value: str, env_name: str) -> str:
     return value
 
 
+def _validate_non_empty(value: str, env_name: str) -> str:
+    """値が空でないことを検証する。_load_secret の内部実装（_read_secret_file/
+    _require_env）は現在いずれも空文字列を返さないが、CF_ACCOUNT_ID・
+    CF_D1_DATABASE_ID と同様に呼び出し側で明示的に検証し、内部実装の変更に
+    依存しない対称な保証とする。"""
+    if not value:
+        raise RuntimeError(f'{env_name} が空です。')
+    return value
+
+
 class ProductionConfig(Config):
     """Cloudflare D1 の REST API 接続情報から SQLAlchemy 接続文字列を構築する。
 
@@ -79,7 +89,9 @@ class ProductionConfig(Config):
     # current_app.config から読めるようにするため、URI 構築時の値をそのまま保持する）
     CF_ACCOUNT_ID = _validate_db_component(_require_env('CF_ACCOUNT_ID'), 'CF_ACCOUNT_ID')
     CF_D1_DATABASE_ID = _validate_db_component(_require_env('CF_D1_DATABASE_ID'), 'CF_D1_DATABASE_ID')
-    CF_D1_API_TOKEN = _load_secret('cf_d1_api_token', env_fallback='CF_D1_API_TOKEN')
+    CF_D1_API_TOKEN = _validate_non_empty(
+        _load_secret('cf_d1_api_token', env_fallback='CF_D1_API_TOKEN'), 'CF_D1_API_TOKEN'
+    )
     SQLALCHEMY_DATABASE_URI = (
         f'cloudflare_d1://{CF_ACCOUNT_ID}:{quote_plus(CF_D1_API_TOKEN)}@{CF_D1_DATABASE_ID}'
     )
