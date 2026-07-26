@@ -271,11 +271,14 @@ def update_prep(item_id):
         from api.utils.cascade import _is_d1, _recalculate_dish
         if _is_d1():
             import warnings
+            # stacklevel=1（デフォルト）: この警告は「呼び出し元の誤用」ではなく
+            # update_prep() 自身の既知の未対応経路を示すものなので、呼び出し元
+            # （Flask のルーティング内部）ではなくこの行自体を指すようにする。
             warnings.warn(
                 'update_prep() の D1 原子性未対応経路が呼ばれました（#184 参照）。'
                 '複数行更新が部分的にしかコミットされない可能性があります。',
                 RuntimeWarning,
-                stacklevel=2,
+                stacklevel=1,
             )
         dish_ids = [
             r[0] for r in db.session.query(ItemRelation.parent_item_id)
