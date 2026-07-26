@@ -228,6 +228,10 @@ const ListPage: React.FC = () => {
 
     const currentCount = counts[activeTab];
     const currentSearch = searchTerms[activeTab];
+    // table-layout: fixed の列幅計算は th/td の列数と colSpan が一致していないと崩れるため、
+    // 「データがありません」「読み込み中」行の colSpan はタブごとの実列数に合わせる
+    // （食材=5列、仕込み/お品=4列）
+    const columnCount = activeTab === 'ingredients' ? 5 : 4;
 
     return (
         <div className="list-page-container">
@@ -281,7 +285,7 @@ const ListPage: React.FC = () => {
                         <AnimatePresence mode="popLayout">
                             {isLoading ? (
                                 <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                                    <td colSpan={5} className="loading-cell">読み込み中...</td>
+                                    <td colSpan={columnCount} className="loading-cell">読み込み中...</td>
                                 </motion.tr>
                             ) : (
                                 <>
@@ -337,7 +341,7 @@ const ListPage: React.FC = () => {
                                         );
                                     })}
                                     {!isLoading && currentCount === 0 && (
-                                        <tr><td colSpan={5} className="empty-cell">データがありません</td></tr>
+                                        <tr><td colSpan={columnCount} className="empty-cell">データがありません</td></tr>
                                     )}
                                 </>
                             )}
