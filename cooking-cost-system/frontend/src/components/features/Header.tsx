@@ -194,14 +194,14 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
                 FocusLock（#145）: disabled={!drawerOpen} で開閉に同期。
                 autoFocus で最初のフォーカス可能要素（閉じるボタン）へ自動移動、
                 returnFocus で閉じた際にハンバーガーボタンへ復帰する。 */}
-            <FocusLock disabled={!drawerOpen} returnFocus>
+            <FocusLock disabled={!drawerOpen} returnFocus autoFocus>
                 <div
                     ref={drawerRef}
                     id="mobile-drawer"
                     role="dialog"
                     aria-modal="true"
                     aria-label="ナビゲーションメニュー"
-                    inert={isInteractive ? undefined : ''}
+                    inert={!isInteractive ? '' : undefined}
                     className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0' : 'translate-x-full'} ${isInteractive ? '' : 'invisible'}`}
                 >
                     {/* Drawer Header */}
