@@ -4,10 +4,16 @@
 #
 #    pip-compile --output-file=requirements.txt --strip-extras requirements.in
 #
+anyio==4.14.2
+    # via httpx
 bcrypt==5.0.0
     # via -r requirements.in
 blinker==1.9.0
     # via flask
+certifi==2026.7.22
+    # via
+    #   httpcore
+    #   httpx
 cffi==2.0.0
     # via cryptography
 click==8.4.1
@@ -38,6 +44,18 @@ greenlet==3.5.1
     # via sqlalchemy
 gunicorn==26.0.0
     # via -r requirements.in
+h11==0.16.0
+    # via httpcore
+httpcore==1.0.9
+    # via httpx
+httpx==0.28.1
+    # via
+    #   -r requirements.in
+    #   sqlalchemy-cloudflare-d1
+idna==3.18
+    # via
+    #   anyio
+    #   httpx
 itsdangerous==2.2.0
     # via flask
 jinja2==3.1.6
@@ -67,11 +85,16 @@ sqlalchemy==2.0.50
     # via
     #   -r requirements.in
     #   flask-sqlalchemy
+    #   sqlalchemy-cloudflare-d1
+sqlalchemy-cloudflare-d1==0.3.11
+    # via -r requirements.in
 typing-extensions==4.15.0
     # via
+    #   anyio
     #   flask-limiter
     #   limits
     #   sqlalchemy
+    #   sqlalchemy-cloudflare-d1
 werkzeug==3.1.8
     # via
     #   flask

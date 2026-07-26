@@ -56,39 +56,54 @@ def _validate_db_component(value: str, env_name: str) -> str:
     return value
 
 
-def _validate_db_port(value: str) -> str:
+def _validate_non_empty(value: str, env_name: str) -> str:
+    """値が空でないことを検証する。_load_secret の内部実装（_read_secret_file/
+    _require_env）は現在いずれも空文字列を返さないが、CF_ACCOUNT_ID・
+    CF_D1_DATABASE_ID と同様に呼び出し側で明示的に検証し、内部実装の変更に
+    依存しない対称な保証とする。
+
+    使い分け: CF_D1_API_TOKEN のように「形式は多様（Bearer トークン等）で
+    空チェックのみで十分」な値に使う。CF_ACCOUNT_ID/CF_D1_DATABASE_ID のように
+    URI を壊す文字（`@` `:` `/` 等）を排除する必要がある識別子形式の値には、
+    _validate_db_component を使うこと。"""
     if not value:
-        raise RuntimeError('DB_PORT が空です。')
-    if not value.isdigit() or not (1 <= int(value) <= 65535):
-        raise RuntimeError(f'DB_PORT が不正です（1-65535 の数値を指定してください）: {value!r}')
+        raise RuntimeError(f'{env_name} が空です。')
     return value
 
 
-def _build_database_uri() -> str:
-    """mysql_password secrets ファイルが存在する場合は DB_USER/DB_HOST/DB_PORT/DB_NAME
-    （非機密、デフォルト値あり）と組み合わせて URI を構築。
-    secrets ファイルが存在しない場合は DATABASE_URL_PRODUCTION 環境変数にフォールバック。
-    このフォールバックは setup-vps.sh 経由のデプロイでは到達しない
-    （setup_secrets() が secrets/mysql_password.txt を必ず生成するため）。
-    Docker secrets を使わない代替デプロイ環境専用のパス。"""
-    password = _read_secret_file('mysql_password')
-    if password is not None:
-        user = _validate_db_component(os.environ.get('DB_USER', 'cooking_user'), 'DB_USER')
-        host = _validate_db_component(os.environ.get('DB_HOST', 'database'), 'DB_HOST')
-        port = _validate_db_port(os.environ.get('DB_PORT', '3306'))
-        name = _validate_db_component(os.environ.get('DB_NAME', 'cooking_cost_system'), 'DB_NAME')
-        return f'mysql+pymysql://{user}:{quote_plus(password)}@{host}:{port}/{name}'
-    return _require_env('DATABASE_URL_PRODUCTION')
-
-
 class ProductionConfig(Config):
+    """Cloudflare D1 の REST API 接続情報から SQLAlchemy 接続文字列を構築する。
+
+    account_id・database_id は非機密（Cloudflare ダッシュボードに表示される識別子）のため
+    通常の環境変数から読む。api_token のみ機密情報のため、他の secrets（jwt_secret・
+    secret_key）と同じ _load_secret パターン（Docker secrets ファイル優先、環境変数に
+    フォールバック）で読み込む。
+
+    接続文字列形式: cloudflare_d1://{account_id}:{api_token}@{database_id}
+    （sqlalchemy-cloudflare-d1 の仕様。#171 spike で batch 原子性・クエリパターンの
+    動作を検証済み。ただし ORM の session.commit() は D1 上で複数行更新に対する
+    原子性を持たないため、cascade.py の書き込みは batch API を直接呼ぶ別経路を使う）。
+
+    ⚠️ api_token を URI から除外することはできない。sqlalchemy-cloudflare-d1 の
+    create_connect_args() が api_token を URI の password フィールドから
+    しか取得しない仕様のため（ライブラリの構造的制約。フォーク以外に回避手段なし）。
+    """
     DEBUG = False
     TESTING = False
     PROPAGATE_EXCEPTIONS = False
     ENV = 'production'
     JWT_SECRET = _load_secret('jwt_secret', env_fallback='JWT_SECRET')
     SECRET_KEY = _load_secret('secret_key', env_fallback='SECRET_KEY')
-    SQLALCHEMY_DATABASE_URI = _build_database_uri()
+    # cascade.py が D1 batch API を直接呼ぶ際に使う（SQLALCHEMY_DATABASE_URI とは別に
+    # current_app.config から読めるようにするため、URI 構築時の値をそのまま保持する）
+    CF_ACCOUNT_ID = _validate_db_component(_require_env('CF_ACCOUNT_ID'), 'CF_ACCOUNT_ID')
+    CF_D1_DATABASE_ID = _validate_db_component(_require_env('CF_D1_DATABASE_ID'), 'CF_D1_DATABASE_ID')
+    CF_D1_API_TOKEN = _validate_non_empty(
+        _load_secret('cf_d1_api_token', env_fallback='CF_D1_API_TOKEN'), 'CF_D1_API_TOKEN'
+    )
+    SQLALCHEMY_DATABASE_URI = (
+        f'cloudflare_d1://{CF_ACCOUNT_ID}:{quote_plus(CF_D1_API_TOKEN)}@{CF_D1_DATABASE_ID}'
+    )
     CORS_ORIGIN = validate_cors_origins(
         _require_env('CORS_ORIGIN'),
         require_https=True,

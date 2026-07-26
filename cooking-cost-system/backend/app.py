@@ -100,10 +100,14 @@ def create_app():
     db.init_app(app)
     register_error_handlers(app)
 
-    # Import models so SQLAlchemy registers them before create_all
-    with app.app_context():
-        from api.models import User, Memo, Item, ItemRelation, Store, Genre, RevokedToken  # noqa: F401
-        db.create_all()
+    # 本番（D1）はマイグレーション（#173 で対応、wrangler d1 migrations）でスキーマを管理する。
+    # create_all() は D1 REST API 経由では複数 CREATE TABLE 文の原子性が保証されず、
+    # かつマイグレーション管理と二重管理になるため production では実行しない。
+    # 開発・テスト（ローカル MySQL）は引き続き create_all() でスキーマを自動生成する。
+    if not is_production:
+        with app.app_context():
+            from api.models import User, Memo, Item, ItemRelation, Store, Genre, RevokedToken  # noqa: F401
+            db.create_all()
 
     from api.controllers import register_blueprints
     register_blueprints(app)

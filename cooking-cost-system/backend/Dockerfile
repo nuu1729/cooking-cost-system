@@ -16,7 +16,10 @@ COPY requirements.txt ./
 # 依存関係を更新する場合: python -m piptools compile requirements.in --output-file requirements.txt
 # ⚠️ Python 3.11 (本番環境) で再生成すること（異なるバージョンで生成すると解決結果が変わる場合がある）
 #    Docker が使える場合: docker compose run --rm backend pip-compile requirements.in
-RUN pip install --no-cache-dir --upgrade pip && \
+# setuptools: pip-compile は "unsafe" 扱いで requirements.txt から除外するため
+# requirements.in でのピン留めが効かない。ここで直接アップグレードする
+# （PYSEC-2026-3447 対応。#172 で sqlalchemy-cloudflare-d1 導入に伴い pip-audit が検出）。
+RUN pip install --no-cache-dir --upgrade pip "setuptools>=83.0.0" && \
     pip install --no-cache-dir -r requirements.txt
 
 # ── audit: 脆弱性スキャン専用ステージ ──────────────────────────────

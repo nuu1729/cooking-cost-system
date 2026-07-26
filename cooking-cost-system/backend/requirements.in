@@ -7,7 +7,13 @@ gunicorn>=22.0.0
 Flask-Limiter>=4.0.0
 SQLAlchemy
 Flask-SQLAlchemy
+# PyMySQL: ローカル開発環境（docker-compose の MySQL コンテナ）用。本番は Cloudflare D1。
 PyMySQL
+# 本番の Cloudflare D1 接続用ダイアレクト（#171 spike で動作検証済み）
+sqlalchemy-cloudflare-d1
+# cascade.py の D1 batch 直接呼び出し用（#172）。sqlalchemy-cloudflare-d1 の推移的依存でもあるが
+# アプリケーションコードから直接 import するため明示的に依存を宣言する。
+httpx
 python-dotenv
 PyJWT>=2.8.0
 bcrypt>=4.1.0
