@@ -148,7 +148,7 @@ const SignupPage: React.FC = () => {
                                     type="text"
                                     {...register('name')}
                                     placeholder="山田 太郎"
-                                    className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.name ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
+                                    className={`w-full bg-[#BFBFBF]/50 border ${errors.name ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                 />
                                 <AnimatePresence>
                                     {errors.name && (
@@ -169,7 +169,7 @@ const SignupPage: React.FC = () => {
                                     type="email"
                                     {...register('email')}
                                     placeholder="your@email.com"
-                                    className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.email ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
+                                    className={`w-full bg-[#BFBFBF]/50 border ${errors.email ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                 />
                                 <AnimatePresence>
                                     {errors.email && (
@@ -191,7 +191,7 @@ const SignupPage: React.FC = () => {
                                         type={showPassword ? "text" : "password"}
                                         {...register('password')}
                                         placeholder="8文字以上（大文字・小文字・数字を含む）"
-                                        className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 pr-10 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
+                                        className={`w-full bg-[#BFBFBF]/50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 pr-10 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                     />
                                     <button
                                         type="button"
@@ -224,7 +224,7 @@ const SignupPage: React.FC = () => {
                                         type={showConfirmPassword ? "text" : "password"}
                                         {...register('confirmPassword')}
                                         placeholder="パスワードを再入力"
-                                        className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 pr-10 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
+                                        className={`w-full bg-[#BFBFBF]/50 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 pr-10 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                     />
                                     <button
                                         type="button"
@@ -319,7 +319,7 @@ const SignupPage: React.FC = () => {
 
             {/* Confirmation Modal */}
             {isConfirmOpen && pendingData && (
-                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
                  <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl relative">
                      <button onClick={() => setIsConfirmOpen(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black">
                          ✕
@@ -371,7 +371,7 @@ const SignupPage: React.FC = () => {
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
             <div className="bg-white rounded-lg p-6 max-w-lg w-full shadow-2xl relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-black">
                     ✕
