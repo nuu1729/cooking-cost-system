@@ -15,7 +15,7 @@ from api.extensions import limiter
 from api.models.revoked_token import RevokedToken
 from api.utils.audit import (
     log_login_success, log_login_failure, log_logout,
-    log_register, log_login_unverified, log_email_verified,
+    log_register, log_login_unverified, log_email_verified, log_email_changed,
 )
 from api.utils.email import (
     generate_verification_token, decode_verification_token, send_verification_email,
@@ -308,13 +308,33 @@ def update_profile():
             return error('CONFLICT', 'そのユーザー名は既に使用されています', 409)
         user.username = new_username
 
+    email_changed = False
     if new_email:
         dup = User.query.filter(User.email == new_email, User.id != user.id).first()
         if dup:
             return error('CONFLICT', 'そのメールアドレスは既に使用されています', 409)
-        user.email = new_email
+        if new_email != user.email:
+            user.email = new_email
+            # メールアドレス変更時は実在確認をやり直す。変更前のアドレスに対する
+            # email_verified=true をそのまま新アドレスへ引き継いでしまうと、
+            # ログイン時の未確認ブロックが実質無意味になるため。
+            user.email_verified = False
+            email_changed = True
 
     db.session.commit()
+
+    if email_changed:
+        log_email_changed(user.id, user.username)
+        verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
+        send_verification_email(
+            to_email=user.email,
+            username=user.username,
+            token=verify_token,
+            api_key=current_app.config['RESEND_API_KEY'],
+            from_email=current_app.config['RESEND_FROM_EMAIL'],
+            frontend_url=current_app.config['FRONTEND_URL'],
+        )
+
     return success(user.to_dict())
 
 

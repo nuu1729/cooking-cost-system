@@ -18,6 +18,7 @@ const AccountPage: React.FC = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [showSaveModal, setShowSaveModal] = useState(false);
+    const [emailUnverified, setEmailUnverified] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -144,6 +145,7 @@ const AccountPage: React.FC = () => {
             if (res.success && res.data) {
                 const u = res.data as any;
                 accountStore.updateProfile(u.username, u.email);
+                setEmailUnverified(u.email_verified === false);
             }
         } catch (err: any) {
             setErrorMsg(err?.response?.data?.message || 'プロフィールの保存に失敗しました。');
@@ -188,15 +190,16 @@ const AccountPage: React.FC = () => {
     };
 
     // モーダル表示後、一定時間で自動的にホーム画面へ遷移
+    // メールアドレス変更で再確認が必要になった場合は、案内を読む時間を確保するため自動遷移しない
     useEffect(() => {
-        if (!showSaveModal) return;
+        if (!showSaveModal || emailUnverified) return;
 
         const timer = setTimeout(() => {
             navigate('/');
         }, 2000); // 2秒後に遷移
 
         return () => clearTimeout(timer);
-    }, [showSaveModal, navigate]);
+    }, [showSaveModal, emailUnverified, navigate]);
 
     return (
         <div className="account-page">
@@ -364,11 +367,25 @@ const AccountPage: React.FC = () => {
 
             {/* 保存完了モーダル */}
             {showSaveModal && (
-                <div className="account-modal-overlay" onClick={() => navigate('/')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/')}>
-                    <div className="account-modal">
-                        <p className="account-modal__text">保存しました。</p>
+                emailUnverified ? (
+                    <div className="account-modal-overlay">
+                        <div className="account-modal">
+                            <p className="account-modal__text">保存しました。</p>
+                            <p className="account-modal__text">
+                                メールアドレスを変更したため、再確認が必要です。新しいメールアドレスに確認メールを送信しました。確認が完了するまで次回ログインできません。
+                            </p>
+                            <button className="account-btn account-btn--primary" onClick={() => navigate('/')} type="button">
+                                閉じる
+                            </button>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="account-modal-overlay" onClick={() => navigate('/')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/')}>
+                        <div className="account-modal">
+                            <p className="account-modal__text">保存しました。</p>
+                        </div>
+                    </div>
+                )
             )}
         </div>
     );

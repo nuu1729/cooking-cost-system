@@ -34,3 +34,7 @@ def log_login_unverified(user_id: int, username: str):
 
 def log_email_verified(user_id: int, username: str):
     audit_logger.info('EMAIL_VERIFIED user_id=%s username=%s ip=%s', user_id, username, _ip())
+
+
+def log_email_changed(user_id: int, username: str):
+    audit_logger.info('EMAIL_CHANGED user_id=%s username=%s ip=%s', user_id, username, _ip())
