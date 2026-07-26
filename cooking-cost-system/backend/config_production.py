@@ -60,7 +60,12 @@ def _validate_non_empty(value: str, env_name: str) -> str:
     """値が空でないことを検証する。_load_secret の内部実装（_read_secret_file/
     _require_env）は現在いずれも空文字列を返さないが、CF_ACCOUNT_ID・
     CF_D1_DATABASE_ID と同様に呼び出し側で明示的に検証し、内部実装の変更に
-    依存しない対称な保証とする。"""
+    依存しない対称な保証とする。
+
+    使い分け: CF_D1_API_TOKEN のように「形式は多様（Bearer トークン等）で
+    空チェックのみで十分」な値に使う。CF_ACCOUNT_ID/CF_D1_DATABASE_ID のように
+    URI を壊す文字（`@` `:` `/` 等）を排除する必要がある識別子形式の値には、
+    _validate_db_component を使うこと。"""
     if not value:
         raise RuntimeError(f'{env_name} が空です。')
     return value
@@ -78,6 +83,10 @@ class ProductionConfig(Config):
     （sqlalchemy-cloudflare-d1 の仕様。#171 spike で batch 原子性・クエリパターンの
     動作を検証済み。ただし ORM の session.commit() は D1 上で複数行更新に対する
     原子性を持たないため、cascade.py の書き込みは batch API を直接呼ぶ別経路を使う）。
+
+    ⚠️ api_token を URI から除外することはできない。sqlalchemy-cloudflare-d1 の
+    create_connect_args() が api_token を URI の password フィールドから
+    しか取得しない仕様のため（ライブラリの構造的制約。フォーク以外に回避手段なし）。
     """
     DEBUG = False
     TESTING = False
