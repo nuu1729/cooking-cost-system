@@ -262,13 +262,21 @@ def update_prep(item_id):
         prep.unit_price = round(float(prep.price) / float(prep.quantity), 4)
 
         # この仕込みを使うお品のコストを再計算
-        # ⚠️ D1（本番）未対応: cascade_from_ingredient() と異なり、この呼び出しは
+        # TODO(#184): D1（本番）未対応。cascade_from_ingredient() と異なり、この呼び出しは
         # ORM 経由（statements=None）のままで、この仕込み自身の更新（上の prep.price/
         # unit_price）とお品の再計算を1つの db.session.commit() に委ねている。
         # D1 上では複数行更新に対する原子性がないため（#171 spike 参照）、途中で失敗すると
         # 部分的にしかコミットされない可能性がある。本 PR（#172）では cascade_from_ingredient()
-        # のみを D1 対応としており、この経路は未対応。フォローアップ issue で対応予定。
-        from api.utils.cascade import _recalculate_dish
+        # のみを D1 対応としており、この経路は未対応。
+        from api.utils.cascade import _is_d1, _recalculate_dish
+        if _is_d1():
+            import warnings
+            warnings.warn(
+                'update_prep() の D1 原子性未対応経路が呼ばれました（#184 参照）。'
+                '複数行更新が部分的にしかコミットされない可能性があります。',
+                RuntimeWarning,
+                stacklevel=2,
+            )
         dish_ids = [
             r[0] for r in db.session.query(ItemRelation.parent_item_id)
             .join(Item, ItemRelation.parent_item_id == Item.id)

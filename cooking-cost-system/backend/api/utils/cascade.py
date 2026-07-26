@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 from api.database import db
 from api.models.item import Item, ItemRelation
 
 # D1 batch API のエンドポイント（account_id・database_id は呼び出し時に埋め込む）
 _D1_QUERY_URL = 'https://api.cloudflare.com/client/v4/accounts/{account_id}/d1/database/{database_id}/query'
+
+# D1 batch リクエストのタイムアウト（秒）。httpx は同期呼び出しのため、
+# gunicorn がスレッド/sync ワーカーの場合はこの秒数までワーカーを占有する。
+# #174（Containers パッケージング）でランタイムモデルが変わる際に見直すこと。
+_D1_REQUEST_TIMEOUT = 10.0
 
 
 def _is_d1() -> bool:
@@ -41,8 +48,13 @@ def _d1_batch_execute(statements: list[tuple[str, list]]) -> None:
             url,
             headers={'Authorization': f'Bearer {api_token}', 'Content-Type': 'application/json'},
             json={'batch': batch},
-            timeout=30.0,
+            timeout=_D1_REQUEST_TIMEOUT,
         )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        # 5xx/429 等でレスポンスが JSON でない場合（Cloudflare のエラーページ等）に
+        # response.json() が JSONDecodeError を投げるのを防ぐため、ここで先に検出する
+        raise RuntimeError(f'D1 batch HTTP エラー: {e.response.status_code}') from e
     except httpx.RequestError as e:
         raise RuntimeError(f'D1 batch リクエストに失敗しました: {e}') from e
 
@@ -53,7 +65,11 @@ def _d1_batch_execute(statements: list[tuple[str, list]]) -> None:
         raise RuntimeError(f'D1 batch error: {message}')
 
 
-def _recalculate_prep(prep_id: int, statements: list | None = None, overrides: dict | None = None) -> None:
+def _recalculate_prep(
+    prep_id: int,
+    statements: list[tuple[str, list]] | None = None,
+    overrides: dict[int, float] | None = None,
+) -> None:
     """仕込みの原価を再計算する。
 
     statements が None（MySQL/開発環境）の場合は従来どおり ORM オブジェクトを
@@ -64,6 +80,10 @@ def _recalculate_prep(prep_id: int, statements: list | None = None, overrides: d
     ORM オブジェクトは変更しないため、このプレップの新しい unit_price を
     overrides に記録し、後続の _recalculate_dish がこの更新後の値を参照できるようにする
     （ORM 変更なら同一セッション内で自然に見える値を、明示的に引き渡す）。
+
+    statements と overrides は常に両方 None か両方非 None のペアで呼ばれる
+    （cascade_from_ingredient() 参照）。分離した2引数にしているのは呼び出し側の
+    単純さのためで、両者を束ねるデータクラスは今のところ導入していない。
     """
     prep = Item.query.filter_by(id=prep_id, item_type=2).first()
     if not prep:
@@ -96,7 +116,11 @@ def _recalculate_prep(prep_id: int, statements: list | None = None, overrides: d
         prep.unit_price = unit_price
 
 
-def _recalculate_dish(dish_id: int, statements: list | None = None, overrides: dict | None = None) -> None:
+def _recalculate_dish(
+    dish_id: int,
+    statements: list[tuple[str, list]] | None = None,
+    overrides: dict[int, float] | None = None,
+) -> None:
     """お品の原価を再計算する（statements/overrides の扱いは _recalculate_prep と同様）。
 
     overrides に対象の仕込みの新しい unit_price が記録されていればそれを使い、
@@ -155,8 +179,8 @@ def cascade_from_ingredient(ingredient_id: int) -> None:
         return
 
     is_d1 = _is_d1()
-    statements: list | None = [] if is_d1 else None
-    overrides: dict | None = {} if is_d1 else None
+    statements: list[tuple[str, list]] | None = [] if is_d1 else None
+    overrides: dict[int, float] | None = {} if is_d1 else None
 
     for prep_id in prep_ids:
         _recalculate_prep(prep_id, statements, overrides)
