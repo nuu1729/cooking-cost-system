@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import FocusLock from 'react-focus-lock';
 import AccountIcon from './AccountIcon';
 
 // ドロワーの transition-transform duration-300（Tailwind クラス）と対応する値。
@@ -19,12 +20,16 @@ const navItems = [
     { label: '販売価格計算', subLabel: 'CALCULATOR', path: '/calculator' },
 ];
 
-const Header: React.FC = () => {
-    const navigate = useNavigate();
-    const [drawerOpen, setDrawerOpen] = useState(false);
+interface HeaderProps {
+    // ドロワーの開閉状態は Layout が保持する（#146: main/header への inert 付与に必要）
+    drawerOpen: boolean;
+    setDrawerOpen: (open: boolean) => void;
+}
 
-    const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-    const closeButtonRef = useRef<HTMLButtonElement>(null);
+const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
+    const navigate = useNavigate();
+
+    const closeDrawer = useCallback(() => setDrawerOpen(false), [setDrawerOpen]);
     const drawerRef = useRef<HTMLDivElement>(null);
 
     // inert/invisible の実際の適用状態。drawerOpen とは非対称に扱う:
@@ -57,10 +62,9 @@ const Header: React.FC = () => {
         };
     }, [drawerOpen]);
 
-    // ドロワーを開いたとき閉じるボタンにフォーカスを移動（WAI-ARIA dialog 要件）
-    useEffect(() => {
-        if (drawerOpen) closeButtonRef.current?.focus();
-    }, [drawerOpen]);
+    // ドロワー内へのフォーカス移動・トラップ・復帰（#145）は FocusLock に委譲する
+    // （autoFocus で最初のフォーカス可能要素＝閉じるボタンへ移動、returnFocus で
+    //   閉じた際にハンバーガーボタンへ復帰する）
 
     // Esc キーでドロワーを閉じる（open 時のみリスナー登録）
     useEffect(() => {
@@ -94,7 +98,13 @@ const Header: React.FC = () => {
 
     return (
         <>
-            <header className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50 overflow-visible border-b border-gray-300">
+            {/* ドロワー展開中はヘッダーを inert にし、背後のコンテンツへのフォーカス・
+                読み上げを防ぐ（#146）。drawerOpen に同期して即時切り替えるため、
+                閉じた瞬間には解除済みで、FocusLock の returnFocus によるハンバーガー
+                ボタンへのフォーカス復帰（下記）を妨げない。 */}
+            <header
+                inert={drawerOpen ? '' : undefined}
+                className="h-[80px] bg-[#d9d9d9] flex items-center px-0 sticky top-0 z-50 overflow-visible border-b border-gray-300">
                 {/* Account Icon Area */}
                 <div className="flex items-center h-full relative" style={{ minWidth: '150px' }}>
                     <div className="absolute top-0 left-0 z-50 flex items-center justify-center" style={{ height: '80px', width: '80px' }}>
@@ -180,64 +190,68 @@ const Header: React.FC = () => {
                 これにより閉じるアニメーション中（まだ画面上に見えている間）に
                 フォーカスが強制的に外れることを防ぐ（issue #136）。
                 visibility の初期値は visible なので、明示的な visible クラスは
-                不要（invisible クラスの有無だけで制御できる）。 */}
-            <div
-                ref={drawerRef}
-                id="mobile-drawer"
-                role="dialog"
-                aria-modal="true"
-                aria-label="ナビゲーションメニュー"
-                inert={isInteractive ? undefined : ''}
-                className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0' : 'translate-x-full'} ${isInteractive ? '' : 'invisible'}`}
-            >
-                {/* Drawer Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-                    <span className="font-bold text-gray-800">メニュー</span>
-                    <button
-                        ref={closeButtonRef}
-                        type="button"
-                        onClick={closeDrawer}
-                        aria-label="メニューを閉じる"
-                        className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-2xl leading-none"
-                    >
-                        ✕
-                    </button>
-                </div>
-
-                {/* Drawer Nav Items */}
-                <nav className="flex-1 overflow-y-auto py-2">
-                    {navItems.map((item) => (
-                        <NavLink
-                            key={item.path}
-                            to={item.path}
+                不要（invisible クラスの有無だけで制御できる）。
+                FocusLock（#145）: disabled={!drawerOpen} で開閉に同期。
+                autoFocus で最初のフォーカス可能要素（閉じるボタン）へ自動移動、
+                returnFocus で閉じた際にハンバーガーボタンへ復帰する。 */}
+            <FocusLock disabled={!drawerOpen} returnFocus>
+                <div
+                    ref={drawerRef}
+                    id="mobile-drawer"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="ナビゲーションメニュー"
+                    inert={isInteractive ? undefined : ''}
+                    className={`fixed top-0 right-0 h-full w-[280px] bg-white z-[70] shadow-2xl transition-transform duration-300 sm:hidden flex flex-col ${drawerOpen ? 'translate-x-0' : 'translate-x-full'} ${isInteractive ? '' : 'invisible'}`}
+                >
+                    {/* Drawer Header */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                        <span className="font-bold text-gray-800">メニュー</span>
+                        <button
+                            type="button"
                             onClick={closeDrawer}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-5 py-4 text-base transition-colors ${isActive
-                                    ? 'bg-gray-100 font-bold text-black'
-                                    : 'text-gray-700 hover:bg-gray-50'
-                                }`
-                            }
+                            aria-label="メニューを閉じる"
+                            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-2xl leading-none"
                         >
-                            <span className="flex-1">{item.label}</span>
-                            {item.subLabel && (
-                                <span className="text-[10px] font-bold text-gray-400 tracking-widest">{item.subLabel}</span>
-                            )}
-                        </NavLink>
-                    ))}
-                </nav>
+                            ✕
+                        </button>
+                    </div>
 
-                {/* Drawer Footer: Account */}
-                <div className="border-t border-gray-200 p-4">
-                    <button
-                        type="button"
-                        onClick={handleAccountNav}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
-                    >
-                        <AccountIcon size={28} />
-                        <span className="text-base">アカウント</span>
-                    </button>
+                    {/* Drawer Nav Items */}
+                    <nav className="flex-1 overflow-y-auto py-2">
+                        {navItems.map((item) => (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                onClick={closeDrawer}
+                                className={({ isActive }) =>
+                                    `flex items-center gap-3 px-5 py-4 text-base transition-colors ${isActive
+                                        ? 'bg-gray-100 font-bold text-black'
+                                        : 'text-gray-700 hover:bg-gray-50'
+                                    }`
+                                }
+                            >
+                                <span className="flex-1">{item.label}</span>
+                                {item.subLabel && (
+                                    <span className="text-[10px] font-bold text-gray-400 tracking-widest">{item.subLabel}</span>
+                                )}
+                            </NavLink>
+                        ))}
+                    </nav>
+
+                    {/* Drawer Footer: Account */}
+                    <div className="border-t border-gray-200 p-4">
+                        <button
+                            type="button"
+                            onClick={handleAccountNav}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                        >
+                            <AccountIcon size={28} />
+                            <span className="text-base">アカウント</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </FocusLock>
         </>
     );
 };
