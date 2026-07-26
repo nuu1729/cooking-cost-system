@@ -26,6 +26,8 @@ const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+    const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
     const from = (location.state as any)?.from?.pathname ?? '/';
 
     const {
@@ -39,6 +41,8 @@ const LoginPage: React.FC = () => {
 
     const onSubmit = async (data: FormData) => {
         setErrorMessage(null);
+        setUnverifiedEmail(null);
+        setResendState('idle');
         try {
             const response = await authApi.login({
                 username: data.email,
@@ -54,8 +58,22 @@ const LoginPage: React.FC = () => {
                 throw new Error('ログインに失敗しました。');
             }
         } catch (err: any) {
+            const code = err?.response?.data?.error;
             const message = err?.response?.data?.message;
+            if (code === 'EMAIL_NOT_VERIFIED') {
+                setUnverifiedEmail(err?.response?.data?.data?.email || null);
+            }
             setErrorMessage(message || 'ログインに失敗しました。時間をおいて再度お試しください。');
+        }
+    };
+
+    const handleResendVerification = async () => {
+        if (!unverifiedEmail) return;
+        setResendState('sending');
+        try {
+            await authApi.resendVerification(unverifiedEmail);
+        } finally {
+            setResendState('sent');
         }
     };
 
@@ -154,6 +172,21 @@ const LoginPage: React.FC = () => {
                             {errorMessage && (
                                 <div className="bg-red-100 text-red-600 text-xs p-2 rounded text-center border border-red-200">
                                     {errorMessage}
+                                    {unverifiedEmail && (
+                                        <div className="mt-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleResendVerification}
+                                                disabled={resendState === 'sending'}
+                                                className="text-blue-600 underline hover:text-blue-800 disabled:opacity-50"
+                                            >
+                                                {resendState === 'sending' ? '送信中...' : '確認メールを再送する'}
+                                            </button>
+                                            {resendState === 'sent' && (
+                                                <p className="text-green-600 mt-1">確認メールを再送しました。</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

@@ -13,7 +13,13 @@ from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.extensions import limiter
 from api.models.revoked_token import RevokedToken
-from api.utils.audit import log_login_success, log_login_failure, log_logout
+from api.utils.audit import (
+    log_login_success, log_login_failure, log_logout,
+    log_register, log_login_unverified, log_email_verified,
+)
+from api.utils.email import (
+    generate_verification_token, decode_verification_token, send_verification_email,
+)
 from api.controllers.genres import seed_default_genres
 
 ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
@@ -115,9 +121,24 @@ def register():
     db.session.commit()
 
     seed_default_genres(user.id)
+    log_register(user.id, user.username)
 
-    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
-    return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at}, status=201)
+    verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
+    send_verification_email(
+        to_email=user.email,
+        username=user.username,
+        token=verify_token,
+        api_key=current_app.config['RESEND_API_KEY'],
+        from_email=current_app.config['RESEND_FROM_EMAIL'],
+        frontend_url=current_app.config['FRONTEND_URL'],
+    )
+
+    # メール確認が完了するまではログインさせない（トークンは発行しない）
+    return success(
+        {'user': user.to_dict()},
+        message='確認メールを送信しました。メール内のリンクからメールアドレスの確認を完了してください。',
+        status=201,
+    )
 
 
 # POST /api/auth/login
@@ -145,10 +166,71 @@ def login():
     if not user.is_active:
         log_login_failure(identifier)
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
+    if not user.email_verified:
+        log_login_unverified(user.id, user.username)
+        return error(
+            'EMAIL_NOT_VERIFIED', 'メールアドレスが確認されていません。確認メールをご確認ください。', 403,
+            data={'email': user.email},
+        )
 
     log_login_success(user.id, user.username)
     token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at})
+
+
+# POST /api/auth/verify-email
+@auth_bp.route('/verify-email', methods=['POST'])
+@limiter.limit('20 per hour')
+def verify_email():
+    body = request.get_json(silent=True) or {}
+    token = (body.get('token') or '').strip()
+    if not token:
+        return error('VALIDATION_ERROR', 'token は必須です')
+
+    try:
+        user_id = decode_verification_token(token, current_app.config['JWT_SECRET'])
+    except jwt.ExpiredSignatureError:
+        return error('TOKEN_EXPIRED', '確認リンクの有効期限が切れています。再送してください。', 400)
+    except jwt.InvalidTokenError:
+        return error('VALIDATION_ERROR', '確認リンクが無効です。', 400)
+
+    user = User.query.get(user_id)
+    if not user:
+        return error('NOT_FOUND', 'ユーザーが見つかりません', 404)
+
+    if not user.email_verified:
+        user.email_verified = True
+        db.session.commit()
+        log_email_verified(user.id, user.username)
+
+    return success(message='メールアドレスの確認が完了しました。ログインしてください。')
+
+
+# POST /api/auth/resend-verification
+@auth_bp.route('/resend-verification', methods=['POST'])
+@limiter.limit('3 per hour')
+def resend_verification():
+    body = request.get_json(silent=True) or {}
+    email = (body.get('email') or '').strip()
+    if not email:
+        return error('VALIDATION_ERROR', 'email は必須です')
+
+    # メールアドレスの存在有無を応答から判別できないよう、常に同じメッセージを返す
+    generic_message = 'メールアドレスが登録済みかつ未確認の場合、確認メールを再送しました。'
+
+    user = User.query.filter_by(email=email).first()
+    if user and not user.email_verified:
+        verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
+        send_verification_email(
+            to_email=user.email,
+            username=user.username,
+            token=verify_token,
+            api_key=current_app.config['RESEND_API_KEY'],
+            from_email=current_app.config['RESEND_FROM_EMAIL'],
+            frontend_url=current_app.config['FRONTEND_URL'],
+        )
+
+    return success(message=generic_message)
 
 
 # POST /api/auth/logout

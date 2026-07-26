@@ -109,3 +109,8 @@ class ProductionConfig(Config):
         require_https=True,
         allow_local=False,
     )
+    # サインアップ確認メール送信用（Resend）。api_token と同じ secrets ファイル優先パターン
+    RESEND_API_KEY = _load_secret('resend_api_key', env_fallback='RESEND_API_KEY')
+    RESEND_FROM_EMAIL = _require_env('RESEND_FROM_EMAIL')
+    # 確認メール内のリンク（{FRONTEND_URL}/verify-email?token=...）の生成に使う
+    FRONTEND_URL = _require_env('FRONTEND_URL')

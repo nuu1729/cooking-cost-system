@@ -88,7 +88,8 @@ apiClient.interceptors.response.use(
         const url = error.config?.url ?? '';
         // login/register はページ側でエラーを処理するため除外
         // auth/me・auth/status はApp起動時のセッション復元呼び出しのため除外（App.tsx の catch で処理）
-        const isLoginOrRegister = url.includes('auth/login') || url.includes('auth/register');
+        const isLoginOrRegister = url.includes('auth/login') || url.includes('auth/register')
+            || url.includes('auth/verify-email') || url.includes('auth/resend-verification');
         const isSessionCheck = url.includes('auth/me') || url.includes('auth/status');
 
         if (error.response?.status === 401 && !isLoginOrRegister && !isSessionCheck) {

@@ -58,6 +58,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_DATABASE_URI = _require_env('DATABASE_URL')
     CORS_ORIGIN = os.environ.get('CORS_ORIGIN', DEFAULT_CORS_ORIGIN)
+    # 未設定時は開発用フォールバック（RESEND_API_KEY 未設定時は認証メールをログ出力のみに留める）
+    RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+    RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')
+    FRONTEND_URL = os.environ.get('FRONTEND_URL', DEFAULT_CORS_ORIGIN)
 
 
 class DevelopmentConfig(Config):

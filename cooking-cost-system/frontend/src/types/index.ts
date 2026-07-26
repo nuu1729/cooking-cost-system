@@ -263,6 +263,7 @@ export interface User extends BaseModel {
     email: string;
     role: 'admin' | 'user';
     is_active: boolean;
+    email_verified: boolean;
     last_login?: Date | string;
 }
 

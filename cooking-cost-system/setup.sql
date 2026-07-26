@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS `users` (
     `email`         VARCHAR(255) NOT NULL,
     `password_hash` VARCHAR(255) NOT NULL,
     `is_active`     TINYINT(1)   NOT NULL DEFAULT 1,
+    `email_verified` TINYINT(1)  NOT NULL DEFAULT 0,
     `icon_url`      VARCHAR(500) NULL,
     `home_bg_url`   VARCHAR(500) NULL,
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -4,9 +4,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { signinApi } from '@/api';
-import { accountStore } from '@/stores/accountStore';
-import { toBackendUrl } from '@/utils/url';
+import { signinApi, authApi } from '@/api';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -49,6 +47,10 @@ const SignupPage: React.FC = () => {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [pendingData, setPendingData] = useState<FormData | null>(null);
 
+    // Registration Complete State（メール確認待ち）
+    const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+    const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
+
     const {
         register,
         handleSubmit,
@@ -74,11 +76,8 @@ const SignupPage: React.FC = () => {
                 password: pendingData.password
             });
             if (response.success && response.data) {
-                const data = response.data as any;
-                localStorage.setItem('authToken', data.token);
-                accountStore.initForUser(data.user.id, data.user.username, data.user.email, toBackendUrl(data.user.icon_url), toBackendUrl(data.user.home_bg_url));
                 setIsConfirmOpen(false);
-                navigate('/');
+                setRegisteredEmail(pendingData.email);
             }
         } catch (err: any) {
             setIsConfirmOpen(false);
@@ -91,6 +90,51 @@ const SignupPage: React.FC = () => {
             }
         }
     };
+
+    const handleResendVerification = async () => {
+        if (!registeredEmail) return;
+        setResendState('sending');
+        try {
+            await authApi.resendVerification(registeredEmail);
+        } finally {
+            setResendState('sent');
+        }
+    };
+
+    // サインアップ完了 → メール確認待ち画面
+    if (registeredEmail) {
+        return (
+            <div className="min-h-screen-dvh w-full bg-white flex flex-col items-center justify-center font-sans text-gray-800 px-4">
+                <div className="bg-[#D9D9D9] p-8 rounded-[30px] shadow-lg w-full max-w-md text-center">
+                    <h2 className="text-2xl font-bold mb-4">確認メールを送信しました</h2>
+                    <p className="text-sm text-gray-700 mb-2">
+                        <span className="font-semibold">{registeredEmail}</span> 宛に確認メールを送信しました。
+                    </p>
+                    <p className="text-sm text-gray-700 mb-6">
+                        メール内のリンクをクリックして、メールアドレスの確認を完了してください。
+                    </p>
+
+                    <button
+                        onClick={handleResendVerification}
+                        disabled={resendState === 'sending'}
+                        className="w-full bg-[#1E90FF] text-white font-bold py-3 rounded-lg hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+                    >
+                        {resendState === 'sending' ? '送信中...' : '確認メールを再送する'}
+                    </button>
+                    {resendState === 'sent' && (
+                        <p className="text-xs text-green-600 mb-3">確認メールを再送しました。</p>
+                    )}
+
+                    <button
+                        onClick={() => navigate('/login')}
+                        className="w-full bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                        ログインページへ
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // min-h-screen-dvh + overflow-hidden なし:
     // コンテンツがビューポートより高い場合（モバイル等）は下部が切れずにスクロールできる
