@@ -20,12 +20,15 @@ def generate_verification_token(user_id: int, secret: str) -> str:
 
 
 def decode_verification_token(token: str, secret: str) -> int:
-    """トークンをデコードし user_id を返す。期限切れ・改ざん・目的不一致の場合は
-    jwt.InvalidTokenError（の派生）を送出する。呼び出し側でハンドリングすること。"""
+    """トークンをデコードし user_id を返す。期限切れ・改ざん・目的不一致・sub欠落の
+    場合は jwt.InvalidTokenError（の派生）を送出する。呼び出し側でハンドリングすること。"""
     payload = jwt.decode(token, secret, algorithms=['HS256'])
     if payload.get('purpose') != EMAIL_VERIFY_PURPOSE:
         raise jwt.InvalidTokenError('unexpected token purpose')
-    return int(payload['sub'])
+    try:
+        return int(payload['sub'])
+    except (KeyError, ValueError, TypeError):
+        raise jwt.InvalidTokenError('missing or invalid sub claim')
 
 
 def configure(api_key: str) -> None:

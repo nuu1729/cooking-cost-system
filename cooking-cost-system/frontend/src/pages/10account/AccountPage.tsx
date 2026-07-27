@@ -17,6 +17,9 @@ const AccountPage: React.FC = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [showSaveModal, setShowSaveModal] = useState(false);
+    // account.emailVerified（accountStore由来）とは別管理: これは「今回の保存操作で
+    // メールアドレスが変わり再確認が必要になったか」だけを示す、保存完了モーダル専用の
+    // フラグ。ページを開いた時点で既に未確認だったかどうかは account.emailVerified 側を見る。
     const [emailUnverified, setEmailUnverified] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 

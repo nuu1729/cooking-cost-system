@@ -245,7 +245,7 @@ def resend_verification():
     fixed_response_seconds = 0.5
 
     user = User.query.filter_by(email=email).first()
-    if user and not user.email_verified:
+    if user and user.is_active and not user.email_verified:
         verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
         _dispatch_verification_email(user, verify_token)
 
