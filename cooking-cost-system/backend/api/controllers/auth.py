@@ -5,6 +5,8 @@ import jwt
 import bcrypt
 import os
 import re
+import threading
+import time
 import uuid
 import filetype
 from api.database import db
@@ -13,7 +15,13 @@ from api.utils.response import success, error
 from api.utils.auth import require_auth
 from api.extensions import limiter
 from api.models.revoked_token import RevokedToken
-from api.utils.audit import log_login_success, log_login_failure, log_logout
+from api.utils.audit import (
+    log_login_success, log_login_failure, log_logout,
+    log_register, log_login_unverified, log_email_verified, log_email_changed,
+)
+from api.utils.email import (
+    generate_verification_token, decode_verification_token, send_verification_email,
+)
 from api.controllers.genres import seed_default_genres
 
 ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
@@ -76,6 +84,24 @@ def _validate_password(password: str) -> str | None:
     return None
 
 
+def _dispatch_verification_email(user: User, token: str) -> None:
+    """確認メール送信を別スレッドに投げ、リクエストの応答をブロックしない
+    （Resend への外部HTTP呼び出しの待ち時間をレスポンスに含めないため）。
+    daemon=False: ワーカーのリロード・シャットダウン時に送信中のスレッドが
+    強制終了され、確認メールが無音で失われるのを避ける。"""
+    threading.Thread(
+        target=send_verification_email,
+        kwargs=dict(
+            to_email=user.email,
+            username=user.username,
+            token=token,
+            from_email=current_app.config['RESEND_FROM_EMAIL'],
+            frontend_url=current_app.config['FRONTEND_URL'],
+        ),
+        daemon=False,
+    ).start()
+
+
 def _generate_token(user_id: int, secret: str) -> tuple[str, str, str]:
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     jti = uuid.uuid4().hex
@@ -115,9 +141,17 @@ def register():
     db.session.commit()
 
     seed_default_genres(user.id)
+    log_register(user.id, user.username)
 
-    token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
-    return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at}, status=201)
+    verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
+    _dispatch_verification_email(user, verify_token)
+
+    # メール確認が完了するまではログインさせない（トークンは発行しない）
+    return success(
+        {'user': user.to_dict()},
+        message='確認メールを送信しました。メール内のリンクからメールアドレスの確認を完了してください。',
+        status=201,
+    )
 
 
 # POST /api/auth/login
@@ -145,10 +179,78 @@ def login():
     if not user.is_active:
         log_login_failure(identifier)
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
+    if not user.email_verified:
+        log_login_unverified(user.id, user.username)
+        # data.email を返すのは列挙のリスクにはならない: ここに到達する時点で
+        # bcrypt.checkpw が既に成功しており、呼び出し元は正しいパスワードを
+        # 知っている（＝アカウントを特定できている）ことが確定している。
+        # ログイン欄はメールアドレス/ユーザー名どちらでも入力可能なため、
+        # ユーザー名でログインした場合でもフロントエンドが再送先の
+        # メールアドレスを特定できるよう、ここで明示的に返す。
+        return error(
+            'EMAIL_NOT_VERIFIED', 'メールアドレスが確認されていません。確認メールをご確認ください。', 403,
+            data={'email': user.email},
+        )
 
     log_login_success(user.id, user.username)
     token, expires_at, _ = _generate_token(user.id, current_app.config['JWT_SECRET'])
     return success({'user': user.to_dict(), 'token': token, 'expiresAt': expires_at})
+
+
+# POST /api/auth/verify-email
+@auth_bp.route('/verify-email', methods=['POST'])
+@limiter.limit('20 per hour')
+def verify_email():
+    body = request.get_json(silent=True) or {}
+    token = (body.get('token') or '').strip()
+    if not token:
+        return error('VALIDATION_ERROR', 'token は必須です')
+
+    try:
+        user_id = decode_verification_token(token, current_app.config['JWT_SECRET'])
+    except jwt.ExpiredSignatureError:
+        return error('TOKEN_EXPIRED', '確認リンクの有効期限が切れています。再送してください。', 400)
+    except jwt.InvalidTokenError:
+        return error('VALIDATION_ERROR', '確認リンクが無効です。', 400)
+
+    user = db.session.get(User, user_id)
+    if not user or not user.is_active:
+        return error('NOT_FOUND', 'ユーザーが見つかりません', 404)
+
+    if not user.email_verified:
+        user.email_verified = True
+        db.session.commit()
+        log_email_verified(user.id, user.username)
+
+    return success(message='メールアドレスの確認が完了しました。ログインしてください。')
+
+
+# POST /api/auth/resend-verification
+@auth_bp.route('/resend-verification', methods=['POST'])
+@limiter.limit('3 per hour')
+def resend_verification():
+    body = request.get_json(silent=True) or {}
+    email = (body.get('email') or '').strip()
+    if not email:
+        return error('VALIDATION_ERROR', 'email は必須です')
+
+    # メールアドレスの存在有無を応答から判別できないよう、常に同じメッセージ・
+    # 同じ応答時間を返す（タイミング攻撃によるユーザー列挙対策）。
+    # メール送信は Resend への外部HTTP呼び出しを含み、応答時間が「下限を
+    # 確保する」だけでは吸収できない範囲まで伸びうる（実測で送信あり
+    # ~900ms・送信なし ~500ms、という有意な差が出た）。そのためメール送信は
+    # バックグラウンドスレッドに投げてレスポンスをブロックしないようにし、
+    # レスポンス自体は常に固定時間だけ待って返す。
+    generic_message = 'メールアドレスが登録済みかつ未確認の場合、確認メールを再送しました。'
+    fixed_response_seconds = 0.5
+
+    user = User.query.filter_by(email=email).first()
+    if user and user.is_active and not user.email_verified:
+        verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
+        _dispatch_verification_email(user, verify_token)
+
+    time.sleep(fixed_response_seconds)
+    return success(message=generic_message)
 
 
 # POST /api/auth/logout
@@ -226,13 +328,31 @@ def update_profile():
             return error('CONFLICT', 'そのユーザー名は既に使用されています', 409)
         user.username = new_username
 
+    email_changed = False
     if new_email:
         dup = User.query.filter(User.email == new_email, User.id != user.id).first()
         if dup:
             return error('CONFLICT', 'そのメールアドレスは既に使用されています', 409)
-        user.email = new_email
+        if new_email != user.email:
+            user.email = new_email
+            # メールアドレス変更時は実在確認をやり直す。変更前のアドレスに対する
+            # email_verified=true をそのまま新アドレスへ引き継いでしまうと、
+            # ログイン時の未確認ブロックが実質無意味になるため。
+            # 現在有効な JWT（このリクエストの認証に使われたトークン）は意図的に
+            # 失効させない。ブロックするのは「次回ログイン」のみで、変更直後の
+            # セッションはそのまま使い続けられる（再ログインを要求しない設計）。
+            # より厳格にするなら RevokedToken に現在の jti を追加する対応もあるが、
+            # 現状は割れたメールアドレスへの不正アクセスより UX を優先している。
+            user.email_verified = False
+            email_changed = True
 
     db.session.commit()
+
+    if email_changed:
+        log_email_changed(user.id, user.username)
+        verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
+        _dispatch_verification_email(user, verify_token)
+
     return success(user.to_dict())
 
 

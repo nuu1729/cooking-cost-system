@@ -14,6 +14,8 @@ sqlalchemy-cloudflare-d1
 # cascade.py の D1 batch 直接呼び出し用（#172）。sqlalchemy-cloudflare-d1 の推移的依存でもあるが
 # アプリケーションコードから直接 import するため明示的に依存を宣言する。
 httpx
+# サインアップ確認メール送信用（Resend）
+resend
 python-dotenv
 PyJWT>=2.8.0
 bcrypt>=4.1.0

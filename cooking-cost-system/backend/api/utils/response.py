@@ -17,10 +17,13 @@ def success(data=None, message=None, count=None, status=200):
     return jsonify(body), status
 
 
-def error(code, message, status=400):
-    return jsonify({
+def error(code, message, status=400, data=None):
+    body = {
         'success': False,
         'error': code,
         'message': message,
         'timestamp': _now(),
-    }), status
+    }
+    if data is not None:
+        body['data'] = data
+    return jsonify(body), status

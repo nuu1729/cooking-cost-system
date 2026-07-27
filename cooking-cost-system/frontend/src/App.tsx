@@ -15,6 +15,7 @@ import DishPage from './pages/08dish/dish';
 import CalculatorPage from './pages/09calculator/CalculatorPage';
 import SignupPage from './pages/00signup/SignupPage';
 import LoginPage from './pages/01login/LoginPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import ListPage from './pages/06list/list';
 import AccountPage from './pages/10account/AccountPage';
 import StoresPage from './pages/11stores/StoresPage';
@@ -38,6 +39,7 @@ const App: React.FC = () => {
                     u.id,
                     u.username,
                     u.email,
+                    u.email_verified,
                     toBackendUrl(u.icon_url),
                     toBackendUrl(u.home_bg_url),
                 );
@@ -68,6 +70,7 @@ const App: React.FC = () => {
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
 
                 {/* Protected routes - redirect to /login if not authenticated */}
                 <Route

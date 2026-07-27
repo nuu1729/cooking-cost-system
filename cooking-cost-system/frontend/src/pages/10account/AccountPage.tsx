@@ -9,8 +9,7 @@ import './AccountPage.scss';
 const MAX_FILE_SIZE_MB = 5;
 
 const AccountPage: React.FC = () => {
-    // accountStore の更新を受けて再レンダリングするトリガー（値は直接JSXで使わない）
-    const [, setAccount] = useState<AccountInfo>(accountStore.get());
+    const [account, setAccount] = useState<AccountInfo>(accountStore.get());
     const [editDisplayName, setEditDisplayName] = useState(accountStore.get().displayName);
     const [editEmail, setEditEmail] = useState(accountStore.get().email);
     const [previewUrl, setPreviewUrl] = useState<string | null>(accountStore.get().iconUrl);
@@ -18,6 +17,10 @@ const AccountPage: React.FC = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [showSaveModal, setShowSaveModal] = useState(false);
+    // account.emailVerified（accountStore由来）とは別管理: これは「今回の保存操作で
+    // メールアドレスが変わり再確認が必要になったか」だけを示す、保存完了モーダル専用の
+    // フラグ。ページを開いた時点で既に未確認だったかどうかは account.emailVerified 側を見る。
+    const [emailUnverified, setEmailUnverified] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -143,7 +146,8 @@ const AccountPage: React.FC = () => {
             });
             if (res.success && res.data) {
                 const u = res.data as any;
-                accountStore.updateProfile(u.username, u.email);
+                accountStore.updateProfile(u.username, u.email, u.email_verified);
+                setEmailUnverified(u.email_verified === false);
             }
         } catch (err: any) {
             setErrorMsg(err?.response?.data?.message || 'プロフィールの保存に失敗しました。');
@@ -188,20 +192,27 @@ const AccountPage: React.FC = () => {
     };
 
     // モーダル表示後、一定時間で自動的にホーム画面へ遷移
+    // メールアドレス変更で再確認が必要になった場合は、案内を読む時間を確保するため自動遷移しない
     useEffect(() => {
-        if (!showSaveModal) return;
+        if (!showSaveModal || emailUnverified) return;
 
         const timer = setTimeout(() => {
             navigate('/');
         }, 2000); // 2秒後に遷移
 
         return () => clearTimeout(timer);
-    }, [showSaveModal, navigate]);
+    }, [showSaveModal, emailUnverified, navigate]);
 
     return (
         <div className="account-page">
             <div className="account-card">
                 <h1 className="account-card__title">アカウント情報</h1>
+
+                {!account.emailVerified && (
+                    <p className="account-card__error" role="alert" style={{ marginBottom: '16px' }}>
+                        メールアドレスが未確認です。確認が完了するまで次回ログインできません。ログイン画面から確認メールを再送できます。
+                    </p>
+                )}
 
                 <div className="account-body">
 
@@ -364,11 +375,25 @@ const AccountPage: React.FC = () => {
 
             {/* 保存完了モーダル */}
             {showSaveModal && (
-                <div className="account-modal-overlay" onClick={() => navigate('/')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/')}>
-                    <div className="account-modal">
-                        <p className="account-modal__text">保存しました。</p>
+                emailUnverified ? (
+                    <div className="account-modal-overlay">
+                        <div className="account-modal">
+                            <p className="account-modal__text">保存しました。</p>
+                            <p className="account-modal__text">
+                                メールアドレスを変更したため、再確認が必要です。新しいメールアドレスに確認メールを送信しました。確認が完了するまで次回ログインできません。
+                            </p>
+                            <button className="account-btn account-btn--primary" onClick={() => navigate('/')} type="button">
+                                閉じる
+                            </button>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="account-modal-overlay" onClick={() => navigate('/')} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && navigate('/')}>
+                        <div className="account-modal">
+                            <p className="account-modal__text">保存しました。</p>
+                        </div>
+                    </div>
+                )
             )}
         </div>
     );
