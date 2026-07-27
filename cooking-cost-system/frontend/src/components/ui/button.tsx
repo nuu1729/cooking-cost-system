@@ -58,6 +58,9 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
+      // cn() でのラップは cva の出力に対して重複するTailwindクラスを
+      // tailwind-merge に解決させるため（呼び出し側の className が
+      // buttonVariants の既定クラスと衝突する場合に正しく上書きされる）
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />

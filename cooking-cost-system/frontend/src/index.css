@@ -3,9 +3,10 @@
 
 @theme {
     --font-sans: 'Noto Sans JP', sans-serif;
-    --color-primary: #1a1a1a;
-    --color-primary-light: #333333;
-    --color-primary-dark: #000000;
+    /* #1a1a1a / #333333 / #000000 相当（oklch に統一。他の変数と形式を揃えるため） */
+    --color-primary: oklch(0.218 0 0);
+    --color-primary-light: oklch(0.321 0 0);
+    --color-primary-dark: oklch(0 0 0);
 
     --color-background: oklch(1 0 0);
     --color-foreground: oklch(0.145 0 0);
@@ -40,6 +41,8 @@
     --color-sidebar-ring: oklch(0.708 0 0);
 }
 
+/* ダークモード切り替えUIは未実装（shadcn init が標準生成するテーマ定義をそのまま
+   保持しているだけ）。将来的にダークモード対応を行う際にすぐ使えるよう残している。 */
 .dark {
     --color-background: oklch(0.145 0 0);
     --color-foreground: oklch(0.985 0 0);
