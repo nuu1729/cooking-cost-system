@@ -52,15 +52,38 @@ jobs:
           trap 'rm -rf "$CLAUDE_REVIEW_WORK_DIR"' ERR
           echo "CLAUDE_REVIEW_WORK_DIR=$CLAUDE_REVIEW_WORK_DIR" >> "$GITHUB_ENV"
 
-          # 引数: 出力上限文字数（文字単位）。UTF-8 は最大4バイト/文字のため max_chars×4 バイトを読み込み、
-          #        文字境界で切り捨てることで head -c が引き起こすマルチバイト文字の途中切断を防ぐ。
+          # 引数: 出力上限文字数（文字単位）。チャンク単位で読み、上限バイト数に達したら
+          #        打ち切って文字境界で切り捨てる（head -c のマルチバイト途中切断を防ぐ）。
+          #        以前は read(max_chars*4) を1回呼ぶだけで、入力がそれより大きい場合に
+          #        stdin を読み切らずスクリプトが終了し、パイプの書き込み側（gh api）が
+          #        SIGPIPE を受けて exit 141 で落ちる不具合があった（大きな PR diff で
+          #        発生。#187 で確認）。打ち切った後も stdin の残りを明示的に読み捨てる
+          #        ことで、上限を超える入力でもメモリを無制限に確保せず SIGPIPE も防ぐ。
           truncate_utf8() {
             local max_chars="$1"
             if ! [[ "$max_chars" =~ ^[0-9]+$ ]]; then
               echo "Error: truncate_utf8 の引数が不正です: '$max_chars'" >&2
               return 1
             fi
-            python3 -c "import sys; data = sys.stdin.buffer.read($max_chars * 4); sys.stdout.write(data.decode('utf-8', 'replace')[:$max_chars])"
+            MAX_CHARS="$max_chars" python3 -c "
+          import os, sys
+          max_chars = int(os.environ['MAX_CHARS'])
+          limit = max_chars * 4 + 4096
+          chunks = []
+          total = 0
+          while True:
+              chunk = sys.stdin.buffer.read(65536)
+              if not chunk:
+                  break
+              chunks.append(chunk)
+              total += len(chunk)
+              if total >= limit:
+                  break
+          while sys.stdin.buffer.read(65536):
+              pass
+          data = b''.join(chunks)
+          sys.stdout.write(data.decode('utf-8', 'replace')[:max_chars])
+          "
           }
 
           # PR の基本情報を取得
