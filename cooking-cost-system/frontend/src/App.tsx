@@ -39,6 +39,7 @@ const App: React.FC = () => {
                     u.id,
                     u.username,
                     u.email,
+                    u.email_verified,
                     toBackendUrl(u.icon_url),
                     toBackendUrl(u.home_bg_url),
                 );

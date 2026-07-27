@@ -2,6 +2,7 @@ export interface AccountInfo {
     userId: number | null;
     displayName: string;
     email: string;
+    emailVerified: boolean;
     iconUrl: string | null;      // サーバー上の画像URL
     homeBgUrl: string | null;    // サーバー上の画像URL
 }
@@ -10,6 +11,7 @@ const EMPTY: AccountInfo = {
     userId: null,
     displayName: '',
     email: '',
+    emailVerified: true,
     iconUrl: null,
     homeBgUrl: null,
 };
@@ -21,8 +23,8 @@ function dispatch(info: AccountInfo) {
 }
 
 export const accountStore = {
-    initForUser(userId: number, username: string, email: string, iconUrl: string | null = null, homeBgUrl: string | null = null): AccountInfo {
-        current = { userId, displayName: username, email, iconUrl, homeBgUrl };
+    initForUser(userId: number, username: string, email: string, emailVerified: boolean = true, iconUrl: string | null = null, homeBgUrl: string | null = null): AccountInfo {
+        current = { userId, displayName: username, email, emailVerified, iconUrl, homeBgUrl };
         dispatch(current);
         return { ...current };
     },
@@ -31,8 +33,8 @@ export const accountStore = {
         return { ...current };
     },
 
-    updateProfile(displayName: string, email: string): AccountInfo {
-        current = { ...current, displayName, email };
+    updateProfile(displayName: string, email: string, emailVerified: boolean = current.emailVerified): AccountInfo {
+        current = { ...current, displayName, email, emailVerified };
         dispatch(current);
         return { ...current };
     },

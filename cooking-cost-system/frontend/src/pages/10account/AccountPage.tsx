@@ -9,8 +9,7 @@ import './AccountPage.scss';
 const MAX_FILE_SIZE_MB = 5;
 
 const AccountPage: React.FC = () => {
-    // accountStore の更新を受けて再レンダリングするトリガー（値は直接JSXで使わない）
-    const [, setAccount] = useState<AccountInfo>(accountStore.get());
+    const [account, setAccount] = useState<AccountInfo>(accountStore.get());
     const [editDisplayName, setEditDisplayName] = useState(accountStore.get().displayName);
     const [editEmail, setEditEmail] = useState(accountStore.get().email);
     const [previewUrl, setPreviewUrl] = useState<string | null>(accountStore.get().iconUrl);
@@ -144,7 +143,7 @@ const AccountPage: React.FC = () => {
             });
             if (res.success && res.data) {
                 const u = res.data as any;
-                accountStore.updateProfile(u.username, u.email);
+                accountStore.updateProfile(u.username, u.email, u.email_verified);
                 setEmailUnverified(u.email_verified === false);
             }
         } catch (err: any) {
@@ -205,6 +204,12 @@ const AccountPage: React.FC = () => {
         <div className="account-page">
             <div className="account-card">
                 <h1 className="account-card__title">アカウント情報</h1>
+
+                {!account.emailVerified && (
+                    <p className="account-card__error" role="alert" style={{ marginBottom: '16px' }}>
+                        メールアドレスが未確認です。確認が完了するまで次回ログインできません。ログイン画面から確認メールを再送できます。
+                    </p>
+                )}
 
                 <div className="account-body">
 

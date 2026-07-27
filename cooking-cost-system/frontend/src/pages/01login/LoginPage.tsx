@@ -53,7 +53,7 @@ const LoginPage: React.FC = () => {
             if (response.success && response.data) {
                 localStorage.setItem('authToken', response.data.token);
                 const user = response.data.user as any;
-                accountStore.initForUser(user.id, user.username, user.email, toBackendUrl(user.icon_url), toBackendUrl(user.home_bg_url));
+                accountStore.initForUser(user.id, user.username, user.email, user.email_verified, toBackendUrl(user.icon_url), toBackendUrl(user.home_bg_url));
                 navigate(from, { replace: true });
             } else {
                 throw new Error('ログインに失敗しました。');

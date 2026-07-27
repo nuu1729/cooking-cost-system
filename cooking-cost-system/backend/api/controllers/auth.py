@@ -84,6 +84,24 @@ def _validate_password(password: str) -> str | None:
     return None
 
 
+def _dispatch_verification_email(user: User, token: str) -> None:
+    """確認メール送信を別スレッドに投げ、リクエストの応答をブロックしない
+    （Resend への外部HTTP呼び出しの待ち時間をレスポンスに含めないため）。
+    daemon=False: ワーカーのリロード・シャットダウン時に送信中のスレッドが
+    強制終了され、確認メールが無音で失われるのを避ける。"""
+    threading.Thread(
+        target=send_verification_email,
+        kwargs=dict(
+            to_email=user.email,
+            username=user.username,
+            token=token,
+            from_email=current_app.config['RESEND_FROM_EMAIL'],
+            frontend_url=current_app.config['FRONTEND_URL'],
+        ),
+        daemon=False,
+    ).start()
+
+
 def _generate_token(user_id: int, secret: str) -> tuple[str, str, str]:
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     jti = uuid.uuid4().hex
@@ -126,13 +144,7 @@ def register():
     log_register(user.id, user.username)
 
     verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
-    send_verification_email(
-        to_email=user.email,
-        username=user.username,
-        token=verify_token,
-        from_email=current_app.config['RESEND_FROM_EMAIL'],
-        frontend_url=current_app.config['FRONTEND_URL'],
-    )
+    _dispatch_verification_email(user, verify_token)
 
     # メール確認が完了するまではログインさせない（トークンは発行しない）
     return success(
@@ -235,17 +247,7 @@ def resend_verification():
     user = User.query.filter_by(email=email).first()
     if user and not user.email_verified:
         verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
-        threading.Thread(
-            target=send_verification_email,
-            kwargs=dict(
-                to_email=user.email,
-                username=user.username,
-                token=verify_token,
-                from_email=current_app.config['RESEND_FROM_EMAIL'],
-                frontend_url=current_app.config['FRONTEND_URL'],
-            ),
-            daemon=True,
-        ).start()
+        _dispatch_verification_email(user, verify_token)
 
     time.sleep(fixed_response_seconds)
     return success(message=generic_message)
@@ -349,13 +351,7 @@ def update_profile():
     if email_changed:
         log_email_changed(user.id, user.username)
         verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
-        send_verification_email(
-            to_email=user.email,
-            username=user.username,
-            token=verify_token,
-                from_email=current_app.config['RESEND_FROM_EMAIL'],
-            frontend_url=current_app.config['FRONTEND_URL'],
-        )
+        _dispatch_verification_email(user, verify_token)
 
     return success(user.to_dict())
 
