@@ -8,6 +8,14 @@ import './list.scss';
 
 type TabType = 'ingredients' | 'preps' | 'dishes';
 
+// 各タブの thead の <th> 数（table-layout: fixed 下で colSpan と揃える必要がある）。
+// タブの列を追加・削除する場合は、対応する thead の <tr> と合わせてここも更新すること。
+const COLUMN_COUNT: Record<TabType, number> = {
+    ingredients: 5, // 食材名・単価・購入先・ジャンル・操作
+    preps: 4,       // 仕込み名・単価・使用食材・操作
+    dishes: 4,      // お品・合計金額・使用仕込み・操作
+};
+
 type CostJudgment = 'warning' | 'danger' | null;
 
 function getDishCostJudgment(item: any): CostJudgment {
@@ -228,6 +236,10 @@ const ListPage: React.FC = () => {
 
     const currentCount = counts[activeTab];
     const currentSearch = searchTerms[activeTab];
+    // table-layout: fixed の列幅計算は th/td の列数と colSpan が一致していないと崩れるため、
+    // 「データがありません」「読み込み中」行の colSpan はタブごとの実列数に合わせる。
+    // 下の thead の <th> の数と必ず一致させること。
+    const columnCount = COLUMN_COUNT[activeTab];
 
     return (
         <div className="list-page-container">
@@ -281,7 +293,7 @@ const ListPage: React.FC = () => {
                         <AnimatePresence mode="popLayout">
                             {isLoading ? (
                                 <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                                    <td colSpan={5} className="loading-cell">読み込み中...</td>
+                                    <td colSpan={columnCount} className="loading-cell">読み込み中...</td>
                                 </motion.tr>
                             ) : (
                                 <>
@@ -336,8 +348,8 @@ const ListPage: React.FC = () => {
                                             </motion.tr>
                                         );
                                     })}
-                                    {!isLoading && currentCount === 0 && (
-                                        <tr><td colSpan={5} className="empty-cell">データがありません</td></tr>
+                                    {currentCount === 0 && (
+                                        <tr><td colSpan={columnCount} className="empty-cell">データがありません</td></tr>
                                     )}
                                 </>
                             )}
