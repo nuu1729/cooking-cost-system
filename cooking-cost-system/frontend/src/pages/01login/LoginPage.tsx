@@ -137,7 +137,7 @@ const LoginPage: React.FC = () => {
                                     type="text"
                                     {...register('email')}
                                     placeholder="your@email.com またはユーザー名"
-                                    className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.email ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
+                                    className={`w-full bg-[#BFBFBF]/50 border ${errors.email ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                 />
                                 <AnimatePresence>
                                     {errors.email && (
@@ -158,7 +158,7 @@ const LoginPage: React.FC = () => {
                                     type="password"
                                     {...register('password')}
                                     placeholder="パスワードを入力"
-                                    className={`w-full bg-[#BFBFBF] bg-opacity-50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
+                                    className={`w-full bg-[#BFBFBF]/50 border ${errors.password ? 'border-red-500' : 'border-gray-400'} rounded-lg px-4 py-3 placeholder-gray-500 text-black focus:outline-none focus:ring-2 focus:ring-blue-400 focus:bg-white transition-colors`}
                                 />
                                 <AnimatePresence>
                                     {errors.password && (
@@ -240,7 +240,7 @@ const LoginPage: React.FC = () => {
                         </form>
 
                         {/* Footer Note */}
-                        <div className="mt-4 pt-4 border-t border-gray-400 border-opacity-30 w-full text-center">
+                        <div className="mt-4 pt-4 border-t border-gray-400/30 w-full text-center">
                             <p className="text-[10px] text-gray-500">
                                 JWT（JSON Web Token）による安全な認証
                             </p>
