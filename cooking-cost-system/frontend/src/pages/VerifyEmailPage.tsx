@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '@/api';
 
@@ -9,8 +9,14 @@ const VerifyEmailPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const [state, setState] = useState<VerifyState>('verifying');
     const [message, setMessage] = useState<string>('メールアドレスを確認しています...');
+    // StrictMode の開発時二重実行対策。バックエンドは冪等（確認済みならスキップ）だが、
+    // 意図を明示するためガードする。
+    const hasCalledRef = useRef(false);
 
     useEffect(() => {
+        if (hasCalledRef.current) return;
+        hasCalledRef.current = true;
+
         const token = searchParams.get('token');
         if (!token) {
             setState('error');
@@ -27,8 +33,7 @@ const VerifyEmailPage: React.FC = () => {
                 setState('error');
                 setMessage(err?.response?.data?.message || '確認リンクが無効、または有効期限が切れています。');
             });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen-dvh w-full bg-white flex flex-col items-center justify-center font-sans text-gray-800 px-4">

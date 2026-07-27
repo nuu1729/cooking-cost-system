@@ -28,6 +28,7 @@ const LoginPage: React.FC = () => {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
     const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
+    const [resendError, setResendError] = useState<string | null>(null);
     const from = (location.state as any)?.from?.pathname ?? '/';
 
     const {
@@ -70,10 +71,13 @@ const LoginPage: React.FC = () => {
     const handleResendVerification = async () => {
         if (!unverifiedEmail) return;
         setResendState('sending');
+        setResendError(null);
         try {
             await authApi.resendVerification(unverifiedEmail);
-        } finally {
             setResendState('sent');
+        } catch {
+            setResendState('idle');
+            setResendError('送信に失敗しました。時間をおいて再度お試しください。');
         }
     };
 
@@ -184,6 +188,9 @@ const LoginPage: React.FC = () => {
                                             </button>
                                             {resendState === 'sent' && (
                                                 <p className="text-green-600 mt-1">確認メールを再送しました。</p>
+                                            )}
+                                            {resendError && (
+                                                <p className="text-red-600 mt-1">{resendError}</p>
                                             )}
                                         </div>
                                     )}

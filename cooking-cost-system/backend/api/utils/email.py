@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from html import escape
 import jwt
 import resend
 
@@ -27,12 +28,17 @@ def decode_verification_token(token: str, secret: str) -> int:
     return int(payload['sub'])
 
 
+def configure(api_key: str) -> None:
+    """アプリ起動時に一度だけ呼ぶ。resend.api_key はモジュールグローバルなため、
+    リクエストごとに書き換えると並行リクエスト間で競合する可能性がある。"""
+    resend.api_key = api_key
+
+
 def send_verification_email(
     *,
     to_email: str,
     username: str,
     token: str,
-    api_key: str,
     from_email: str,
     frontend_url: str,
 ) -> None:
@@ -44,7 +50,7 @@ def send_verification_email(
     """
     verify_url = f"{frontend_url.rstrip('/')}/verify-email?token={token}"
 
-    if not api_key:
+    if not resend.api_key:
         logger.warning(
             'RESEND_API_KEY が未設定のため確認メールを送信しません。確認リンク: user=%s url=%s',
             username, verify_url,
@@ -52,16 +58,15 @@ def send_verification_email(
         return
 
     try:
-        resend.api_key = api_key
         resend.Emails.send({
             'from': from_email,
             'to': [to_email],
             'subject': '【料理原価計算システム】メールアドレスの確認',
             'html': (
-                f'<p>{username} 様</p>'
+                f'<p>{escape(username)} 様</p>'
                 '<p>ご登録ありがとうございます。以下のリンクをクリックして、'
                 'メールアドレスの確認を完了してください。</p>'
-                f'<p><a href="{verify_url}">{verify_url}</a></p>'
+                f'<p><a href="{escape(verify_url)}">{escape(verify_url)}</a></p>'
                 f'<p>このリンクの有効期限は {EMAIL_VERIFY_EXPIRES_HOURS} 時間です。</p>'
                 '<p>このメールに心当たりがない場合は、本メールを無視してください。</p>'
             ),

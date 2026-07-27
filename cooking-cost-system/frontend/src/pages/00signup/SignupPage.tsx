@@ -50,6 +50,7 @@ const SignupPage: React.FC = () => {
     // Registration Complete State（メール確認待ち）
     const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
     const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
+    const [resendError, setResendError] = useState<string | null>(null);
 
     const {
         register,
@@ -94,10 +95,13 @@ const SignupPage: React.FC = () => {
     const handleResendVerification = async () => {
         if (!registeredEmail) return;
         setResendState('sending');
+        setResendError(null);
         try {
             await authApi.resendVerification(registeredEmail);
-        } finally {
             setResendState('sent');
+        } catch {
+            setResendState('idle');
+            setResendError('送信に失敗しました。時間をおいて再度お試しください。');
         }
     };
 
@@ -123,6 +127,9 @@ const SignupPage: React.FC = () => {
                     </button>
                     {resendState === 'sent' && (
                         <p className="text-xs text-green-600 mb-3">確認メールを再送しました。</p>
+                    )}
+                    {resendError && (
+                        <p className="text-xs text-red-600 mb-3">{resendError}</p>
                     )}
 
                     <button

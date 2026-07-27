@@ -100,6 +100,9 @@ def create_app():
     db.init_app(app)
     register_error_handlers(app)
 
+    from api.utils.email import configure as configure_email
+    configure_email(app.config['RESEND_API_KEY'])
+
     # 本番（D1）はマイグレーション（#173 で対応、wrangler d1 migrations）でスキーマを管理する。
     # create_all() は D1 REST API 経由では複数 CREATE TABLE 文の原子性が保証されず、
     # かつマイグレーション管理と二重管理になるため production では実行しない。

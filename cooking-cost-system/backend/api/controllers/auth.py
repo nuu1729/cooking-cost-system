@@ -5,6 +5,8 @@ import jwt
 import bcrypt
 import os
 import re
+import threading
+import time
 import uuid
 import filetype
 from api.database import db
@@ -128,7 +130,6 @@ def register():
         to_email=user.email,
         username=user.username,
         token=verify_token,
-        api_key=current_app.config['RESEND_API_KEY'],
         from_email=current_app.config['RESEND_FROM_EMAIL'],
         frontend_url=current_app.config['FRONTEND_URL'],
     )
@@ -168,6 +169,12 @@ def login():
         return error('UNAUTHORIZED', 'アカウントが無効です', 401)
     if not user.email_verified:
         log_login_unverified(user.id, user.username)
+        # data.email を返すのは列挙のリスクにはならない: ここに到達する時点で
+        # bcrypt.checkpw が既に成功しており、呼び出し元は正しいパスワードを
+        # 知っている（＝アカウントを特定できている）ことが確定している。
+        # ログイン欄はメールアドレス/ユーザー名どちらでも入力可能なため、
+        # ユーザー名でログインした場合でもフロントエンドが再送先の
+        # メールアドレスを特定できるよう、ここで明示的に返す。
         return error(
             'EMAIL_NOT_VERIFIED', 'メールアドレスが確認されていません。確認メールをご確認ください。', 403,
             data={'email': user.email},
@@ -194,8 +201,8 @@ def verify_email():
     except jwt.InvalidTokenError:
         return error('VALIDATION_ERROR', '確認リンクが無効です。', 400)
 
-    user = User.query.get(user_id)
-    if not user:
+    user = db.session.get(User, user_id)
+    if not user or not user.is_active:
         return error('NOT_FOUND', 'ユーザーが見つかりません', 404)
 
     if not user.email_verified:
@@ -215,21 +222,32 @@ def resend_verification():
     if not email:
         return error('VALIDATION_ERROR', 'email は必須です')
 
-    # メールアドレスの存在有無を応答から判別できないよう、常に同じメッセージを返す
+    # メールアドレスの存在有無を応答から判別できないよう、常に同じメッセージ・
+    # 同じ応答時間を返す（タイミング攻撃によるユーザー列挙対策）。
+    # メール送信は Resend への外部HTTP呼び出しを含み、応答時間が「下限を
+    # 確保する」だけでは吸収できない範囲まで伸びうる（実測で送信あり
+    # ~900ms・送信なし ~500ms、という有意な差が出た）。そのためメール送信は
+    # バックグラウンドスレッドに投げてレスポンスをブロックしないようにし、
+    # レスポンス自体は常に固定時間だけ待って返す。
     generic_message = 'メールアドレスが登録済みかつ未確認の場合、確認メールを再送しました。'
+    fixed_response_seconds = 0.5
 
     user = User.query.filter_by(email=email).first()
     if user and not user.email_verified:
         verify_token = generate_verification_token(user.id, current_app.config['JWT_SECRET'])
-        send_verification_email(
-            to_email=user.email,
-            username=user.username,
-            token=verify_token,
-            api_key=current_app.config['RESEND_API_KEY'],
-            from_email=current_app.config['RESEND_FROM_EMAIL'],
-            frontend_url=current_app.config['FRONTEND_URL'],
-        )
+        threading.Thread(
+            target=send_verification_email,
+            kwargs=dict(
+                to_email=user.email,
+                username=user.username,
+                token=verify_token,
+                from_email=current_app.config['RESEND_FROM_EMAIL'],
+                frontend_url=current_app.config['FRONTEND_URL'],
+            ),
+            daemon=True,
+        ).start()
 
+    time.sleep(fixed_response_seconds)
     return success(message=generic_message)
 
 
@@ -318,6 +336,11 @@ def update_profile():
             # メールアドレス変更時は実在確認をやり直す。変更前のアドレスに対する
             # email_verified=true をそのまま新アドレスへ引き継いでしまうと、
             # ログイン時の未確認ブロックが実質無意味になるため。
+            # 現在有効な JWT（このリクエストの認証に使われたトークン）は意図的に
+            # 失効させない。ブロックするのは「次回ログイン」のみで、変更直後の
+            # セッションはそのまま使い続けられる（再ログインを要求しない設計）。
+            # より厳格にするなら RevokedToken に現在の jti を追加する対応もあるが、
+            # 現状は割れたメールアドレスへの不正アクセスより UX を優先している。
             user.email_verified = False
             email_changed = True
 
@@ -330,8 +353,7 @@ def update_profile():
             to_email=user.email,
             username=user.username,
             token=verify_token,
-            api_key=current_app.config['RESEND_API_KEY'],
-            from_email=current_app.config['RESEND_FROM_EMAIL'],
+                from_email=current_app.config['RESEND_FROM_EMAIL'],
             frontend_url=current_app.config['FRONTEND_URL'],
         )
 
