@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import FocusLock from 'react-focus-lock';
 import AccountIcon from './AccountIcon';
+import { Button } from '@/components/ui/button';
 
 // ドロワーの transition-transform duration-300（Tailwind クラス）と対応する値。
 // クラス側を変更する場合はこの定数も合わせて更新すること。
@@ -108,25 +109,16 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
                 {/* Account Icon Area */}
                 <div className="flex items-center h-full relative" style={{ minWidth: '150px' }}>
                     <div className="absolute top-0 left-0 z-50 flex items-center justify-center" style={{ height: '80px', width: '80px' }}>
-                        <button
+                        <Button
                             type="button"
+                            variant="ghost"
                             onClick={handleAccountNav}
-                            style={{
-                                background: 'none',
-                                border: 'none',
-                                padding: '0',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '50%',
-                                transition: 'box-shadow 0.2s',
-                            }}
+                            className="h-11 w-11 rounded-full p-0"
                             title="アカウント情報"
                             aria-label="アカウント情報を表示"
                         >
                             <AccountIcon size={40} />
-                        </button>
+                        </Button>
                     </div>
 
                     <div className="w-[1px] h-8 bg-[#888] mx-6 ml-20 hidden sm:block" />
@@ -158,18 +150,19 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
                 {/* Mobile: Title + Hamburger */}
                 <div className="sm:hidden ml-auto flex items-center gap-3 pr-4">
                     <span className="text-sm font-bold text-black tracking-tight">料理原価計算システム</span>
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
                         onClick={() => setDrawerOpen(true)}
                         aria-label="メニューを開く"
                         aria-expanded={drawerOpen}
                         aria-controls="mobile-drawer"
-                        className="flex flex-col justify-center items-center w-11 h-11 gap-[5px] rounded-lg hover:bg-black/10 transition-colors"
+                        className="h-11 w-11 flex-col gap-1.25 rounded-lg"
                     >
                         <span className="block w-6 h-0.5 bg-gray-700 rounded" />
                         <span className="block w-6 h-0.5 bg-gray-700 rounded" />
                         <span className="block w-6 h-0.5 bg-gray-700 rounded" />
-                    </button>
+                    </Button>
                 </div>
             </header>
 
@@ -207,14 +200,15 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
                     {/* Drawer Header */}
                     <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                         <span className="font-bold text-gray-800">メニュー</span>
-                        <button
+                        <Button
                             type="button"
+                            variant="ghost"
                             onClick={closeDrawer}
                             aria-label="メニューを閉じる"
-                            className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 text-2xl leading-none"
+                            className="h-10 w-10 rounded-lg text-2xl leading-none text-gray-500"
                         >
                             ✕
-                        </button>
+                        </Button>
                     </div>
 
                     {/* Drawer Nav Items */}
@@ -241,14 +235,15 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
 
                     {/* Drawer Footer: Account */}
                     <div className="border-t border-gray-200 p-4">
-                        <button
+                        <Button
                             type="button"
+                            variant="ghost"
                             onClick={handleAccountNav}
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                            className="h-auto w-full justify-start gap-3 px-4 py-3 font-normal text-gray-700"
                         >
                             <AccountIcon size={28} />
                             <span className="text-base">アカウント</span>
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </FocusLock>
