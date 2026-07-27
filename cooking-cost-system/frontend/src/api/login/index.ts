@@ -58,6 +58,16 @@ export const authApi = {
         const response = await apiClient.post('auth/logout');
         return response.data;
     },
+
+    verifyEmail: async (token: string): Promise<ApiResponse<void>> => {
+        const response = await apiClient.post('auth/verify-email', { token });
+        return response.data;
+    },
+
+    resendVerification: async (email: string): Promise<ApiResponse<void>> => {
+        const response = await apiClient.post('auth/resend-verification', { email });
+        return response.data;
+    },
 };
 
 export default authApi;
