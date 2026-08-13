@@ -1,33 +1,44 @@
 import React from 'react';
-import { Box, Typography, Button, Container } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { Home as HomeIcon } from '@mui/icons-material';
+import { House } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const NotFoundPage: React.FC = () => {
     const navigate = useNavigate();
 
+    // 配色・タイポグラフィは 00signup / 01login と揃える
+    // （bg-white / font-sans / text-gray-800、CTA は #1E90FF）
+    //
+    // TODO(#186): CTA の #1E90FF は index.css の @theme トークン
+    // （--color-primary 等）ではなく直接指定している。移行途中の現時点では
+    // 未移行の 00signup / 01login と色が食い違う方が実害が大きいため
+    // 既存の配色に合わせているが、全画面の移行完了後にトークンへ寄せること。
     return (
-        <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Box textAlign="center">
-            <Typography variant="h1" component="h1" gutterBottom sx={{ fontSize: '6rem' }}>
-            404
-            </Typography>
-            <Typography variant="h4" component="h2" gutterBottom>
-            ページが見つかりません
-            </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph>
-            お探しのページは存在しないか、移動された可能性があります。
-            </Typography>
-            <Button
-            variant="contained"
-            startIcon={<HomeIcon />}
-            onClick={() => navigate('/')}
-            sx={{ mt: 2 }}
-            >
-            ホームに戻る
-            </Button>
-        </Box>
-        </Container>
+        <div className="min-h-screen-dvh w-full bg-white flex items-center justify-center font-sans text-gray-800 px-4">
+            <div className="w-full max-w-sm text-center py-16">
+                <h1 className="text-[6rem] leading-none font-bold text-black mb-4">
+                    404
+                </h1>
+                <h2 className="text-3xl font-bold text-black mb-4">
+                    ページが見つかりません
+                </h2>
+                <p className="text-base text-gray-500 mb-8">
+                    お探しのページは存在しないか、移動された可能性があります。
+                </p>
+                {/* size variant は使わず className で完結させている。
+                    単独CTAとして size="lg" より広い横padding(px-6)が必要で、
+                    size を指定すると padding だけ上書きする形になり意図が
+                    読み取りにくいため（h-9/gap-1.5 は size="lg" 相当の値） */}
+                <Button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="h-9 gap-1.5 px-6 bg-[#1E90FF] text-white hover:bg-blue-600 shadow-md"
+                >
+                    <House />
+                    ホームに戻る
+                </Button>
+            </div>
+        </div>
     );
 };
 

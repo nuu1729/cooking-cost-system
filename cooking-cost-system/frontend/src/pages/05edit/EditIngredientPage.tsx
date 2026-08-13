@@ -7,6 +7,18 @@ import { Ingredient } from '../../types';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import CreatableSelect from 'react-select/creatable';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { formInput } from '@/lib/ui-classes';
+
+// この画面の入力欄。共通の formInput() にフォーカス表現と不正時の背景を足したもの。
+// 不正時の枠線・リングは shadcn 基底の aria-invalid:border-destructive / ring に委ね、
+// 背景だけ移行前のデザイン（薄い赤）を踏襲している。
+const FORM_INPUT_BASE = formInput(
+    'focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500',
+    'aria-invalid:bg-red-50',
+);
 
 const buildSelectStyles = (hasError: boolean) => ({
     control: (base: any, state: any) => ({
@@ -375,11 +387,11 @@ const EditIngredientPage: React.FC = () => {
                                         </svg>
                                     </div>
                                     <p className="text-purple-700 italic text-sm font-medium leading-relaxed font-['Outfit']">"{lastTranscript}"</p>
-                                    <button onClick={() => setLastTranscript('')} className="ml-auto text-purple-300 hover:text-purple-500 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setLastTranscript('')} aria-label="音声入力の内容を閉じる" className="ml-auto text-purple-300 hover:bg-transparent hover:text-purple-500 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                         </svg>
-                                    </button>
+                                    </Button>
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -387,25 +399,26 @@ const EditIngredientPage: React.FC = () => {
                         <form onSubmit={handlePreSubmit} className="space-y-6">
                             {/* 商品名 (検索) */}
                             <div className="space-y-2 relative" ref={searchRef}>
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                <Label htmlFor="edit-name" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>商品名 (検索)</span>
                                     {errors.name && <span className="text-sm text-red-500 font-normal">入力してください</span>}
-                                </label>
-                                <input type="text" name="name" value={searchQuery}
+                                </Label>
+                                <Input id="edit-name" type="text" name="name" value={searchQuery}
+                                    aria-invalid={!!errors.name}
                                     onChange={(e) => { setSearchQuery(e.target.value); setShowResults(true); setFormData(prev => ({ ...prev, name: e.target.value })); }}
                                     onFocus={() => setShowResults(true)} placeholder="例：トマト" autoComplete="off"
-                                    className={`w-full px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg ${errors.name ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`} />
+                                    className={FORM_INPUT_BASE} />
                                 <AnimatePresence>
                                     {showResults && searchResults.length > 0 && (
                                         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute z-50 w-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
                                             {searchResults.map((item) => (
-                                                <button key={item.id} type="button" onClick={() => handleSelectIngredient(item)} className="w-full px-6 py-4 text-left hover:bg-gray-50 transition-colors flex justify-between items-center group border-b border-gray-50 last:border-none">
+                                                <Button key={item.id} type="button" variant="ghost" onClick={() => handleSelectIngredient(item)} className="w-full h-auto px-6 py-4 rounded-none justify-between text-left font-normal hover:bg-gray-50 transition-colors group border-b border-gray-50 last:border-none">
                                                     <div>
                                                         <div className="font-bold text-gray-800 group-hover:text-emerald-600">{item.name}</div>
                                                         <div className="text-xs text-gray-400">{item.store}</div>
                                                     </div>
                                                     <div className="text-sm font-bold text-gray-400">¥{item.price.toLocaleString()}</div>
-                                                </button>
+                                                </Button>
                                             ))}
                                         </motion.div>
                                     )}
@@ -415,36 +428,42 @@ const EditIngredientPage: React.FC = () => {
                             {/* 価格 (Before & After) */}
                             <div className="flex flex-col md:flex-row gap-6">
                                 <div className="flex-1 space-y-2">
-                                    <label className="text-lg font-bold text-gray-700 ml-1">価格 (変更前)</label>
+                                    <Label htmlFor="edit-price-before" className="text-lg font-bold text-gray-700 ml-1">価格 (変更前)</Label>
                                     <div className="relative opacity-60">
-                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-lg">¥</span>
-                                        <input type="text" readOnly value={Number(formData.priceBefore).toLocaleString()} className="w-full pl-12 pr-6 py-4 bg-gray-100 border-2 border-transparent rounded-2xl outline-none text-lg font-bold" />
+                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-lg" aria-hidden="true">¥</span>
+                                        <Input id="edit-price-before" type="text" readOnly value={Number(formData.priceBefore).toLocaleString()} className="w-full h-auto pl-12 pr-6 py-4 bg-gray-100 border-2 border-transparent rounded-2xl text-lg md:text-lg font-bold" />
                                     </div>
                                 </div>
                                 <div className="flex-1 space-y-2">
-                                    <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                    <Label htmlFor="edit-price-after" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                         <span>価格 (変更後)</span>
                                         {errors.priceAfter && <span className="text-sm text-red-500 font-normal">{errors.priceAfter}</span>}
-                                    </label>
+                                    </Label>
                                     <div className="relative">
-                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-lg">¥</span>
-                                        <input type="text" inputMode="decimal" name="priceAfter" value={formData.priceAfter} onChange={handleChange} placeholder="300"
-                                            className={`w-full pl-12 pr-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg text-right ${errors.priceAfter ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`} />
+                                        <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-lg" aria-hidden="true">¥</span>
+                                        <Input id="edit-price-after" type="text" inputMode="decimal" name="priceAfter" value={formData.priceAfter} onChange={handleChange} placeholder="300"
+                                            aria-invalid={!!errors.priceAfter}
+                                            className={`${FORM_INPUT_BASE} pl-12 pr-6 text-right`} />
                                     </div>
                                 </div>
                             </div>
 
                             {/* 量 & 単位 */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                <Label htmlFor="edit-quantity" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>量</span>
                                     {errors.quantity && <span className="text-sm text-red-500 font-normal">{errors.quantity}</span>}
-                                </label>
+                                </Label>
                                 <div className="flex gap-4">
-                                    <input type="text" inputMode="decimal" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="0"
-                                        className={`flex-grow px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg text-right ${errors.quantity ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`} />
+                                    <Input id="edit-quantity" type="text" inputMode="decimal" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="0"
+                                        aria-invalid={!!errors.quantity}
+                                        className={`${FORM_INPUT_BASE} w-auto flex-grow text-right`} />
                                     <div className="relative min-w-[100px]">
-                                        <select name="unit" value={formData.unit} onChange={handleChange} className="w-full h-full px-6 py-4 bg-[#f0f0f0] border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 transition-all outline-none appearance-none cursor-pointer text-lg font-medium">
+                                        {/* shadcn の Select（Radix）へは置き換えていない。
+                                            ネイティブ <select> は iOS でOSのピッカーが出るなどモバイルUXが優れており、
+                                            本アプリは実機確認を重視しているため（#22 / #63 / #130）。
+                                            視覚ラベルは「量」しかないので aria-label で単位であることを補う */}
+                                        <select name="unit" aria-label="単位" value={formData.unit} onChange={handleChange} className="w-full h-full px-6 py-4 bg-[#f0f0f0] border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 transition-all outline-none appearance-none cursor-pointer text-lg font-medium">
                                             <option value="g">g</option>
                                             <option value="ml">ml</option>
                                             <option value="個">個</option>
@@ -460,11 +479,14 @@ const EditIngredientPage: React.FC = () => {
 
                             {/* 購入先 */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                {/* react-select は inputId で内部 input の id を指定できるため、
+                                    Label の htmlFor と正しく紐付けられる */}
+                                <Label htmlFor="edit-supplier" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>購入先</span>
                                     {errors.supplier_id && <span className="text-sm text-red-500 font-normal">{errors.supplier_id}</span>}
-                                </label>
+                                </Label>
                                 <CreatableSelect
+                                    inputId="edit-supplier"
                                     value={stores.find(s => s.id.toString() === formData.supplier_id)
                                         ? { value: formData.supplier_id, label: stores.find(s => s.id.toString() === formData.supplier_id)!.name }
                                         : null}
@@ -487,8 +509,9 @@ const EditIngredientPage: React.FC = () => {
 
                             {/* ジャンル */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1">ジャンル</label>
+                                <Label htmlFor="edit-genre" className="text-lg font-bold text-gray-700 ml-1">ジャンル</Label>
                                 <CreatableSelect
+                                    inputId="edit-genre"
                                     value={genres.find(g => g.id.toString() === formData.genre_id)
                                         ? { value: formData.genre_id, label: genres.find(g => g.id.toString() === formData.genre_id)!.name }
                                         : null}
@@ -512,24 +535,31 @@ const EditIngredientPage: React.FC = () => {
 
                     {/* Right Column: Actions */}
                     <div className="w-full md:w-1/3 flex flex-col gap-6 pt-24">
-                        <motion.button onClick={startListening} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                            animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
-                            className={`w-full py-8 rounded-[2rem] text-white flex flex-col items-center justify-center gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 shadow-red-200' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899] shadow-purple-200 hover:shadow-purple-300'}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                            </svg>
-                            <span className="text-xl font-bold font-['Outfit']">{isListening ? '聴いています...' : '音声で入力'}</span>
-                        </motion.button>
-
-                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePreSubmit}
-                            className="w-full py-8 rounded-[2rem] bg-[#53b69b] text-white flex flex-col items-center justify-center gap-3 shadow-xl hover:shadow-emerald-200 transition-all duration-300">
-                            <div className="flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        {/* SVG は size-* 表記が必須。Button 基底の
+                            [&_svg:not([class*='size-'])]:size-4 に特異度で負けて縮むため */}
+                        <Button asChild variant="ghost" className={`w-full h-auto py-8 rounded-[2rem] text-white hover:text-white flex-col gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 hover:bg-red-500 shadow-red-200' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899] shadow-purple-200 hover:shadow-purple-300'}`}>
+                            <motion.button type="button" onClick={startListening} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
+                                aria-pressed={isListening}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                                 </svg>
-                                <span className="text-[24px] font-bold font-['Outfit']">変更を確定</span>
-                            </div>
-                        </motion.button>
+                                {/* aria-live: 録音開始/終了はボタン内の文言変化でしか伝わらないため、
+                                    スクリーンリーダーにも状態変化を通知する */}
+                                <span aria-live="polite" className="text-xl font-bold font-['Outfit']">{isListening ? '聴いています...' : '音声で入力'}</span>
+                            </motion.button>
+                        </Button>
+
+                        <Button asChild variant="ghost" className="w-full h-auto py-8 rounded-[2rem] bg-[#53b69b] hover:bg-[#53b69b] text-white hover:text-white flex-col gap-3 shadow-xl hover:shadow-emerald-200 transition-all duration-300">
+                            <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePreSubmit}>
+                                <div className="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span className="text-[24px] font-bold font-['Outfit']">変更を確定</span>
+                                </div>
+                            </motion.button>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -574,12 +604,12 @@ const EditIngredientPage: React.FC = () => {
                                     )}
                                 </div>
                                 <div className="flex flex-col gap-3">
-                                    <button onClick={handleFinalSubmit} disabled={isSubmitting} className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all flex items-center justify-center gap-3 font-['Outfit']">
+                                    <Button type="button" variant="ghost" onClick={handleFinalSubmit} disabled={isSubmitting} className="w-full h-auto py-5 bg-[#53b69b] text-white hover:text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all gap-3 font-['Outfit']">
                                         {isSubmitting ? '更新中...' : '情報を更新する (Enter)'}
-                                    </button>
-                                    <button onClick={() => setIsConfirming(false)} disabled={isSubmitting} className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
+                                    </Button>
+                                    <Button type="button" variant="ghost" onClick={() => setIsConfirming(false)} disabled={isSubmitting} className="w-full h-auto py-5 bg-gray-100 text-gray-600 hover:text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
                                         戻る (ESC)
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </motion.div>
