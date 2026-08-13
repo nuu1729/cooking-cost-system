@@ -4,6 +4,15 @@
  * shadcn/ui の Button/Input は既定サイズが小さめ（h-8）なため、
  * マスタ管理系画面の大きめCTAのように「複数画面で同じ見た目を揃えたい」
  * ものはここに集約する。個別画面でしか使わないクラスは各画面に置くこと。
+ *
+ * ⚠ MASTER_CTA_* / MASTER_DIALOG_CTA_* は **Button の既定 variant（default）と
+ * 組み合わせる前提** で、default が与える bg-primary / text-primary-foreground /
+ * hover:bg-primary/80 を過不足なく上書きするように書いている。
+ * variant を変える場合はここのクラスも見直すこと。
+ * - variant="ghost" は不可: hover:text-foreground を持つため、
+ *   text-white を指定したCTAでもホバー時に文字色が暗く変わってしまう
+ * - variant="secondary" は不可: --color-secondary は oklch(0.97 0 0) で
+ *   本画面群が使う gray-100 とは別の灰色になる
  */
 
 /**
@@ -37,9 +46,12 @@ export const MASTER_DIALOG_CTA_CANCEL =
 /**
  * マスタ管理系画面のテキスト入力。
  *
- * md:text-lg を明示しているのは、shadcn Input 既定の `md:text-sm` が
- * ブレークポイント付きクラスであり `text-lg` だけでは tailwind-merge で
- * 打ち消せず、md 以上で文字が縮んでしまうため。
+ * md:text-lg を明示している理由:
+ * tailwind-merge は修飾子（`md:` など）ごとに別グループとして競合解決するため、
+ * 修飾子なしの `text-lg` は shadcn Input 既定の `md:text-sm` とは競合せず
+ * 両方が残る。結果 md 以上では CSS の詳細度で `md:text-sm` が効いて文字が縮む。
+ * 同じ修飾子を持つ `md:text-lg` を書くことで初めて上書きできる
+ * （Input は `cn(基底クラス, className)` の順なので className 側が勝つ）。
  * フォーカスリング色は画面ごとに異なるため含めない。
  */
 export const MASTER_INPUT_BASE =
