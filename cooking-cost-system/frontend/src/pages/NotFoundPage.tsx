@@ -1,33 +1,36 @@
 import React from 'react';
-import { Box, Typography, Button, Container } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { Home as HomeIcon } from '@mui/icons-material';
+import { House } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const NotFoundPage: React.FC = () => {
     const navigate = useNavigate();
 
+    // 配色・タイポグラフィは 00signup / 01login と揃える
+    // （bg-white / font-sans / text-gray-800、CTA は #1E90FF）
     return (
-        <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Box textAlign="center">
-            <Typography variant="h1" component="h1" gutterBottom sx={{ fontSize: '6rem' }}>
-            404
-            </Typography>
-            <Typography variant="h4" component="h2" gutterBottom>
-            ページが見つかりません
-            </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph>
-            お探しのページは存在しないか、移動された可能性があります。
-            </Typography>
-            <Button
-            variant="contained"
-            startIcon={<HomeIcon />}
-            onClick={() => navigate('/')}
-            sx={{ mt: 2 }}
-            >
-            ホームに戻る
-            </Button>
-        </Box>
-        </Container>
+        <div className="min-h-screen-dvh w-full bg-white flex items-center justify-center font-sans text-gray-800 px-4">
+            <div className="w-full max-w-sm text-center py-16">
+                <h1 className="text-[6rem] leading-none font-bold text-black mb-4">
+                    404
+                </h1>
+                <h2 className="text-3xl font-bold text-black mb-4">
+                    ページが見つかりません
+                </h2>
+                <p className="text-base text-gray-500 mb-8">
+                    お探しのページは存在しないか、移動された可能性があります。
+                </p>
+                <Button
+                    type="button"
+                    size="lg"
+                    onClick={() => navigate('/')}
+                    className="bg-[#1E90FF] text-white hover:bg-blue-600 shadow-md px-6"
+                >
+                    <House />
+                    ホームに戻る
+                </Button>
+            </div>
+        </div>
     );
 };
 

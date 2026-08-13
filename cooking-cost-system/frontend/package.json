@@ -20,11 +20,7 @@
     "analyze": "npx vite-bundle-analyzer"
   },
   "dependencies": {
-    "@emotion/react": "^11.11.1",
-    "@emotion/styled": "^11.11.0",
     "@hookform/resolvers": "^3.3.2",
-    "@mui/icons-material": "^5.14.19",
-    "@mui/material": "^5.14.20",
     "@tanstack/react-query": "^4.36.1",
     "@tanstack/react-query-devtools": "^4.36.1",
     "@zxing/browser": "^0.1.5",
