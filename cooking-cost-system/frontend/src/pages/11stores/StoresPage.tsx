@@ -197,7 +197,6 @@ const StoresPage: React.FC = () => {
                                             </motion.button>
                                         </Button>
                                         <Button
-                                            type="button"
                                             onClick={handleClear}
                                             {...masterCtaSecondary()}
                                         >
@@ -289,7 +288,6 @@ const StoresPage: React.FC = () => {
                             </div>
                             <div className="flex flex-col gap-3">
                                 <Button
-                                    type="button"
                                     onClick={() => handleDelete(deleteConfirmId)}
                                     disabled={isLoading}
                                     {...masterDialogCtaDanger()}
@@ -297,7 +295,6 @@ const StoresPage: React.FC = () => {
                                     削除する
                                 </Button>
                                 <Button
-                                    type="button"
                                     onClick={() => setDeleteConfirmId(null)}
                                     {...masterDialogCtaCancel()}
                                 >

@@ -24,6 +24,11 @@
 /**
  * ファクトリが返す Button props。`{...}` で展開して使う。
  *
+ * `type: 'button'` を含めているのは、`Button` の実体が `<button>` で
+ * type 省略時の既定が `"submit"` になるため。
+ * これらのCTAはフォーム送信ボタンではないので、呼び出し側の書き忘れで
+ * `<form>` 内から意図せず送信されることを防ぐ。
+ *
  * ⚠ **スプレッドは属性リストの最後に置くこと。**
  * JSX は後に書かれた props が勝つため、
  * `<Button {...masterCta(...)} variant="secondary">` のように
@@ -31,7 +36,7 @@
  * （`<Button variant="secondary" {...masterCta(...)}>` の順なら ghost が勝つ）。
  * 型では防げないため、この規約を守ること。
  */
-type MasterButtonProps = { variant: 'ghost'; className: string };
+type MasterButtonProps = { variant: 'ghost'; type: 'button'; className: string };
 
 /** クラス片を空要素を除いて連結する。 */
 const join = (...parts: string[]) => parts.filter(Boolean).join(' ');
@@ -70,24 +75,28 @@ const MASTER_DIALOG_CTA_CANCEL =
  */
 export const masterCta = (colorClasses: string, extraClasses = ''): MasterButtonProps => ({
     variant: 'ghost',
+    type: 'button',
     className: join(MASTER_CTA_BASE, colorClasses, extraClasses),
 });
 
 /** CTA の下に置く副次ボタン（キャンセル等）。 */
 export const masterCtaSecondary = (): MasterButtonProps => ({
     variant: 'ghost',
+    type: 'button',
     className: MASTER_CTA_SECONDARY,
 });
 
 /** 削除確認ダイアログの危険操作ボタン。 */
 export const masterDialogCtaDanger = (): MasterButtonProps => ({
     variant: 'ghost',
+    type: 'button',
     className: MASTER_DIALOG_CTA_DANGER,
 });
 
 /** 削除確認ダイアログのキャンセルボタン。 */
 export const masterDialogCtaCancel = (): MasterButtonProps => ({
     variant: 'ghost',
+    type: 'button',
     className: MASTER_DIALOG_CTA_CANCEL,
 });
 
