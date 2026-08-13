@@ -22,13 +22,17 @@ jobs:
 
     steps:
       # 差分フィルタのスクリプト（.github/scripts/）を使うためにチェックアウトする。
-      # ref を base に固定しているのは、PR 側でフィルタスクリプトを書き換えて
-      # レビュー対象から任意のファイルを隠せてしまうのを防ぐため。
-      # issue_comment イベントでは pull_request が無いので既定の ref を使う。
+      #
+      # ref は既定（pull_request ではマージコミット）のままにしている。
+      # base に固定するとフィルタスクリプト自体を変更する PR で「まだ base に
+      # 無いスクリプト」を参照して落ちるうえ、スクリプトの修正がマージされるまで
+      # 検証できない。本リポジトリは外部コントリビュータを受け付けていないため、
+      # PR 側からフィルタを書き換えられる点は許容する。
+      # 外部からの PR を受けるようになったら base 固定に切り替え、
+      # そのときはスクリプトが base に存在することが前提になる点に注意。
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.ref }}
           persist-credentials: false
 
       - name: PR の差分・コメント履歴を取得
@@ -117,10 +121,24 @@ jobs:
           # レビュー対象のソースが丸ごと欠落し、既に修正済みのコードへの指摘が
           # 繰り返し発生していた。フィルタ適用後は同じ上限でも 89.7% が届く。
           # 上限自体も 300,000 文字に引き上げ、この規模の PR なら全量が入るようにする。
-          DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
-            -H "Accept: application/vnd.github.v3.diff" \
-            | python3 .github/scripts/filter-review-diff.py \
-            | truncate_utf8 300000)
+          # フィルタが見つからない場合でもレビュー自体は続行する（フィルタ無しで通す）。
+          # チェックアウトの ref を変えたときにワークフローごと落ちるのを避けるため。
+          DIFF_FILTER=.github/scripts/filter-review-diff.py
+          if [ ! -f "$DIFF_FILTER" ]; then
+            echo "WARN: $DIFF_FILTER が見つからないため差分フィルタをスキップします" >&2
+            DIFF_FILTER=""
+          fi
+
+          if [ -n "$DIFF_FILTER" ]; then
+            DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
+              -H "Accept: application/vnd.github.v3.diff" \
+              | python3 "$DIFF_FILTER" \
+              | truncate_utf8 300000)
+          else
+            DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
+              -H "Accept: application/vnd.github.v3.diff" \
+              | truncate_utf8 300000)
+          fi
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
           # 過去のコメント履歴を取得（最新20件、最大20,000文字）
