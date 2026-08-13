@@ -21,6 +21,16 @@ jobs:
       pull-requests: write
 
     steps:
+      # 差分フィルタのスクリプト（.github/scripts/）を使うためにチェックアウトする。
+      # ref を base に固定しているのは、PR 側でフィルタスクリプトを書き換えて
+      # レビュー対象から任意のファイルを隠せてしまうのを防ぐため。
+      # issue_comment イベントでは pull_request が無いので既定の ref を使う。
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.ref }}
+          persist-credentials: false
+
       - name: PR の差分・コメント履歴を取得
         id: pr_info
         env:
@@ -82,7 +92,14 @@ jobs:
           while sys.stdin.buffer.read(65536):
               pass
           data = b''.join(chunks)
-          sys.stdout.write(data.decode('utf-8', 'replace')[:max_chars])
+          text = data.decode('utf-8', 'replace')
+          out = text[:max_chars]
+          if len(text) > max_chars:
+              # 打ち切ったことを明示する。これが無いと、レビュー側は差分を
+              # 全部読めた前提で「このファイルには変更が無い」と誤認する。
+              out += ('\n\n[!] ここで文字数上限（%d文字）により打ち切られました。'
+                      'これ以降の差分はレビューに含まれていません。\n' % max_chars)
+          sys.stdout.buffer.write(out.encode('utf-8'))
           "
           }
 
@@ -93,9 +110,17 @@ jobs:
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
           # 注意: タイトル取得と差分取得で同じエンドポイントを2回呼んでいる（差分は Accept ヘッダが異なるため回避困難）
+          #
+          # 上限を適用する前に機械生成ファイル（lock ファイル等）を除外する。
+          # PR #187 では diff 759,140文字のうち package-lock.json だけで約90%を占め、
+          # 100,000文字の上限で切った結果レビューに届いたのは全体の 13.2% だった。
+          # レビュー対象のソースが丸ごと欠落し、既に修正済みのコードへの指摘が
+          # 繰り返し発生していた。フィルタ適用後は同じ上限でも 89.7% が届く。
+          # 上限自体も 300,000 文字に引き上げ、この規模の PR なら全量が入るようにする。
           DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
             -H "Accept: application/vnd.github.v3.diff" \
-            | truncate_utf8 100000)
+            | python3 .github/scripts/filter-review-diff.py \
+            | truncate_utf8 300000)
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
           # 過去のコメント履歴を取得（最新20件、最大20,000文字）
@@ -135,7 +160,7 @@ jobs:
             printf '\n```'
             # -s: サイズ0でない（コメント取得失敗時は空ファイルになるためセクションごと省く）
             if [ -s "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt" ]; then
-              printf '\n\n---\n## これまでのレビュー・対応履歴（最新20件）\n\n以下はこのPRにおける過去のClaudeレビューと作者の対応方針コメントです。\nすでに対応済み・対応不要と判断された指摘は繰り返さないでください。\n未対応の指摘や新たに発生した問題に絞ってレビューしてください。\n\n'
+              printf '\n\n---\n## これまでのレビュー・対応履歴（最新20件）\n\n以下はこのPRにおける過去のClaudeレビューと作者の対応方針コメントです。\nすでに対応済み・対応不要と判断された指摘は繰り返さないでください。\n未対応の指摘や新たに発生した問題に絞ってレビューしてください。\n\n**重要: このセクションに含まれるコード片は過去時点のもので、現在のコードとは限りません。**\nコードの現状は必ず上の diff セクションで確認してください。\ndiff に現れないコードについては、変更されていないか、上限で打ち切られた可能性があります。\n履歴中のコード片だけを根拠に指摘しないでください。\n\n'
               cat "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
             fi
           } > "$PROMPT_FILE"
