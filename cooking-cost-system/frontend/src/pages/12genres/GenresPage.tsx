@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    MASTER_CTA_BASE,
-    MASTER_CTA_SECONDARY,
-    MASTER_DIALOG_CTA_CANCEL,
-    MASTER_DIALOG_CTA_DANGER,
     MASTER_INPUT_BASE,
+    masterCta,
+    masterCtaSecondary,
+    masterDialogCtaCancel,
+    masterDialogCtaDanger,
 } from '@/lib/ui-classes';
 
 // この画面のCTA配色（インディゴ/ティール/レッド）は既存デザインをそのまま維持している。
@@ -163,7 +163,7 @@ const GenresPage: React.FC = () => {
                                 className と data-* を motion.button 側にマージする */}
                             <div className="flex flex-col gap-3">
                                 {!selectedId ? (
-                                    <Button asChild variant="ghost" className={`${MASTER_CTA_BASE} bg-[#6366f1] hover:bg-indigo-600`}>
+                                    <Button asChild {...masterCta('bg-[#6366f1] hover:bg-indigo-600')}>
                                         <motion.button
                                             type="button"
                                             whileTap={{ scale: 0.97 }}
@@ -175,7 +175,7 @@ const GenresPage: React.FC = () => {
                                     </Button>
                                 ) : (
                                     <>
-                                        <Button asChild variant="ghost" className={`${MASTER_CTA_BASE} bg-[#53b69b] hover:bg-emerald-600`}>
+                                        <Button asChild {...masterCta('bg-[#53b69b] hover:bg-emerald-600')}>
                                             <motion.button
                                                 type="button"
                                                 whileTap={{ scale: 0.97 }}
@@ -187,7 +187,7 @@ const GenresPage: React.FC = () => {
                                         </Button>
                                         {/* disabled:opacity-40 は Button 既定の disabled:opacity-50 を
                                             意図的に上書き（使用中で押せないことをより強く示すため） */}
-                                        <Button asChild variant="ghost" className={`${MASTER_CTA_BASE} bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed`}>
+                                        <Button asChild {...masterCta('bg-red-500 hover:bg-red-600', 'disabled:opacity-40 disabled:cursor-not-allowed')}>
                                             <motion.button
                                                 type="button"
                                                 whileTap={{ scale: 0.97 }}
@@ -200,9 +200,8 @@ const GenresPage: React.FC = () => {
                                         </Button>
                                         <Button
                                             type="button"
-                                            variant="ghost"
                                             onClick={handleClear}
-                                            className={MASTER_CTA_SECONDARY}
+                                            {...masterCtaSecondary()}
                                         >
                                             キャンセル
                                         </Button>
@@ -293,18 +292,16 @@ const GenresPage: React.FC = () => {
                             <div className="flex flex-col gap-3">
                                 <Button
                                     type="button"
-                                    variant="ghost"
                                     onClick={() => handleDelete(deleteConfirmId)}
                                     disabled={isLoading}
-                                    className={MASTER_DIALOG_CTA_DANGER}
+                                    {...masterDialogCtaDanger()}
                                 >
                                     削除する
                                 </Button>
                                 <Button
                                     type="button"
-                                    variant="ghost"
                                     onClick={() => setDeleteConfirmId(null)}
-                                    className={MASTER_DIALOG_CTA_CANCEL}
+                                    {...masterDialogCtaCancel()}
                                 >
                                     キャンセル
                                 </Button>
