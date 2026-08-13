@@ -103,6 +103,10 @@ const BarcodeScanner: React.FC<Props> = ({ onDetected, onClose }) => {
                         <div className="p-8 text-center space-y-3">
                             <div className="text-4xl">📷</div>
                             <p className="text-red-600 text-sm font-medium">{errorMsg}</p>
+                            {/* text-gray-600 は移行前の `bg-gray-100 ... text-gray-600` の
+                                文字色をそのまま維持するための意図的な指定。
+                                secondary-foreground（oklch(0.205 0 0) ≒ #303030）より
+                                やや明るく、エラー時の副次アクションとして控えめに見せている */}
                             <Button
                                 variant="secondary"
                                 onClick={onClose}

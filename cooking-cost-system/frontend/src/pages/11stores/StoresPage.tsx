@@ -5,7 +5,13 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MASTER_CTA_BASE, MASTER_CTA_SECONDARY, MASTER_INPUT_BASE } from '@/lib/ui-classes';
+import {
+    MASTER_CTA_BASE,
+    MASTER_CTA_SECONDARY,
+    MASTER_DIALOG_CTA_CANCEL,
+    MASTER_DIALOG_CTA_DANGER,
+    MASTER_INPUT_BASE,
+} from '@/lib/ui-classes';
 
 // この画面のCTA配色（オレンジ/ティール/レッド）は既存デザインをそのまま維持している。
 // TODO(#186): 全画面の移行が完了したら index.css の @theme トークンに寄せる。
@@ -283,14 +289,14 @@ const StoresPage: React.FC = () => {
                                     type="button"
                                     onClick={() => handleDelete(deleteConfirmId)}
                                     disabled={isLoading}
-                                    className="w-full h-auto py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 transition-all"
+                                    className={MASTER_DIALOG_CTA_DANGER}
                                 >
                                     削除する
                                 </Button>
                                 <Button
                                     type="button"
                                     onClick={() => setDeleteConfirmId(null)}
-                                    className="w-full h-auto py-4 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all"
+                                    className={MASTER_DIALOG_CTA_CANCEL}
                                 >
                                     キャンセル
                                 </Button>

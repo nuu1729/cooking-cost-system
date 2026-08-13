@@ -22,6 +22,19 @@ export const MASTER_CTA_SECONDARY =
     'w-full h-auto py-3 rounded-2xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-all';
 
 /**
+ * マスタ管理系画面の削除確認ダイアログ内のボタン（危険操作 / キャンセル）。
+ *
+ * MASTER_CTA_* とは別定数にしている。見た目が近いが、ダイアログ内は
+ * text-lg と shadow を持たないため MASTER_CTA_BASE を流用すると
+ * 文字サイズと影が変わってしまうため。
+ */
+export const MASTER_DIALOG_CTA_DANGER =
+    'w-full h-auto py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 transition-all';
+
+export const MASTER_DIALOG_CTA_CANCEL =
+    'w-full h-auto py-4 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all';
+
+/**
  * マスタ管理系画面のテキスト入力。
  *
  * md:text-lg を明示しているのは、shadcn Input 既定の `md:text-sm` が
