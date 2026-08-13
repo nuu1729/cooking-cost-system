@@ -161,8 +161,9 @@ const StoresPage: React.FC = () => {
                                 className と data-* を motion.button 側にマージする */}
                             <div className="flex flex-col gap-3">
                                 {!selectedId ? (
-                                    <Button asChild className={`${MASTER_CTA_BASE} bg-[#f97316] text-white hover:bg-orange-600`}>
+                                    <Button asChild variant="ghost" className={`${MASTER_CTA_BASE} bg-[#f97316] hover:bg-orange-600`}>
                                         <motion.button
+                                            type="button"
                                             whileTap={{ scale: 0.97 }}
                                             onClick={handleRegister}
                                             disabled={isLoading}
@@ -172,8 +173,9 @@ const StoresPage: React.FC = () => {
                                     </Button>
                                 ) : (
                                     <>
-                                        <Button asChild className={`${MASTER_CTA_BASE} bg-[#53b69b] text-white hover:bg-emerald-600`}>
+                                        <Button asChild variant="ghost" className={`${MASTER_CTA_BASE} bg-[#53b69b] hover:bg-emerald-600`}>
                                             <motion.button
+                                                type="button"
                                                 whileTap={{ scale: 0.97 }}
                                                 onClick={handleUpdate}
                                                 disabled={isLoading}
@@ -183,8 +185,9 @@ const StoresPage: React.FC = () => {
                                         </Button>
                                         {/* disabled:opacity-40 は Button 既定の disabled:opacity-50 を
                                             意図的に上書き（使用中で押せないことをより強く示すため） */}
-                                        <Button asChild className={`${MASTER_CTA_BASE} bg-red-500 text-white hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed`}>
+                                        <Button asChild variant="ghost" className={`${MASTER_CTA_BASE} bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed`}>
                                             <motion.button
+                                                type="button"
                                                 whileTap={{ scale: 0.97 }}
                                                 onClick={() => setDeleteConfirmId(selectedId)}
                                                 disabled={isLoading || (selectedStore?.ingredient_count ?? 0) > 0}
@@ -195,6 +198,7 @@ const StoresPage: React.FC = () => {
                                         </Button>
                                         <Button
                                             type="button"
+                                            variant="ghost"
                                             onClick={handleClear}
                                             className={MASTER_CTA_SECONDARY}
                                         >
@@ -287,6 +291,7 @@ const StoresPage: React.FC = () => {
                             <div className="flex flex-col gap-3">
                                 <Button
                                     type="button"
+                                    variant="ghost"
                                     onClick={() => handleDelete(deleteConfirmId)}
                                     disabled={isLoading}
                                     className={MASTER_DIALOG_CTA_DANGER}
@@ -295,6 +300,7 @@ const StoresPage: React.FC = () => {
                                 </Button>
                                 <Button
                                     type="button"
+                                    variant="ghost"
                                     onClick={() => setDeleteConfirmId(null)}
                                     className={MASTER_DIALOG_CTA_CANCEL}
                                 >

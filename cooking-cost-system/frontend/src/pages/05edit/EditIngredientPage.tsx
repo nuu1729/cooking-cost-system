@@ -478,11 +478,14 @@ const EditIngredientPage: React.FC = () => {
 
                             {/* 購入先 */}
                             <div className="space-y-2">
-                                <Label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                {/* react-select は inputId で内部 input の id を指定できるため、
+                                    Label の htmlFor と正しく紐付けられる */}
+                                <Label htmlFor="edit-supplier" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>購入先</span>
                                     {errors.supplier_id && <span className="text-sm text-red-500 font-normal">{errors.supplier_id}</span>}
                                 </Label>
                                 <CreatableSelect
+                                    inputId="edit-supplier"
                                     value={stores.find(s => s.id.toString() === formData.supplier_id)
                                         ? { value: formData.supplier_id, label: stores.find(s => s.id.toString() === formData.supplier_id)!.name }
                                         : null}
@@ -505,8 +508,9 @@ const EditIngredientPage: React.FC = () => {
 
                             {/* ジャンル */}
                             <div className="space-y-2">
-                                <Label className="text-lg font-bold text-gray-700 ml-1">ジャンル</Label>
+                                <Label htmlFor="edit-genre" className="text-lg font-bold text-gray-700 ml-1">ジャンル</Label>
                                 <CreatableSelect
+                                    inputId="edit-genre"
                                     value={genres.find(g => g.id.toString() === formData.genre_id)
                                         ? { value: formData.genre_id, label: genres.find(g => g.id.toString() === formData.genre_id)!.name }
                                         : null}
@@ -532,8 +536,8 @@ const EditIngredientPage: React.FC = () => {
                     <div className="w-full md:w-1/3 flex flex-col gap-6 pt-24">
                         {/* SVG は size-* 表記が必須。Button 基底の
                             [&_svg:not([class*='size-'])]:size-4 に特異度で負けて縮むため */}
-                        <Button asChild className={`w-full h-auto py-8 rounded-[2rem] text-white flex-col gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 hover:bg-red-500 shadow-red-200' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899] shadow-purple-200 hover:shadow-purple-300'}`}>
-                            <motion.button onClick={startListening} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                        <Button asChild variant="ghost" className={`w-full h-auto py-8 rounded-[2rem] text-white hover:text-white flex-col gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 hover:bg-red-500 shadow-red-200' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899] shadow-purple-200 hover:shadow-purple-300'}`}>
+                            <motion.button type="button" onClick={startListening} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                                 animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
                                 aria-pressed={isListening}>
                                 <svg xmlns="http://www.w3.org/2000/svg" className="size-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -543,8 +547,8 @@ const EditIngredientPage: React.FC = () => {
                             </motion.button>
                         </Button>
 
-                        <Button asChild className="w-full h-auto py-8 rounded-[2rem] bg-[#53b69b] hover:bg-[#53b69b] text-white flex-col gap-3 shadow-xl hover:shadow-emerald-200 transition-all duration-300">
-                            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePreSubmit}>
+                        <Button asChild variant="ghost" className="w-full h-auto py-8 rounded-[2rem] bg-[#53b69b] hover:bg-[#53b69b] text-white hover:text-white flex-col gap-3 shadow-xl hover:shadow-emerald-200 transition-all duration-300">
+                            <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePreSubmit}>
                                 <div className="flex items-center gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
@@ -597,10 +601,10 @@ const EditIngredientPage: React.FC = () => {
                                     )}
                                 </div>
                                 <div className="flex flex-col gap-3">
-                                    <Button type="button" onClick={handleFinalSubmit} disabled={isSubmitting} className="w-full h-auto py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all gap-3 font-['Outfit']">
+                                    <Button type="button" variant="ghost" onClick={handleFinalSubmit} disabled={isSubmitting} className="w-full h-auto py-5 bg-[#53b69b] text-white hover:text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all gap-3 font-['Outfit']">
                                         {isSubmitting ? '更新中...' : '情報を更新する (Enter)'}
                                     </Button>
-                                    <Button type="button" onClick={() => setIsConfirming(false)} disabled={isSubmitting} className="w-full h-auto py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
+                                    <Button type="button" variant="ghost" onClick={() => setIsConfirming(false)} disabled={isSubmitting} className="w-full h-auto py-5 bg-gray-100 text-gray-600 hover:text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
                                         戻る (ESC)
                                     </Button>
                                 </div>

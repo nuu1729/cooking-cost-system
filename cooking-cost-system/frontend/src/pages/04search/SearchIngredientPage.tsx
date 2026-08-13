@@ -254,15 +254,21 @@ const SearchIngredientPage: React.FC = () => {
                     </div>
 
                     {/* Voice Input Button
+                        variant="ghost": 既定 variant の bg-primary と競合させないため。
+                        ghost の hover:text-foreground は hover:text-white で打ち消す。
+                        hover:bg-muted は bg-gradient（background-image）が上に描画されるので
+                        打ち消し不要（実測で hover 時もグラデーションが維持されることを確認）。
                         asChild + motion.button: hover/tap/収録中の拍動アニメーションを維持するため。
                         アイコンの size-10 は必須 — Button の基底クラスに
                         `[&_svg:not([class*='size-'])]:size-4` があり、h-10 w-10 のままだと
                         セレクタ特異度で負けて 16px に縮む。size- を含む名前にすることで除外される */}
                     <Button
                         asChild
-                        className={`h-auto py-8 px-12 rounded-[2rem] text-white flex-col gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 hover:bg-red-500' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899]'}`}
+                        variant="ghost"
+                        className={`h-auto py-8 px-12 rounded-[2rem] text-white hover:text-white flex-col gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 hover:bg-red-500' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899]'}`}
                     >
                         <motion.button
+                            type="button"
                             onClick={startListening}
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}

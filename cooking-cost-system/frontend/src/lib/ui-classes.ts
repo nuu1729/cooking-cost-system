@@ -5,30 +5,33 @@
  * マスタ管理系画面の大きめCTAのように「複数画面で同じ見た目を揃えたい」
  * ものはここに集約する。個別画面でしか使わないクラスは各画面に置くこと。
  *
- * ⚠ MASTER_CTA_* / MASTER_DIALOG_CTA_* は **Button の既定 variant（default）と
- * 組み合わせる前提** で、default が与える bg-primary / text-primary-foreground /
- * hover:bg-primary/80 を過不足なく上書きするように書いている。
- * variant を変える場合はここのクラスも見直すこと。
- * - variant="ghost" は不可: hover:text-foreground を持つため、
- *   text-white を指定したCTAでもホバー時に文字色が暗く変わってしまう
- * - variant="secondary" は不可: --color-secondary は oklch(0.97 0 0) で
- *   本画面群が使う gray-100 とは別の灰色になる
+ * ⚠ MASTER_CTA_* / MASTER_DIALOG_CTA_* は **`variant="ghost"` と組み合わせる前提**。
+ * ghost は背景色も文字色も持たない（hover 時のみ効く）ため、
+ * 既定 variant の bg-primary / text-primary-foreground と競合しない。
+ * ただし ghost は hover:bg-muted / hover:text-foreground を持つので、
+ * 各定数で hover:bg-* と hover:text-* を明示して打ち消している
+ * （打ち消しを忘れるとホバー時だけ配色が変わる）。
+ *
+ * variant="secondary" は使わない: --color-secondary は oklch(0.97 0 0) で
+ * 本画面群が使う gray-100 とは別の灰色になるため。
  */
 
 /**
  * マスタ管理系画面（stores / genres など）の縦積みCTAボタン。
  *
  * h-auto: shadcn Button 既定の h-8 を解除し、py-4 でボタン高を決めるため。
- * 配色は画面ごとに異なるため含めない（呼び出し側で bg- 系と hover:bg- 系を足す）。
+ * 文字色は利用箇所すべてが白なので text-white / hover:text-white を含める
+ * （hover 側は ghost の hover:text-foreground を打ち消すために必須）。
+ * 背景色は画面ごとに異なるため含めない（呼び出し側で bg- 系と hover:bg- 系を足す）。
  */
 export const MASTER_CTA_BASE =
-    'w-full h-auto py-4 rounded-2xl text-lg font-bold shadow transition-all';
+    'w-full h-auto py-4 rounded-2xl text-lg font-bold shadow transition-all text-white hover:text-white';
 
 /**
  * 上記CTAの下に置く副次ボタン（キャンセル等）。
  */
 export const MASTER_CTA_SECONDARY =
-    'w-full h-auto py-3 rounded-2xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-all';
+    'w-full h-auto py-3 rounded-2xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 hover:text-gray-600 transition-all';
 
 /**
  * マスタ管理系画面の削除確認ダイアログ内のボタン（危険操作 / キャンセル）。
@@ -38,10 +41,10 @@ export const MASTER_CTA_SECONDARY =
  * 文字サイズと影が変わってしまうため。
  */
 export const MASTER_DIALOG_CTA_DANGER =
-    'w-full h-auto py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 transition-all';
+    'w-full h-auto py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 hover:text-white transition-all';
 
 export const MASTER_DIALOG_CTA_CANCEL =
-    'w-full h-auto py-4 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all';
+    'w-full h-auto py-4 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 hover:text-gray-600 transition-all';
 
 /**
  * マスタ管理系画面のテキスト入力。
