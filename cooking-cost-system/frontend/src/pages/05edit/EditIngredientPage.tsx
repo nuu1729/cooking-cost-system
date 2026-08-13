@@ -10,14 +10,15 @@ import CreatableSelect from 'react-select/creatable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formInput } from '@/lib/ui-classes';
 
-// この画面のフォーム入力の共通クラス。
-// h-auto: Input 既定の h-8 を解除して py-4 で高さを決めるため。
-// md:text-lg: Input 既定の md:text-sm は同じ修飾子でないと上書きできないため。
-// 不正時の見た目は aria-invalid に委ね、枠線・リングは shadcn 基底の
-// aria-invalid:border-destructive / ring を使う（背景だけ既存デザインを踏襲）。
-const FORM_INPUT_BASE =
-    'w-full h-auto px-6 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl text-lg md:text-lg transition-all focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500 aria-invalid:bg-red-50';
+// この画面の入力欄。共通の formInput() にフォーカス表現と不正時の背景を足したもの。
+// 不正時の枠線・リングは shadcn 基底の aria-invalid:border-destructive / ring に委ね、
+// 背景だけ移行前のデザイン（薄い赤）を踏襲している。
+const FORM_INPUT_BASE = formInput(
+    'focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500',
+    'aria-invalid:bg-red-50',
+);
 
 const buildSelectStyles = (hasError: boolean) => ({
     control: (base: any, state: any) => ({

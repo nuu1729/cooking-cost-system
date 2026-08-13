@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-    MASTER_INPUT_BASE,
     masterCta,
     masterCtaSecondary,
     masterDialogCtaCancel,
     masterDialogCtaDanger,
+    masterInput,
 } from '@/lib/ui-classes';
 
 // この画面のCTA配色（オレンジ/ティール/レッド）は既存デザインをそのまま維持している。
@@ -143,7 +143,7 @@ const StoresPage: React.FC = () => {
                                     onChange={e => setNameInput(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter') selectedId ? handleUpdate() : handleRegister(); }}
                                     placeholder="例：業務スーパー"
-                                    className={`${MASTER_INPUT_BASE} focus-visible:ring-2 focus-visible:ring-orange-400`}
+                                    className={masterInput('focus-visible:ring-2 focus-visible:ring-orange-400')}
                                 />
                             </div>
 

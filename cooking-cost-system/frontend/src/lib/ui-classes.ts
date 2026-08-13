@@ -21,8 +21,20 @@
  *   本画面群が使う gray-100 とは別の灰色になるため
  */
 
-/** ファクトリが返す Button props。`{...}` で展開して使う。 */
+/**
+ * ファクトリが返す Button props。`{...}` で展開して使う。
+ *
+ * ⚠ **スプレッドは属性リストの最後に置くこと。**
+ * JSX は後に書かれた props が勝つため、
+ * `<Button {...masterCta(...)} variant="secondary">` のように
+ * スプレッドより後ろに variant を書くと ghost 前提が壊れる
+ * （`<Button variant="secondary" {...masterCta(...)}>` の順なら ghost が勝つ）。
+ * 型では防げないため、この規約を守ること。
+ */
 type MasterButtonProps = { variant: 'ghost'; className: string };
+
+/** クラス片を空要素を除いて連結する。 */
+const join = (...parts: string[]) => parts.filter(Boolean).join(' ');
 
 /**
  * マスタ管理系画面（stores / genres など）の縦積みCTAボタン。
@@ -58,7 +70,7 @@ const MASTER_DIALOG_CTA_CANCEL =
  */
 export const masterCta = (colorClasses: string, extraClasses = ''): MasterButtonProps => ({
     variant: 'ghost',
-    className: [MASTER_CTA_BASE, colorClasses, extraClasses].filter(Boolean).join(' '),
+    className: join(MASTER_CTA_BASE, colorClasses, extraClasses),
 });
 
 /** CTA の下に置く副次ボタン（キャンセル等）。 */
@@ -80,9 +92,11 @@ export const masterDialogCtaCancel = (): MasterButtonProps => ({
 });
 
 /**
- * マスタ管理系画面のテキスト入力。
+ * テキスト入力の共通コア。
  *
- * Input は variant を持たないためクラス文字列のまま export している。
+ * 画面によって異なる「幅・padding・フォーカス表現」は含めず、
+ * 全画面で揃えたい部分（背景・角丸・枠線の初期値・文字サイズ）だけを持つ。
+ * 実際に使うのは下の masterInput / formInput。
  *
  * md:text-lg を明示している理由:
  * tailwind-merge は修飾子（`md:` など）ごとに別グループとして競合解決するため、
@@ -91,12 +105,35 @@ export const masterDialogCtaCancel = (): MasterButtonProps => ({
  * 同じ修飾子を持つ `md:text-lg` を書くことで初めて上書きできる
  * （Input は `cn(基底クラス, className)` の順なので className 側が勝つ）。
  *
- * focus-visible:border-transparent も意図的な指定:
- * shadcn Input 基底の `focus-visible:border-ring` を打ち消し、
- * フォーカス表現を「枠線＋リング」の二重ではなく、
- * 呼び出し側が足すリング（focus-visible:ring-2 ring-<画面色>）だけに統一している。
- * 移行前のデザインが `outline-none` + 単色リングだったのを踏襲したもの。
- * リング色は画面ごとに異なるためここには含めない。
  */
-export const MASTER_INPUT_BASE =
-    'h-auto px-5 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl text-lg md:text-lg transition-all focus-visible:border-transparent';
+const INPUT_CORE =
+    'h-auto bg-[#f0f0f0] border-2 border-transparent rounded-2xl text-lg md:text-lg transition-all';
+
+/**
+ * マスタ管理系画面（stores / genres）のテキスト入力。padding は px-5。
+ *
+ * `focus-visible:border-transparent` は意図的な指定で、
+ * shadcn Input 基底の `focus-visible:border-ring` を打ち消している。
+ * （`border-transparent` と `focus-visible:border-transparent` は
+ * tailwind-merge では別グループ扱いなので、基底値と同値でも打ち消しに必要。）
+ * これによりフォーカス表現を「枠線＋リング」の二重ではなく、
+ * focusClasses で渡す単色リングだけに統一している
+ * （移行前のデザインが outline-none + 単色リングだったのを踏襲）。
+ *
+ * 例: masterInput('focus-visible:ring-2 focus-visible:ring-orange-400')
+ */
+export const masterInput = (focusClasses: string, extraClasses = '') =>
+    join(INPUT_CORE, 'px-5 py-4 focus-visible:border-transparent', focusClasses, extraClasses);
+
+/**
+ * 食材フォーム系画面（add / edit / search）のテキスト入力。
+ * マスタ管理系より padding が広く（px-6）、既定で幅いっぱい。
+ *
+ * フォーカス表現は画面ごとに異なる（search は枠線+淡いリング、
+ * edit は枠線なし+濃いリング）ため focusClasses で丸ごと受け取る。
+ *
+ * 例: formInput('focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500',
+ *               'aria-invalid:bg-red-50')
+ */
+export const formInput = (focusClasses: string, extraClasses = '') =>
+    join(INPUT_CORE, 'w-full px-6 py-4', focusClasses, extraClasses);

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formInput } from '@/lib/ui-classes';
 
 // Speech Recognition Types
 declare global {
@@ -154,7 +155,10 @@ const SearchIngredientPage: React.FC = () => {
                                     value={filters.name}
                                     onChange={(e) => handleFilterChange('name', e.target.value)}
                                     placeholder="例：トマト"
-                                    className="w-full md:w-80 h-auto mt-1 px-6 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl text-lg md:text-lg transition-all focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-100"
+                                    className={formInput(
+                                        'focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-100',
+                                        'md:w-80 mt-1',
+                                    )}
                                 />
                             </div>
                         </div>
