@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import FocusLock from 'react-focus-lock';
+import { X } from 'lucide-react';
 import AccountIcon from './AccountIcon';
 import { Button } from '@/components/ui/button';
 
@@ -204,14 +205,20 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
                     {/* Drawer Header */}
                     <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
                         <span className="font-bold text-gray-800">メニュー</span>
+                        {/* アイコンは lucide の X に統一（BarcodeScanner の閉じるボタンと同様）。
+                            ✕ の文字だと aria-label があってもスクリーンリーダーの実装次第で
+                            読み上げられる可能性があるため。
+                            size-6 は Button 基底の [&_svg:not([class*='size-'])]:size-4 を
+                            避けつつ、元の text-2xl（24px）と同じ見た目にするための指定 */}
                         <Button
                             type="button"
                             variant="ghost"
+                            size="icon"
                             onClick={closeDrawer}
                             aria-label="メニューを閉じる"
-                            className="h-10 w-10 rounded-lg text-2xl leading-none text-gray-500"
+                            className="h-10 w-10 rounded-lg text-gray-500"
                         >
-                            ✕
+                            <X className="size-6" aria-hidden="true" />
                         </Button>
                     </div>
 
