@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { genreApi, Genre } from '@/api';
 import toast from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+// この画面のCTA配色（インディゴ/ティール/レッド）は既存デザインをそのまま維持している。
+// TODO(#186): 全画面の移行が完了したら index.css の @theme トークンに寄せる。
+//
+// 各 Button に付けている h-auto は、shadcn Button 既定の h-8 を解除して
+// py-4 でボタン高を決めるため（この画面は大きめのCTAで統一されている）。
+const CTA_BASE = 'w-full h-auto py-4 rounded-2xl text-lg font-bold shadow transition-all';
 
 const GenresPage: React.FC = () => {
     const [genres, setGenres] = useState<Genre[]>([]);
@@ -121,16 +131,20 @@ const GenresPage: React.FC = () => {
                     <div className="w-full md:w-2/5">
                         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-gray-600 uppercase tracking-wider">
+                                {/* 移行前は htmlFor が無く input と紐付いていなかったため id/htmlFor を追加 */}
+                                <Label htmlFor="genre-name" className="text-sm font-bold text-gray-600 uppercase tracking-wider">
                                     {selectedId ? '編集中のジャンル' : '新規ジャンル名'}
-                                </label>
-                                <input
+                                </Label>
+                                {/* md:text-lg は shadcn Input 既定の md:text-sm を打ち消すため
+                                    （text-lg だけではブレークポイント付きクラスが残り md 以上で縮む） */}
+                                <Input
+                                    id="genre-name"
                                     type="text"
                                     value={nameInput}
                                     onChange={e => setNameInput(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter') selectedId ? handleUpdate() : handleRegister(); }}
                                     placeholder="例：乳製品"
-                                    className="w-full px-5 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl outline-none text-lg focus:ring-2 focus:ring-indigo-400 transition-all"
+                                    className="h-auto px-5 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl text-lg md:text-lg transition-all focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-indigo-400"
                                 />
                             </div>
 
@@ -143,41 +157,48 @@ const GenresPage: React.FC = () => {
                                 </div>
                             )}
 
+                            {/* asChild + motion.button: 既存のタップ縮小アニメーション(whileTap)を
+                                残したまま shadcn Button のスタイルを当てるため。Slot が
+                                className と data-* を motion.button 側にマージする */}
                             <div className="flex flex-col gap-3">
                                 {!selectedId ? (
-                                    <motion.button
-                                        whileTap={{ scale: 0.97 }}
-                                        onClick={handleRegister}
-                                        disabled={isLoading}
-                                        className="w-full py-4 bg-[#6366f1] text-white font-bold text-lg rounded-2xl shadow hover:bg-indigo-600 transition-all disabled:opacity-50"
-                                    >
-                                        登録する
-                                    </motion.button>
+                                    <Button asChild className={`${CTA_BASE} bg-[#6366f1] text-white hover:bg-indigo-600`}>
+                                        <motion.button
+                                            whileTap={{ scale: 0.97 }}
+                                            onClick={handleRegister}
+                                            disabled={isLoading}
+                                        >
+                                            登録する
+                                        </motion.button>
+                                    </Button>
                                 ) : (
                                     <>
-                                        <motion.button
-                                            whileTap={{ scale: 0.97 }}
-                                            onClick={handleUpdate}
-                                            disabled={isLoading}
-                                            className="w-full py-4 bg-[#53b69b] text-white font-bold text-lg rounded-2xl shadow hover:bg-emerald-600 transition-all disabled:opacity-50"
-                                        >
-                                            更新する
-                                        </motion.button>
-                                        <motion.button
-                                            whileTap={{ scale: 0.97 }}
-                                            onClick={() => setDeleteConfirmId(selectedId)}
-                                            disabled={isLoading || (selectedGenre?.ingredient_count ?? 0) > 0}
-                                            className="w-full py-4 bg-red-500 text-white font-bold text-lg rounded-2xl shadow hover:bg-red-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                            title={(selectedGenre?.ingredient_count ?? 0) > 0 ? '使用中のジャンルは削除できません' : ''}
-                                        >
-                                            削除する
-                                        </motion.button>
-                                        <button
+                                        <Button asChild className={`${CTA_BASE} bg-[#53b69b] text-white hover:bg-emerald-600`}>
+                                            <motion.button
+                                                whileTap={{ scale: 0.97 }}
+                                                onClick={handleUpdate}
+                                                disabled={isLoading}
+                                            >
+                                                更新する
+                                            </motion.button>
+                                        </Button>
+                                        <Button asChild className={`${CTA_BASE} bg-red-500 text-white hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed`}>
+                                            <motion.button
+                                                whileTap={{ scale: 0.97 }}
+                                                onClick={() => setDeleteConfirmId(selectedId)}
+                                                disabled={isLoading || (selectedGenre?.ingredient_count ?? 0) > 0}
+                                                title={(selectedGenre?.ingredient_count ?? 0) > 0 ? '使用中のジャンルは削除できません' : ''}
+                                            >
+                                                削除する
+                                            </motion.button>
+                                        </Button>
+                                        <Button
+                                            type="button"
                                             onClick={handleClear}
-                                            className="w-full py-3 bg-gray-100 text-gray-600 font-medium rounded-2xl hover:bg-gray-200 transition-all"
+                                            className="w-full h-auto py-3 rounded-2xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-all"
                                         >
                                             キャンセル
-                                        </button>
+                                        </Button>
                                     </>
                                 )}
                             </div>
@@ -263,19 +284,21 @@ const GenresPage: React.FC = () => {
                                 </p>
                             </div>
                             <div className="flex flex-col gap-3">
-                                <button
+                                <Button
+                                    type="button"
                                     onClick={() => handleDelete(deleteConfirmId)}
                                     disabled={isLoading}
-                                    className="w-full py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all"
+                                    className="w-full h-auto py-4 rounded-2xl bg-red-500 text-white font-bold hover:bg-red-600 transition-all"
                                 >
                                     削除する
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    type="button"
                                     onClick={() => setDeleteConfirmId(null)}
-                                    className="w-full py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                                    className="w-full h-auto py-4 rounded-2xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all"
                                 >
                                     キャンセル
-                                </button>
+                                </Button>
                             </div>
                         </motion.div>
                     </div>
