@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { authApi } from '@/api';
 import { accountStore } from '@/stores/accountStore';
 import { toBackendUrl } from '@/utils/url';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { CircleUserRound } from 'lucide-react';
 
 // Validation Schema
 const schema = yup.object({
@@ -116,7 +116,8 @@ const LoginPage: React.FC = () => {
                     >
                         {/* Icon */}
                         <div className="bg-blue-100 rounded-2xl p-4 mb-4 border-2 border-white shadow-sm">
-                            <AccountCircleIcon style={{ fontSize: 48, color: '#3B82F6' }} />
+                            {/* text-blue-500 (#3B82F6) は lucide の stroke="currentColor" に効く */}
+                            <CircleUserRound size={48} className="text-blue-500" />
                         </div>
 
                         {/* Title */}

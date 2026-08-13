@@ -5,9 +5,7 @@ import * as yup from 'yup';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { signinApi, authApi } from '@/api';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { CircleUserRound, Eye, EyeOff } from 'lucide-react';
 
 // Validation Schema
 const schema = yup.object({
@@ -178,7 +176,8 @@ const SignupPage: React.FC = () => {
                     >
                         {/* Icon */}
                         <div className="bg-blue-100 rounded-2xl p-4 mb-4 border-2 border-white shadow-sm">
-                            <AccountCircleIcon style={{ fontSize: 48, color: '#3B82F6' }} />
+                            {/* text-blue-500 (#3B82F6) は lucide の stroke="currentColor" に効く */}
+                            <CircleUserRound size={48} className="text-blue-500" />
                         </div>
 
                         {/* Title */}
@@ -252,7 +251,7 @@ const SignupPage: React.FC = () => {
                                         className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 focus:outline-none"
                                         tabIndex={-1}
                                     >
-                                        {showPassword ? <Visibility /> : <VisibilityOff />}
+                                        {showPassword ? <Eye /> : <EyeOff />}
                                     </button>
                                 </div>
                                 <AnimatePresence>
@@ -285,7 +284,7 @@ const SignupPage: React.FC = () => {
                                         className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 focus:outline-none"
                                         tabIndex={-1}
                                     >
-                                        {showConfirmPassword ? <Visibility /> : <VisibilityOff />}
+                                        {showConfirmPassword ? <Eye /> : <EyeOff />}
                                     </button>
                                 </div>
                                 <AnimatePresence>
