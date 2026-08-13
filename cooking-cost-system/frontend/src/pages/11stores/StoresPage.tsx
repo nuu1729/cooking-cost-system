@@ -5,13 +5,10 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MASTER_CTA_BASE, MASTER_CTA_SECONDARY, MASTER_INPUT_BASE } from '@/lib/ui-classes';
 
 // この画面のCTA配色（オレンジ/ティール/レッド）は既存デザインをそのまま維持している。
 // TODO(#186): 全画面の移行が完了したら index.css の @theme トークンに寄せる。
-//
-// 各 Button に付けている h-auto は、shadcn Button 既定の h-8 を解除して
-// py-4 でボタン高を決めるため（この画面は大きめのCTAで統一されている）。
-const CTA_BASE = 'w-full h-auto py-4 rounded-2xl text-lg font-bold shadow transition-all';
 
 const StoresPage: React.FC = () => {
     const [stores, setStores] = useState<Store[]>([]);
@@ -133,8 +130,6 @@ const StoresPage: React.FC = () => {
                                 <Label htmlFor="store-name" className="text-sm font-bold text-gray-600 uppercase tracking-wider">
                                     {selectedId ? '編集中の購入先' : '新規購入先名'}
                                 </Label>
-                                {/* md:text-lg は shadcn Input 既定の md:text-sm を打ち消すため
-                                    （text-lg だけではブレークポイント付きクラスが残り md 以上で縮む） */}
                                 <Input
                                     id="store-name"
                                     type="text"
@@ -142,7 +137,7 @@ const StoresPage: React.FC = () => {
                                     onChange={e => setNameInput(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter') selectedId ? handleUpdate() : handleRegister(); }}
                                     placeholder="例：業務スーパー"
-                                    className="h-auto px-5 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl text-lg md:text-lg transition-all focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-orange-400"
+                                    className={`${MASTER_INPUT_BASE} focus-visible:ring-2 focus-visible:ring-orange-400`}
                                 />
                             </div>
 
@@ -160,7 +155,7 @@ const StoresPage: React.FC = () => {
                                 className と data-* を motion.button 側にマージする */}
                             <div className="flex flex-col gap-3">
                                 {!selectedId ? (
-                                    <Button asChild className={`${CTA_BASE} bg-[#f97316] text-white hover:bg-orange-600`}>
+                                    <Button asChild className={`${MASTER_CTA_BASE} bg-[#f97316] text-white hover:bg-orange-600`}>
                                         <motion.button
                                             whileTap={{ scale: 0.97 }}
                                             onClick={handleRegister}
@@ -171,7 +166,7 @@ const StoresPage: React.FC = () => {
                                     </Button>
                                 ) : (
                                     <>
-                                        <Button asChild className={`${CTA_BASE} bg-[#53b69b] text-white hover:bg-emerald-600`}>
+                                        <Button asChild className={`${MASTER_CTA_BASE} bg-[#53b69b] text-white hover:bg-emerald-600`}>
                                             <motion.button
                                                 whileTap={{ scale: 0.97 }}
                                                 onClick={handleUpdate}
@@ -180,7 +175,9 @@ const StoresPage: React.FC = () => {
                                                 更新する
                                             </motion.button>
                                         </Button>
-                                        <Button asChild className={`${CTA_BASE} bg-red-500 text-white hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed`}>
+                                        {/* disabled:opacity-40 は Button 既定の disabled:opacity-50 を
+                                            意図的に上書き（使用中で押せないことをより強く示すため） */}
+                                        <Button asChild className={`${MASTER_CTA_BASE} bg-red-500 text-white hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed`}>
                                             <motion.button
                                                 whileTap={{ scale: 0.97 }}
                                                 onClick={() => setDeleteConfirmId(selectedId)}
@@ -193,7 +190,7 @@ const StoresPage: React.FC = () => {
                                         <Button
                                             type="button"
                                             onClick={handleClear}
-                                            className="w-full h-auto py-3 rounded-2xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-all"
+                                            className={MASTER_CTA_SECONDARY}
                                         >
                                             キャンセル
                                         </Button>

@@ -25,14 +25,14 @@ const NotFoundPage: React.FC = () => {
                 <p className="text-base text-gray-500 mb-8">
                     お探しのページは存在しないか、移動された可能性があります。
                 </p>
-                {/* size="lg" の高さ(h-9)・アイコン間隔(gap-1.5)は活かしつつ、
-                    横paddingだけ px-2.5 → px-6 に広げている（単独CTAとして
-                    最小幅を確保するため）。tailwind-merge が後勝ちで解決する */}
+                {/* size variant は使わず className で完結させている。
+                    単独CTAとして size="lg" より広い横padding(px-6)が必要で、
+                    size を指定すると padding だけ上書きする形になり意図が
+                    読み取りにくいため（h-9/gap-1.5 は size="lg" 相当の値） */}
                 <Button
                     type="button"
-                    size="lg"
                     onClick={() => navigate('/')}
-                    className="bg-[#1E90FF] text-white hover:bg-blue-600 shadow-md px-6"
+                    className="h-9 gap-1.5 px-6 bg-[#1E90FF] text-white hover:bg-blue-600 shadow-md"
                 >
                     <House />
                     ホームに戻る
