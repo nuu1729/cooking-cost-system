@@ -118,20 +118,30 @@ jobs:
           # ANTHROPIC_MODEL はこのステップのみで使用するためステップレベルで管理（最小スコープの原則）
           ANTHROPIC_MODEL: claude-sonnet-4-6
         run: |
-          DIFF=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt")
           TITLE=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt")
-          COMMENTS=$(cat "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt")
 
-          if [ -n "$COMMENTS" ]; then
-            CONTEXT_SECTION=$(printf '\n\n---\n## これまでのレビュー・対応履歴（最新20件）\n\n以下はこのPRにおける過去のClaudeレビューと作者の対応方針コメントです。\nすでに対応済み・対応不要と判断された指摘は繰り返さないでください。\n未対応の指摘や新たに発生した問題に絞ってレビューしてください。\n\n%s' "$COMMENTS")
-          else
-            CONTEXT_SECTION=""
-          fi
+          # プロンプトはシェル変数に載せず直接ファイルへ組み立てる。
+          # 以前は printf の結果を PROMPT に入れて jq --arg で渡していたが、
+          # jq に渡す「単一引数」の長さは Linux の MAX_ARG_STRLEN（32ページ = 128KiB）
+          # で制限されており、超えると exec が E2BIG となり
+          # "jq: Argument list too long"（exit 126）で落ちる。
+          # diff 最大100,000文字 + コメント最大20,000文字は、日本語（UTF-8で1文字3バイト）
+          # を含むと容易に128KiBを超える（#187 で発生）。
+          # jq へはファイル経由の --rawfile で渡すことでこの上限を回避する。
+          PROMPT_FILE="$CLAUDE_REVIEW_WORK_DIR/prompt.txt"
+          {
+            printf 'PR タイトル: %s\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n' "$TITLE"
+            cat "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
+            printf '\n```'
+            # -s: サイズ0でない（コメント取得失敗時は空ファイルになるためセクションごと省く）
+            if [ -s "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt" ]; then
+              printf '\n\n---\n## これまでのレビュー・対応履歴（最新20件）\n\n以下はこのPRにおける過去のClaudeレビューと作者の対応方針コメントです。\nすでに対応済み・対応不要と判断された指摘は繰り返さないでください。\n未対応の指摘や新たに発生した問題に絞ってレビューしてください。\n\n'
+              cat "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
+            fi
+          } > "$PROMPT_FILE"
 
-          PROMPT=$(printf 'PR タイトル: %s\n\n以下のコード差分をレビューしてください。日本語で回答し、以下の観点で確認してください。\n- バグや論理的な誤り\n- セキュリティの問題（XSS・SQLインジェクション・認証不備など）\n- コードの可読性・保守性\n- パフォーマンス上の懸念点\n良い点も含めてフィードバックしてください。\n\n```diff\n%s\n```%s' "$TITLE" "$DIFF" "$CONTEXT_SECTION")
-
-          # ARG_MAX 超過を防ぐためリクエストボディをファイルに書き出す
-          jq -n --arg content "$PROMPT" --arg model "$ANTHROPIC_MODEL" \
+          # ARG_MAX 超過を防ぐためリクエストボディもファイルに書き出す
+          jq -n --rawfile content "$PROMPT_FILE" --arg model "$ANTHROPIC_MODEL" \
             '{model:$model,max_tokens:4096,messages:[{role:"user",content:$content}]}' \
             > "$CLAUDE_REVIEW_WORK_DIR/request.json"
 
