@@ -8,6 +8,11 @@ const NotFoundPage: React.FC = () => {
 
     // 配色・タイポグラフィは 00signup / 01login と揃える
     // （bg-white / font-sans / text-gray-800、CTA は #1E90FF）
+    //
+    // TODO(#186): CTA の #1E90FF は index.css の @theme トークン
+    // （--color-primary 等）ではなく直接指定している。移行途中の現時点では
+    // 未移行の 00signup / 01login と色が食い違う方が実害が大きいため
+    // 既存の配色に合わせているが、全画面の移行完了後にトークンへ寄せること。
     return (
         <div className="min-h-screen-dvh w-full bg-white flex items-center justify-center font-sans text-gray-800 px-4">
             <div className="w-full max-w-sm text-center py-16">
@@ -20,6 +25,9 @@ const NotFoundPage: React.FC = () => {
                 <p className="text-base text-gray-500 mb-8">
                     お探しのページは存在しないか、移動された可能性があります。
                 </p>
+                {/* size="lg" の高さ(h-9)・アイコン間隔(gap-1.5)は活かしつつ、
+                    横paddingだけ px-2.5 → px-6 に広げている（単独CTAとして
+                    最小幅を確保するため）。tailwind-merge が後勝ちで解決する */}
                 <Button
                     type="button"
                     size="lg"

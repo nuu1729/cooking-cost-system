@@ -157,6 +157,10 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
                         aria-label="メニューを開く"
                         aria-expanded={drawerOpen}
                         aria-controls="mobile-drawer"
+                        // gap-1.25: Tailwind v4 の gap-{n} は calc(n * var(--spacing)) に
+                        // 展開され、--spacing 既定値 0.25rem なので 0.3125rem = 5px になる。
+                        // ハンバーガーの3本線の間隔として意図した値（v3 のような固定スケール表
+                        // ではないため、小数値でも任意値記法 gap-[5px] は不要）
                         className="h-11 w-11 flex-col gap-1.25 rounded-lg"
                     >
                         <span className="block w-6 h-0.5 bg-gray-700 rounded" />
@@ -239,6 +243,8 @@ const Header: React.FC<HeaderProps> = ({ drawerOpen, setDrawerOpen }) => {
                             type="button"
                             variant="ghost"
                             onClick={handleAccountNav}
+                            // h-auto: Button 既定の h-8 では 28px の AccountIcon と
+                            // py-3 が収まらないため、コンテンツ高に合わせる
                             className="h-auto w-full justify-start gap-3 px-4 py-3 font-normal text-gray-700"
                         >
                             <AccountIcon size={28} />
