@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ingredientApi } from '@/api';
 import { Ingredient } from '../../types';
 import toast from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Speech Recognition Types
 declare global {
@@ -129,6 +132,8 @@ const SearchIngredientPage: React.FC = () => {
 
     const lowestPriceId = processedResults.length > 0 ? processedResults[0].id : null;
 
+    const isPieceToGramInvalid = !filters.pieceToGram || parseFloat(filters.pieceToGram) <= 0;
+
     return (
         <div className="min-h-[calc(100vh-80px)] bg-[#f9f9f9] py-16 px-4">
             <div className="max-w-7xl mx-auto">
@@ -141,13 +146,15 @@ const SearchIngredientPage: React.FC = () => {
                         <div>
                             <h1 className="text-3xl font-bold text-gray-800 font-['Outfit']">食材を検索</h1>
                             <div className="mt-4">
-                                <label className="text-sm font-bold text-gray-500 ml-1">商品名</label>
-                                <input
+                                {/* 移行前は htmlFor が無く input と紐付いていなかったため id/htmlFor を追加 */}
+                                <Label htmlFor="search-name" className="text-sm font-bold text-gray-500 ml-1">商品名</Label>
+                                <Input
+                                    id="search-name"
                                     type="text"
                                     value={filters.name}
                                     onChange={(e) => handleFilterChange('name', e.target.value)}
                                     placeholder="例：トマト"
-                                    className="w-full md:w-80 px-6 py-4 bg-[#f0f0f0] border-2 border-transparent focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 rounded-2xl transition-all outline-none text-lg mt-1"
+                                    className="w-full md:w-80 h-auto mt-1 px-6 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl text-lg md:text-lg transition-all focus-visible:border-emerald-500 focus-visible:ring-2 focus-visible:ring-emerald-100"
                                 />
                             </div>
                         </div>
@@ -207,9 +214,16 @@ const SearchIngredientPage: React.FC = () => {
                                     <div className="mt-3 ml-2">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-bold text-gray-500 whitespace-nowrap">1個 =</span>
-                                            <input
+                                            {/* 「1個 = [    ] g」という文の途中にある入力欄で、
+                                                視覚的なラベルを置く場所がないため aria-label で補う。
+                                                エラー文は aria-describedby で読み上げに含める */}
+                                            <Input
+                                                id="piece-to-gram"
                                                 type="text"
                                                 inputMode="decimal"
+                                                aria-label="1個あたりのグラム数"
+                                                aria-invalid={isPieceToGramInvalid}
+                                                aria-describedby={isPieceToGramInvalid ? 'piece-to-gram-error' : undefined}
                                                 value={filters.pieceToGram}
                                                 onChange={(e) => {
                                                     const v = e.target.value;
@@ -218,17 +232,17 @@ const SearchIngredientPage: React.FC = () => {
                                                     }
                                                 }}
                                                 placeholder="例: 200"
-                                                className={`w-24 bg-white border-2 rounded-xl px-2 py-1 text-center font-bold text-gray-700 outline-none transition-all
-                                                    ${(!filters.pieceToGram || parseFloat(filters.pieceToGram) <= 0)
-                                                        ? 'border-red-400 focus:border-red-500'
-                                                        : 'border-transparent focus:border-emerald-500'
-                                                    }`}
+                                                // 不正時の見た目は自前で border-red-400 を当てず、shadcn Input 基底の
+                                                // aria-invalid:border-destructive / ring に任せている。
+                                                // aria-invalid を付けた時点で基底クラスが優先されるため、
+                                                // 独自指定を残すと二重管理になり実際には効かない
+                                                className="w-24 h-auto bg-white border-2 border-transparent rounded-xl px-2 py-1 text-center font-bold text-gray-700 transition-all focus-visible:border-emerald-500"
                                             />
                                             <span className="text-sm font-bold text-gray-500">g</span>
                                         </div>
-                                        {(!filters.pieceToGram || parseFloat(filters.pieceToGram) <= 0) && (
-                                            <p className="text-red-500 text-xs font-bold mt-1.5 ml-1 flex items-center gap-1">
-                                                <span>⚠</span>
+                                        {isPieceToGramInvalid && (
+                                            <p id="piece-to-gram-error" className="text-red-500 text-xs font-bold mt-1.5 ml-1 flex items-center gap-1">
+                                                <span aria-hidden="true">⚠</span>
                                                 <span>グラム数を入力してください</span>
                                             </p>
                                         )}
@@ -239,19 +253,28 @@ const SearchIngredientPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Voice Input Button */}
-                    <motion.button
-                        onClick={startListening}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
-                        className={`py-8 px-12 rounded-[2rem] text-white flex flex-col items-center justify-center gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899]'}`}
+                    {/* Voice Input Button
+                        asChild + motion.button: hover/tap/収録中の拍動アニメーションを維持するため。
+                        アイコンの size-10 は必須 — Button の基底クラスに
+                        `[&_svg:not([class*='size-'])]:size-4` があり、h-10 w-10 のままだと
+                        セレクタ特異度で負けて 16px に縮む。size- を含む名前にすることで除外される */}
+                    <Button
+                        asChild
+                        className={`h-auto py-8 px-12 rounded-[2rem] text-white flex-col gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 hover:bg-red-500' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899]'}`}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                        <span className="text-xl font-bold font-['Outfit']">{isListening ? '聴いています...' : '音声で入力'}</span>
-                    </motion.button>
+                        <motion.button
+                            onClick={startListening}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
+                            aria-pressed={isListening}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="size-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                            <span className="text-xl font-bold font-['Outfit']">{isListening ? '聴いています...' : '音声で入力'}</span>
+                        </motion.button>
+                    </Button>
                 </div>
 
                 {/* Last Transcript Display */}
@@ -271,14 +294,19 @@ const SearchIngredientPage: React.FC = () => {
                             <p className="text-purple-700 italic text-sm font-medium leading-relaxed font-['Outfit']">
                                 "{lastTranscript}" を検索しています...
                             </p>
-                            <button
+                            {/* size-5 の理由は音声入力ボタンと同じ（Button の [&_svg]:size-4 対策） */}
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => setLastTranscript('')}
-                                className="ml-auto text-purple-300 hover:text-purple-500 transition-colors"
+                                aria-label="音声入力の内容を閉じる"
+                                className="ml-auto text-purple-300 hover:bg-transparent hover:text-purple-500 transition-colors"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                 </svg>
-                            </button>
+                            </Button>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -308,13 +336,27 @@ const SearchIngredientPage: React.FC = () => {
 };
 
 // Custom Switch Component
+//
+// shadcn/ui の Switch（Radix）は track + thumb のトグル表現で、この画面の
+// 「丸に点」というデザインとは見た目が大きく変わるため採用していない。
+// 代わりに素の <button> + role="switch" にして、見た目を保ったまま
+// キーボード操作とスクリーンリーダー対応を満たす。
+//
+// 移行前は onClick 付きの <div> で、Tab でフォーカスできず Enter/Space でも
+// 操作できない状態だった（アクセシビリティ上の不具合）。
 const Switch: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
-    <div className="flex items-center gap-4 cursor-pointer group" onClick={onClick}>
-        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${active ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-200' : 'bg-white border-gray-400 group-hover:border-gray-600'}`}>
-            {active && <div className="w-2 h-2 bg-white rounded-full"></div>}
-        </div>
+    <button
+        type="button"
+        role="switch"
+        aria-checked={active}
+        onClick={onClick}
+        className="flex w-full items-center gap-4 cursor-pointer group text-left rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+    >
+        <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${active ? 'bg-emerald-500 border-emerald-500 shadow-lg shadow-emerald-200' : 'bg-white border-gray-400 group-hover:border-gray-600'}`}>
+            {active && <span className="w-2 h-2 bg-white rounded-full"></span>}
+        </span>
         <span className={`font-bold transition-all ${active ? 'text-gray-800' : 'text-gray-500'}`}>{label}</span>
-    </div>
+    </button>
 );
 
 // Candidate Card Component
@@ -365,14 +407,14 @@ const CandidateCard: React.FC<{
 
             <div className="space-y-6">
                 <div>
-                    <label className="text-xs font-bold text-gray-500 ml-1">商品名</label>
+                    <span className="text-xs font-bold text-gray-500 ml-1">商品名</span>
                     <div className="bg-[#f0f0f0] rounded-2xl px-6 py-3 text-gray-700 font-bold overflow-hidden text-ellipsis whitespace-nowrap">
                         {item.name}
                     </div>
                 </div>
 
                 <div>
-                    <label className="text-xs font-bold text-gray-500 ml-1">価格</label>
+                    <span className="text-xs font-bold text-gray-500 ml-1">価格</span>
                     <div className="bg-[#f0f0f0] rounded-2xl px-6 py-3 flex justify-between items-center">
                         <span className="text-gray-400">¥</span>
                         <span className="text-gray-800 font-black text-xl">{item.price.toLocaleString()}</span>
@@ -387,7 +429,7 @@ const CandidateCard: React.FC<{
                 </div>
 
                 <div>
-                    <label className="text-xs font-bold text-gray-500 ml-1">購入先</label>
+                    <span className="text-xs font-bold text-gray-500 ml-1">購入先</span>
                     <div className="bg-[#f0f0f0] rounded-2xl px-6 py-3 text-gray-700 font-bold overflow-hidden text-ellipsis whitespace-nowrap">
                         {item.store}
                     </div>
