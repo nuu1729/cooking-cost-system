@@ -35,6 +35,9 @@ jobs:
       #      下の「フィルタが無ければスキップ」のフォールバックが常時発動しないか確認する
       #   3. ANTHROPIC_API_KEY を外部 PR に露出させない構成か確認する
       #      （fork からの pull_request では secrets が渡らない点も含めて）
+      #      なお pull_request_target に変えれば secrets は渡るが、
+      #      base の権限で PR のコードを扱うことになるため誤用しやすい。
+      #      安易に切り替えないこと。
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
         with:
