@@ -1,0 +1,6 @@
+# リポジトリルート用。
+# アプリ本体の無視設定は cooking-cost-system/ 配下の .gitignore にある。
+# ここではルート直下（.github/scripts など）で生じる生成物だけを対象にする。
+
+__pycache__/
+*.py[cod]

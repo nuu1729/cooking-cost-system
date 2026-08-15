@@ -21,6 +21,28 @@ jobs:
       pull-requests: write
 
     steps:
+      # 差分フィルタのスクリプト（.github/scripts/）を使うためにチェックアウトする。
+      #
+      # ref は既定（pull_request ではマージコミット）のままにしている。
+      # base に固定するとフィルタスクリプト自体を変更する PR で「まだ base に
+      # 無いスクリプト」を参照して落ちるうえ、スクリプトの修正がマージされるまで
+      # 検証できない。本リポジトリは外部コントリビュータを受け付けていないため、
+      # PR 側からフィルタを書き換えられる点は許容する。
+      #
+      # ⚠ 外部からの PR を受け入れるようになったら、以下をまとめて見直すこと:
+      #   1. この checkout の ref を ${{ github.event.pull_request.base.sha }} に固定する
+      #   2. その場合フィルタスクリプトが base に存在することが前提になるため、
+      #      下の「フィルタが無ければスキップ」のフォールバックが常時発動しないか確認する
+      #   3. ANTHROPIC_API_KEY を外部 PR に露出させない構成か確認する
+      #      （fork からの pull_request では secrets が渡らない点も含めて）
+      #      なお pull_request_target に変えれば secrets は渡るが、
+      #      base の権限で PR のコードを扱うことになるため誤用しやすい。
+      #      安易に切り替えないこと。
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - name: PR の差分・コメント履歴を取得
         id: pr_info
         env:
@@ -82,7 +104,20 @@ jobs:
           while sys.stdin.buffer.read(65536):
               pass
           data = b''.join(chunks)
-          sys.stdout.write(data.decode('utf-8', 'replace')[:max_chars])
+          text = data.decode('utf-8', 'replace')
+          if len(text) > max_chars:
+              # 打ち切ったことを明示する。これが無いと、レビュー側は差分を
+              # 全部読めた前提で「このファイルには変更が無い」と誤認する。
+              # メッセージの分を差し引いて、出力全体が max_chars に収まるようにする。
+              # max(0, ...) は max_chars がメッセージ長（約80文字）より小さい
+              # 場合のガード。実運用の上限では起きないが、本文が空でメッセージ
+              # だけが残る出力になるため、上限を極端に小さくしないこと。
+              msg = ('\n\n[!] ここで文字数上限（%d文字）により打ち切られました。'
+                     'これ以降の差分はレビューに含まれていません。\n' % max_chars)
+              out = text[:max(0, max_chars - len(msg))] + msg
+          else:
+              out = text
+          sys.stdout.buffer.write(out.encode('utf-8'))
           "
           }
 
@@ -93,9 +128,31 @@ jobs:
           printf '%s' "$TITLE" > "$CLAUDE_REVIEW_WORK_DIR/pr_title.txt"
 
           # 注意: タイトル取得と差分取得で同じエンドポイントを2回呼んでいる（差分は Accept ヘッダが異なるため回避困難）
-          DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
-            -H "Accept: application/vnd.github.v3.diff" \
-            | truncate_utf8 100000)
+          #
+          # 上限を適用する前に機械生成ファイル（lock ファイル等）を除外する。
+          # PR #187 では diff 759,140文字のうち package-lock.json だけで約90%を占め、
+          # 100,000文字の上限で切った結果レビューに届いたのは全体の 13.2% だった。
+          # レビュー対象のソースが丸ごと欠落し、既に修正済みのコードへの指摘が
+          # 繰り返し発生していた。フィルタ適用後は同じ上限でも 89.7% が届く。
+          # 上限自体も 300,000 文字に引き上げ、この規模の PR なら全量が入るようにする。
+          # フィルタが見つからない場合でもレビュー自体は続行する（フィルタ無しで通す）。
+          # チェックアウトの ref を変えたときにワークフローごと落ちるのを避けるため。
+          DIFF_FILTER=.github/scripts/filter-review-diff.py
+          if [ ! -f "$DIFF_FILTER" ]; then
+            echo "WARN: $DIFF_FILTER が見つからないため差分フィルタをスキップします" >&2
+            DIFF_FILTER=""
+          fi
+
+          if [ -n "$DIFF_FILTER" ]; then
+            DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
+              -H "Accept: application/vnd.github.v3.diff" \
+              | python3 "$DIFF_FILTER" \
+              | truncate_utf8 300000)
+          else
+            DIFF=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" \
+              -H "Accept: application/vnd.github.v3.diff" \
+              | truncate_utf8 300000)
+          fi
           printf '%s' "$DIFF" > "$CLAUDE_REVIEW_WORK_DIR/pr_diff.txt"
 
           # 過去のコメント履歴を取得（最新20件、最大20,000文字）
@@ -135,7 +192,7 @@ jobs:
             printf '\n```'
             # -s: サイズ0でない（コメント取得失敗時は空ファイルになるためセクションごと省く）
             if [ -s "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt" ]; then
-              printf '\n\n---\n## これまでのレビュー・対応履歴（最新20件）\n\n以下はこのPRにおける過去のClaudeレビューと作者の対応方針コメントです。\nすでに対応済み・対応不要と判断された指摘は繰り返さないでください。\n未対応の指摘や新たに発生した問題に絞ってレビューしてください。\n\n'
+              printf '\n\n---\n## これまでのレビュー・対応履歴（最新20件）\n\n以下はこのPRにおける過去のClaudeレビューと作者の対応方針コメントです。\nすでに対応済み・対応不要と判断された指摘は繰り返さないでください。\n未対応の指摘や新たに発生した問題に絞ってレビューしてください。\n\n**重要: このセクションに含まれるコード片は過去時点のもので、現在のコードとは限りません。**\nコードの現状は必ず上の diff セクションで確認してください。\ndiff に現れないコードについては、変更されていないか、上限で打ち切られた可能性があります。\n履歴中のコード片だけを根拠に指摘しないでください。\n\n'
               cat "$CLAUDE_REVIEW_WORK_DIR/pr_comments.txt"
             fi
           } > "$PROMPT_FILE"

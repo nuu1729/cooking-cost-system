@@ -1,0 +1,35 @@
+name: Review Scripts Test
+
+# claude-review.yml が使う差分フィルタの単体テスト。
+# スクリプトを触ったときにテストを回し忘れるのを防ぐため CI に載せる。
+# paths を絞っているので、通常の開発では実行されない。
+
+on:
+  push:
+    paths:
+      - '.github/scripts/filter-review-diff.py'
+      - '.github/scripts/test_filter_review_diff.py'
+      - '.github/workflows/test-review-scripts.yml'
+  pull_request:
+    paths:
+      - '.github/scripts/filter-review-diff.py'
+      - '.github/scripts/test_filter_review_diff.py'
+      - '.github/workflows/test-review-scripts.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # 標準ライブラリしか使っていないため、ランナー同梱の python3 をそのまま使う
+      # （claude-review.yml の truncate_utf8 も同じ前提）
+      - name: Python バージョン
+        run: python3 --version
+
+      - name: フィルタの単体テスト
+        run: python3 .github/scripts/test_filter_review_diff.py
