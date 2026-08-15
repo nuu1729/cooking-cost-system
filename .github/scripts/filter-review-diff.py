@@ -15,12 +15,18 @@
     stdin  : unified diff（git / GitHub の diff 形式）
     stdout : 除外後の diff。末尾に除外したファイルの一覧を注記として付ける
     stderr : 処理サマリ（ワークフローのログ用）
+
+エラー処理:
+    例外は握りつぶさず、そのまま伝播させて非ゼロ終了する。
+    フィルタが壊れた状態で「差分が空」のままレビューを続けるより、
+    ワークフローを止めて気づけるようにする方が安全なため。
+    （フィルタのファイル自体が存在しない場合は呼び出し側で
+      スキップされる。claude-review.yml のフォールバックを参照。）
 """
 import re
 import sys
 
-# 機械生成・巨大バイナリ相当でレビュー価値が低いファイル。
-# パスの末尾要素、または拡張子で判定する。
+# 機械生成でレビュー価値が低いファイル。パスの末尾要素で判定する。
 NOISE_BASENAMES = {
     'package-lock.json',
     'npm-shrinkwrap.json',
@@ -33,11 +39,15 @@ NOISE_BASENAMES = {
     'Cargo.lock',
     'go.sum',
 }
-NOISE_SUFFIXES = ('.min.js', '.min.css', '.map', '.snap')
 
-# "diff --git a/<path> b/<path>" から新しい側のパスを取る。
-# パスに空白を含む場合に備え b/ 以降を貪欲に拾う。
-DIFF_HEADER = re.compile(r'^diff --git a/(?:.+?) b/(.+)$')
+# 拡張子で判定するもの。
+# .snap（Jest スナップショット）は意図的に含めていない。
+# スナップショットの差分は UI の変化を検出する目的でレビューしたいことがあり、
+# 一律除外すると本来見たい変更まで落ちるため。巨大なスナップショットは
+# 文字数上限側で打ち切られ、打ち切りマーカーが出るので気づける。
+NOISE_SUFFIXES = ('.min.js', '.min.css', '.map')
+
+DIFF_START = 'diff --git '
 
 
 def is_noise(path):
@@ -47,25 +57,64 @@ def is_noise(path):
     return path.endswith(NOISE_SUFFIXES)
 
 
-def split_blocks(diff_text):
-    """diff をファイル単位のブロックに分割して (path, block) を返す。
+def extract_path(block):
+    """ブロックから対象ファイルのパスを取り出す。
 
-    先頭に "diff --git" 以外の行がある場合は path=None のブロックとして保持する。
+    ヘッダ行 `diff --git a/<path> b/<path>` はパスに空白が含まれると
+    区切りが曖昧になる（`src/some b/file.ts` のようなパスで誤分割する）。
+    そのため、パスが1つしか現れない `+++ b/<path>` 行を優先して使う。
+    削除されたファイルは `+++ /dev/null` になるので `--- a/<path>` を見る。
+    どちらも無い場合（モード変更のみ等）だけヘッダ行から推定する。
+    """
+    to_path = None
+    from_path = None
+    for line in block.splitlines():
+        if line.startswith('@@'):
+            break  # ヘッダ部の終わり。以降は本文なので見ない
+        if to_path is None and line.startswith('+++ '):
+            value = line[4:]
+            if value != '/dev/null':
+                to_path = value[2:] if value.startswith('b/') else value
+        elif from_path is None and line.startswith('--- '):
+            value = line[4:]
+            if value != '/dev/null':
+                from_path = value[2:] if value.startswith('a/') else value
+    if to_path:
+        return to_path
+    if from_path:
+        return from_path
+
+    # フォールバック: ヘッダ行から取る。
+    # rename でない限り a/ と b/ のパスは同一なので、
+    # 「同じ長さの2つのパスが ' b/' で連結されている」前提で分割できる。
+    header = block.split('\n', 1)[0]
+    if not header.startswith(DIFF_START + 'a/'):
+        return None
+    rest = header[len(DIFF_START):]           # "a/<path> b/<path>"
+    n = (len(rest) - 5) // 2                  # len = 2 + n + 3 + n
+    if n > 0 and rest[2 + n:5 + n] == ' b/':
+        return rest[5 + n:]
+    m = re.match(r'^a/(?:.+?) b/(.+)$', rest)  # rename 等はここで妥協する
+    return m.group(1) if m else None
+
+
+def split_blocks(diff_text):
+    """diff をファイル単位のブロックに分割する。
+
+    `diff --git ` で始まる行を境界にするだけなので、パスの中身に依存しない。
+    先頭に境界行より前の行がある場合は最初のブロックとして保持する。
     """
     blocks = []
-    current_path = None
-    current_lines = []
+    current = []
     for line in diff_text.splitlines(keepends=True):
-        m = DIFF_HEADER.match(line.rstrip('\n'))
-        if m:
-            if current_lines:
-                blocks.append((current_path, ''.join(current_lines)))
-            current_path = m.group(1)
-            current_lines = [line]
+        if line.startswith(DIFF_START):
+            if current:
+                blocks.append(''.join(current))
+            current = [line]
         else:
-            current_lines.append(line)
-    if current_lines:
-        blocks.append((current_path, ''.join(current_lines)))
+            current.append(line)
+    if current:
+        blocks.append(''.join(current))
     return blocks
 
 
@@ -86,25 +135,27 @@ def main():
 
     kept = []
     excluded = []
-    for path, block in split_blocks(diff_text):
+    for block in split_blocks(diff_text):
+        path = extract_path(block)
+        # パスが取れないブロック（diff 先頭のメタ情報など）は判定できないので残す
         if path is not None and is_noise(path):
             added, removed = count_changes(block)
             excluded.append((path, added, removed))
         else:
             kept.append(block)
 
-    out = ''.join(kept)
     if excluded:
-        lines = [
+        note = [
             '',
             '',
             '# 注記: 以下のファイルは機械生成のためレビュー対象から除外しました。',
             '# 依存の増減はソース側の変更から読み取ってください。',
         ]
         for path, added, removed in excluded:
-            lines.append('#   %s (+%d / -%d)' % (path, added, removed))
-        out += '\n'.join(lines) + '\n'
+            note.append('#   %s (+%d / -%d)' % (path, added, removed))
+        kept.append('\n'.join(note) + '\n')
 
+    out = ''.join(kept)
     # 端末やロケールの既定エンコーディングに依存しないよう、常に UTF-8 のバイトで書く
     # （Windows のローカル検証では cp932 で落ちるため）
     sys.stdout.buffer.write(out.encode('utf-8'))
