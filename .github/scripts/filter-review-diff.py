@@ -77,6 +77,9 @@ def extract_path(block):
     to_path = None
     from_path = None
     rename_to = None
+    # 3つの条件は互いに排他（1行が複数の接頭辞で始まることはない）なので
+    # elif ではなく独立した if にしている。elif だと「+++ が /dev/null の
+    # ときに後続の判定がスキップされるのでは」と読めてしまうため。
     for line in block.splitlines():
         if line.startswith('@@'):
             break  # ヘッダ部の終わり。以降は本文なので見ない
@@ -84,11 +87,11 @@ def extract_path(block):
             value = line[4:]
             if value != '/dev/null':
                 to_path = value[2:] if value.startswith('b/') else value
-        elif from_path is None and line.startswith('--- '):
+        if from_path is None and line.startswith('--- '):
             value = line[4:]
             if value != '/dev/null':
                 from_path = value[2:] if value.startswith('a/') else value
-        elif rename_to is None and line.startswith('rename to '):
+        if rename_to is None and line.startswith('rename to '):
             # `rename from` は読まない。欲しいのは変更後のパスだけで、
             # 変更前のパスは削除扱いの `--- a/<path>` で足りるため。
             rename_to = line[len('rename to '):]
