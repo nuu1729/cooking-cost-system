@@ -28,8 +28,13 @@ jobs:
       # 無いスクリプト」を参照して落ちるうえ、スクリプトの修正がマージされるまで
       # 検証できない。本リポジトリは外部コントリビュータを受け付けていないため、
       # PR 側からフィルタを書き換えられる点は許容する。
-      # 外部からの PR を受けるようになったら base 固定に切り替え、
-      # そのときはスクリプトが base に存在することが前提になる点に注意。
+      #
+      # ⚠ 外部からの PR を受け入れるようになったら、以下をまとめて見直すこと:
+      #   1. この checkout の ref を ${{ github.event.pull_request.base.sha }} に固定する
+      #   2. その場合フィルタスクリプトが base に存在することが前提になるため、
+      #      下の「フィルタが無ければスキップ」のフォールバックが常時発動しないか確認する
+      #   3. ANTHROPIC_API_KEY を外部 PR に露出させない構成か確認する
+      #      （fork からの pull_request では secrets が渡らない点も含めて）
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
         with:
@@ -97,12 +102,15 @@ jobs:
               pass
           data = b''.join(chunks)
           text = data.decode('utf-8', 'replace')
-          out = text[:max_chars]
           if len(text) > max_chars:
               # 打ち切ったことを明示する。これが無いと、レビュー側は差分を
               # 全部読めた前提で「このファイルには変更が無い」と誤認する。
-              out += ('\n\n[!] ここで文字数上限（%d文字）により打ち切られました。'
-                      'これ以降の差分はレビューに含まれていません。\n' % max_chars)
+              # メッセージの分を差し引いて、出力全体が max_chars に収まるようにする。
+              msg = ('\n\n[!] ここで文字数上限（%d文字）により打ち切られました。'
+                     'これ以降の差分はレビューに含まれていません。\n' % max_chars)
+              out = text[:max(0, max_chars - len(msg))] + msg
+          else:
+              out = text
           sys.stdout.buffer.write(out.encode('utf-8'))
           "
           }

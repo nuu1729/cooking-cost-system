@@ -58,8 +58,17 @@ def test_extract_path():
         'diff --git a/old.ts b/old.ts\ndeleted file mode 100644\n'
         '--- a/old.ts\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n'),
         'old.ts')
-    check('リネーム', f.extract_path(
+    # `rename to` 行を明示的に読む（ヘッダ行の正規表現任せにしない）
+    check('リネーム（内容変更なし）', f.extract_path(
         'diff --git a/a.ts b/b.ts\nsimilarity index 100%\nrename from a.ts\nrename to b.ts\n'),
+        'b.ts')
+    check('リネーム（パスに空白あり）', f.extract_path(
+        'diff --git a/old dir/a.ts b/new dir/b.ts\nsimilarity index 95%\n'
+        'rename from old dir/a.ts\nrename to new dir/b.ts\n'),
+        'new dir/b.ts')
+    check('リネーム＋内容変更（+++ を優先）', f.extract_path(
+        'diff --git a/a.ts b/b.ts\nsimilarity index 90%\nrename from a.ts\nrename to b.ts\n'
+        '--- a/a.ts\n+++ b/b.ts\n@@ -1 +1 @@\n-x\n+y\n'),
         'b.ts')
 
     # 本文に +++ / --- で始まる行があってもヘッダと取り違えない（@@ で走査を止める）
@@ -78,6 +87,10 @@ def test_is_noise():
         ('a/b/Cargo.lock', True),
         ('src/vendor.min.js', True),
         ('dist/app.js.map', True),
+        ('dist/styles.css.map', True),
+        # .map 単体では除外しない（独自形式の *.map を誤除外しないため）
+        ('data/world.map', False),
+        ('config/routes.map', False),
         # .snap は除外しない（UIの変化を検出する目的でレビューしたいことがある）
         ('src/__snapshots__/App.test.tsx.snap', False),
         ('src/app.ts', False),

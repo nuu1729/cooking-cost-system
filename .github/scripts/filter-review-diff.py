@@ -41,11 +41,15 @@ NOISE_BASENAMES = {
 }
 
 # 拡張子で判定するもの。
+#
+# `.map` 単体では判定しない。汎用的すぎて独自形式の *.map を誤除外するため、
+# 実際の対象である source map（.js.map / .css.map）に限定している。
+#
 # .snap（Jest スナップショット）は意図的に含めていない。
 # スナップショットの差分は UI の変化を検出する目的でレビューしたいことがあり、
 # 一律除外すると本来見たい変更まで落ちるため。巨大なスナップショットは
 # 文字数上限側で打ち切られ、打ち切りマーカーが出るので気づける。
-NOISE_SUFFIXES = ('.min.js', '.min.css', '.map')
+NOISE_SUFFIXES = ('.min.js', '.min.css', '.js.map', '.css.map')
 
 DIFF_START = 'diff --git '
 
@@ -62,12 +66,17 @@ def extract_path(block):
 
     ヘッダ行 `diff --git a/<path> b/<path>` はパスに空白が含まれると
     区切りが曖昧になる（`src/some b/file.ts` のようなパスで誤分割する）。
-    そのため、パスが1つしか現れない `+++ b/<path>` 行を優先して使う。
-    削除されたファイルは `+++ /dev/null` になるので `--- a/<path>` を見る。
-    どちらも無い場合（モード変更のみ等）だけヘッダ行から推定する。
+    そのため、パスが1つしか現れない行を優先して使う。
+
+    優先順位:
+      1. `+++ b/<path>`   通常の変更・新規追加
+      2. `rename to <path>`   内容変更を伴わないリネーム（+++ が出ない）
+      3. `--- a/<path>`   削除（+++ は /dev/null になる）
+      4. ヘッダ行からの推定（モード変更のみ等、上のどれも無い場合）
     """
     to_path = None
     from_path = None
+    rename_to = None
     for line in block.splitlines():
         if line.startswith('@@'):
             break  # ヘッダ部の終わり。以降は本文なので見ない
@@ -79,14 +88,24 @@ def extract_path(block):
             value = line[4:]
             if value != '/dev/null':
                 from_path = value[2:] if value.startswith('a/') else value
+        elif rename_to is None and line.startswith('rename to '):
+            rename_to = line[len('rename to '):]
     if to_path:
         return to_path
+    if rename_to:
+        return rename_to
     if from_path:
         return from_path
 
     # フォールバック: ヘッダ行から取る。
     # rename でない限り a/ と b/ のパスは同一なので、
     # 「同じ長さの2つのパスが ' b/' で連結されている」前提で分割できる。
+    #
+    # 限界: a/ と b/ でパスが異なり、かつ `rename to` も ---/+++ も出ない
+    # 差分（実質モード変更のみのリネーム）では、末尾の re.match による
+    # 推定に落ちるため誤ったパスを返しうる。
+    # ただし is_noise はパスの末尾要素と拡張子で判定するため、
+    # この誤りが「除外すべきでないファイルを除外する」方向に働くことは稀。
     header = block.split('\n', 1)[0]
     if not header.startswith(DIFF_START + 'a/'):
         return None
