@@ -4,9 +4,11 @@
 実行方法（依存なし・標準ライブラリのみ）:
     python3 .github/scripts/test_filter_review_diff.py
 
-CI には組み込んでいない。フィルタを触るときに手元で回すこと。
-ワークフローから呼ばれるのは filter-review-diff.py のみで、
-このファイルが無くても動作には影響しない。
+CI では .github/workflows/test-review-scripts.yml から自動実行される。
+paths を絞ってあるので、フィルタ関連のファイルを変更した push / PR でだけ動く。
+
+claude-review.yml から呼ばれるのは filter-review-diff.py のみで、
+このファイルが無くてもレビューの動作には影響しない。
 """
 import importlib.util
 import os

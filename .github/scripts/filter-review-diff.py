@@ -89,6 +89,8 @@ def extract_path(block):
             if value != '/dev/null':
                 from_path = value[2:] if value.startswith('a/') else value
         elif rename_to is None and line.startswith('rename to '):
+            # `rename from` は読まない。欲しいのは変更後のパスだけで、
+            # 変更前のパスは削除扱いの `--- a/<path>` で足りるため。
             rename_to = line[len('rename to '):]
     if to_path:
         return to_path
@@ -110,7 +112,8 @@ def extract_path(block):
     if not header.startswith(DIFF_START + 'a/'):
         return None
     rest = header[len(DIFF_START):]           # "a/<path> b/<path>"
-    n = (len(rest) - 5) // 2                  # len = 2 + n + 3 + n
+    # パス長を n とすると "a/" + n + " b/" + n で len(rest) = 5 + 2n
+    n = (len(rest) - 5) // 2
     if n > 0 and rest[2 + n:5 + n] == ' b/':
         return rest[5 + n:]
     m = re.match(r'^a/(?:.+?) b/(.+)$', rest)  # rename 等はここで妥協する
