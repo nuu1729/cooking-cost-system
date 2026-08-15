@@ -7,6 +7,18 @@ import { storesApi, Store } from '@/api/stores';
 import toast from 'react-hot-toast';
 import BarcodeScanner from '@/components/features/BarcodeScanner';
 import CreatableSelect from 'react-select/creatable';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { formInput } from '@/lib/ui-classes';
+
+// この画面の入力欄。共通の formInput() にフォーカス表現と不正時の背景を足したもの。
+// 不正時の枠線・リングは shadcn 基底の aria-invalid:border-destructive / ring に委ね、
+// 背景だけ移行前のデザイン（薄い赤）を踏襲している。
+const FORM_INPUT_BASE = formInput(
+    'focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-emerald-500',
+    'aria-invalid:bg-red-50',
+);
 
 const buildSelectStyles = (hasError: boolean) => ({
     control: (base: any, state: any) => ({
@@ -342,11 +354,11 @@ const AddIngredientPage: React.FC = () => {
                                         </svg>
                                     </div>
                                     <p className="text-purple-700 italic text-sm font-medium leading-relaxed font-['Outfit']">"{lastTranscript}"</p>
-                                    <button onClick={() => setLastTranscript('')} className="ml-auto text-purple-300 hover:text-purple-500 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setLastTranscript('')} aria-label="音声入力の内容を閉じる" className="ml-auto text-purple-300 hover:bg-transparent hover:text-purple-500 transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="size-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                         </svg>
-                                    </button>
+                                    </Button>
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -354,38 +366,46 @@ const AddIngredientPage: React.FC = () => {
                         <form onSubmit={handlePreSubmit} className="space-y-6 bg-transparent">
                             {/* 商品名 */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                {/* 移行前は htmlFor が無く input と紐付いていなかったため id/htmlFor を追加 */}
+                                <Label htmlFor="add-name" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>商品名</span>
                                     {errors.name && <span className="text-sm text-red-500 font-normal">入力してください</span>}
-                                </label>
-                                <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="例：トマト"
-                                    className={`w-full px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg ${errors.name ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`} />
+                                </Label>
+                                <Input id="add-name" type="text" name="name" value={formData.name} onChange={handleChange} placeholder="例：トマト"
+                                    aria-invalid={!!errors.name}
+                                    className={FORM_INPUT_BASE} />
                             </div>
 
                             {/* 価格 */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between" style={{ maxWidth: 400 }}>
+                                <Label htmlFor="add-price" className="max-w-[400px] text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>価格</span>
                                     {errors.price && <span className="text-sm text-red-500 font-normal">{errors.price}</span>}
-                                </label>
-                                <div className="relative" style={{ maxWidth: 400 }}>
-                                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-lg">¥</span>
-                                    <input type="text" inputMode="decimal" name="price" value={formData.price} onChange={handleChange} placeholder="300"
-                                        className={`w-full pl-12 pr-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg text-right ${errors.price ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`} />
+                                </Label>
+                                <div className="relative max-w-[400px]">
+                                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-lg" aria-hidden="true">¥</span>
+                                    <Input id="add-price" type="text" inputMode="decimal" name="price" value={formData.price} onChange={handleChange} placeholder="300"
+                                        aria-invalid={!!errors.price}
+                                        className={`${FORM_INPUT_BASE} pl-12 pr-6 text-right`} />
                                 </div>
                             </div>
 
                             {/* 量 & 単位 */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between" style={{ maxWidth: 400 }}>
+                                <Label htmlFor="add-quantity" className="max-w-[400px] text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>量</span>
                                     {errors.quantity && <span className="text-sm text-red-500 font-normal">{errors.quantity}</span>}
-                                </label>
-                                <div className="flex gap-4" style={{ maxWidth: 400 }}>
-                                    <input type="text" inputMode="decimal" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="0"
-                                        className={`flex-1 px-6 py-4 bg-[#f0f0f0] border-2 rounded-2xl transition-all outline-none text-lg text-right ${errors.quantity ? 'border-red-300 ring-2 ring-red-100 bg-red-50' : 'border-transparent focus:ring-2 focus:ring-emerald-500'}`} />
+                                </Label>
+                                <div className="flex gap-4 max-w-[400px]">
+                                    <Input id="add-quantity" type="text" inputMode="decimal" name="quantity" value={formData.quantity} onChange={handleChange} placeholder="0"
+                                        aria-invalid={!!errors.quantity}
+                                        className={`${FORM_INPUT_BASE} w-auto flex-1 text-right`} />
                                     <div className="relative min-w-[100px]">
-                                        <select name="unit" value={formData.unit} onChange={handleChange}
+                                        {/* shadcn の Select（Radix）へは置き換えていない。
+                                            ネイティブ <select> は iOS でOSのピッカーが出るなどモバイルUXが優れており、
+                                            本アプリは実機確認を重視しているため（#22 / #63 / #130）。
+                                            視覚ラベルは「量」しかないので aria-label で単位であることを補う */}
+                                        <select name="unit" aria-label="単位" value={formData.unit} onChange={handleChange}
                                             className="w-full h-full px-6 py-4 bg-[#f0f0f0] border-2 border-transparent rounded-2xl transition-all outline-none appearance-none cursor-pointer text-lg font-medium focus:ring-2 focus:ring-emerald-500">
                                             <option value="g">g</option>
                                             <option value="ml">ml</option>
@@ -402,11 +422,14 @@ const AddIngredientPage: React.FC = () => {
 
                             {/* 購入先 */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                {/* react-select は inputId で内部 input の id を指定できるため、
+                                    Label の htmlFor と正しく紐付けられる */}
+                                <Label htmlFor="add-supplier" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>購入先</span>
                                     {errors.supplier_id && <span className="text-sm text-red-500 font-normal">{errors.supplier_id}</span>}
-                                </label>
+                                </Label>
                                 <CreatableSelect
+                                    inputId="add-supplier"
                                     value={stores.find(s => s.id.toString() === formData.supplier_id)
                                         ? { value: formData.supplier_id, label: stores.find(s => s.id.toString() === formData.supplier_id)!.name }
                                         : null}
@@ -429,11 +452,12 @@ const AddIngredientPage: React.FC = () => {
 
                             {/* ジャンル */}
                             <div className="space-y-2">
-                                <label className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
+                                <Label htmlFor="add-genre" className="text-lg font-bold text-gray-700 ml-1 flex justify-between">
                                     <span>ジャンル</span>
                                     {errors.genre_id && <span className="text-sm text-red-500 font-normal">{errors.genre_id}</span>}
-                                </label>
+                                </Label>
                                 <CreatableSelect
+                                    inputId="add-genre"
                                     value={genres.find(g => g.id.toString() === formData.genre_id)
                                         ? { value: formData.genre_id, label: genres.find(g => g.id.toString() === formData.genre_id)!.name }
                                         : null}
@@ -458,35 +482,45 @@ const AddIngredientPage: React.FC = () => {
 
                     {/* Right Column: Actions */}
                     <div className="w-full md:w-1/3 flex flex-col gap-6 pt-24">
-                        <motion.button onClick={startListening} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                            animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
-                            className={`w-full py-8 rounded-[2rem] text-white flex flex-col items-center justify-center gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 shadow-red-200' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899] shadow-purple-200 hover:shadow-purple-300'}`}>
-                            <div className="relative">
-                                {isListening && <span className="absolute inset-0 rounded-full animate-ping bg-red-200 opacity-75"></span>}
-                                <svg xmlns="http://www.w3.org/2000/svg" className={`h-10 w-10 relative z-10 ${isListening ? 'animate-pulse' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                                </svg>
-                            </div>
-                            <span className="text-xl font-bold font-['Outfit']">{isListening ? '聴いています...' : '音声で入力'}</span>
-                        </motion.button>
+                        {/* variant="ghost": 既定 variant の bg-primary と競合させないため。
+                            ghost の hover:text-foreground は hover:text-white で打ち消す。
+                            SVG の size-10 は必須 — Button 基底の
+                            [&_svg:not([class*='size-'])]:size-4 に特異度で負けて縮むため */}
+                        <Button asChild variant="ghost" className={`w-full h-auto py-8 rounded-[2rem] text-white hover:text-white flex-col gap-3 shadow-xl transition-all duration-300 ${isListening ? 'bg-red-500 hover:bg-red-500 shadow-red-200' : 'bg-gradient-to-r from-[#a855f7] to-[#ec4899] shadow-purple-200 hover:shadow-purple-300'}`}>
+                            <motion.button type="button" onClick={startListening} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                                animate={isListening ? { scale: [1, 1.05, 1], transition: { repeat: Infinity, duration: 1.5 } } : {}}
+                                aria-pressed={isListening}>
+                                <div className="relative">
+                                    {isListening && <span className="absolute inset-0 rounded-full animate-ping bg-red-200 opacity-75"></span>}
+                                    <svg xmlns="http://www.w3.org/2000/svg" className={`size-10 relative z-10 ${isListening ? 'animate-pulse' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                    </svg>
+                                </div>
+                                {/* aria-live: 録音開始/終了はボタン内の文言変化でしか伝わらないため、
+                                    スクリーンリーダーにも状態変化を通知する */}
+                                <span aria-live="polite" className="text-xl font-bold font-['Outfit']">{isListening ? '聴いています...' : '音声で入力'}</span>
+                            </motion.button>
+                        </Button>
 
-                        <motion.button onClick={() => setShowScanner(true)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                            className="w-full py-8 rounded-[2rem] bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white flex flex-col items-center justify-center gap-3 shadow-xl shadow-orange-200 hover:shadow-orange-300 transition-all duration-300">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 3.5V16M4 8h4m8-4h4M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z" />
-                            </svg>
-                            <span className="text-xl font-bold font-['Outfit']">バーコードで入力</span>
-                        </motion.button>
-
-                        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePreSubmit}
-                            className="w-full py-8 rounded-[2rem] bg-[#53b69b] text-white flex flex-col items-center justify-center gap-3 shadow-xl hover:shadow-emerald-200 transition-all duration-300">
-                            <div className="flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                        <Button asChild variant="ghost" className="w-full h-auto py-8 rounded-[2rem] bg-gradient-to-r from-[#f97316] to-[#fb923c] text-white hover:text-white flex-col gap-3 shadow-xl shadow-orange-200 hover:shadow-orange-300 transition-all duration-300">
+                            <motion.button type="button" onClick={() => setShowScanner(true)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 3.5V16M4 8h4m8-4h4M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z" />
                                 </svg>
-                                <span className="text-[24px] font-bold font-['Outfit']">食材を登録</span>
-                            </div>
-                        </motion.button>
+                                <span className="text-xl font-bold font-['Outfit']">バーコードで入力</span>
+                            </motion.button>
+                        </Button>
+
+                        <Button asChild variant="ghost" className="w-full h-auto py-8 rounded-[2rem] bg-[#53b69b] hover:bg-[#53b69b] text-white hover:text-white flex-col gap-3 shadow-xl hover:shadow-emerald-200 transition-all duration-300">
+                            <motion.button type="button" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handlePreSubmit}>
+                                <div className="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="size-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    <span className="text-[24px] font-bold font-['Outfit']">食材を登録</span>
+                                </div>
+                            </motion.button>
+                        </Button>
 
                         <div className="bg-white/50 border border-gray-100 rounded-2xl p-6 text-sm text-gray-500 leading-relaxed shadow-sm">
                             <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -538,14 +572,14 @@ const AddIngredientPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-3">
-                                    <button onClick={handleFinalSubmit} disabled={isSubmitting}
-                                        className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all flex items-center justify-center gap-3 font-['Outfit']">
+                                    <Button type="button" variant="ghost" onClick={handleFinalSubmit} disabled={isSubmitting}
+                                        className="w-full h-auto py-5 bg-[#53b69b] text-white hover:text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all gap-3 font-['Outfit']">
                                         {isSubmitting ? '登録中...' : '登録を確定する (Enter)'}
-                                    </button>
-                                    <button onClick={() => setIsConfirming(false)} disabled={isSubmitting}
-                                        className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
+                                    </Button>
+                                    <Button type="button" variant="ghost" onClick={() => setIsConfirming(false)} disabled={isSubmitting}
+                                        className="w-full h-auto py-5 bg-gray-100 text-gray-600 hover:text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
                                         戻る (ESC)
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </motion.div>
@@ -578,14 +612,14 @@ const AddIngredientPage: React.FC = () => {
                                     </p>
                                 </div>
                                 <div className="flex flex-col gap-3">
-                                    <button onClick={() => setSuccessItem(null)}
-                                        className="w-full py-5 bg-[#53b69b] text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all font-['Outfit']">
+                                    <Button type="button" variant="ghost" onClick={() => setSuccessItem(null)}
+                                        className="w-full h-auto py-5 bg-[#53b69b] text-white hover:text-white font-bold text-xl rounded-2xl shadow-lg shadow-emerald-100 hover:bg-[#45a089] transition-all font-['Outfit']">
                                         続けて登録する (Enter)
-                                    </button>
-                                    <button onClick={() => navigate('/list', { state: { tab: 'ingredients' } })}
-                                        className="w-full py-5 bg-gray-100 text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
+                                    </Button>
+                                    <Button type="button" variant="ghost" onClick={() => navigate('/list', { state: { tab: 'ingredients' } })}
+                                        className="w-full h-auto py-5 bg-gray-100 text-gray-600 hover:text-gray-600 font-bold text-xl rounded-2xl hover:bg-gray-200 transition-all font-['Outfit']">
                                         一覧を確認する
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </motion.div>
